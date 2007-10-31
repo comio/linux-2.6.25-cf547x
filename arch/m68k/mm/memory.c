@@ -203,7 +203,38 @@ static inline void pushcl040(unsigned long paddr)
 
 void cache_clear (unsigned long paddr, int len)
 {
-    if (CPU_IS_040_OR_060) {
+    if (CPU_IS_CFV4E) {
+	unsigned long set;
+	unsigned long start_set;
+	unsigned long end_set;
+
+	start_set = paddr & _ICACHE_SET_MASK;
+	end_set = (paddr+len-1) & _ICACHE_SET_MASK;
+
+	if (start_set > end_set) {
+		/* from the begining to the lowest address */
+		for (set = 0; set <= end_set; set += (0x10 - 3))
+			asm volatile("cpushl %%bc,(%0)\n"
+				     "\taddq%.l #1,%0\n"
+				     "\tcpushl %%bc,(%0)\n"
+				     "\taddq%.l #1,%0\n"
+				     "\tcpushl %%bc,(%0)\n"
+				     "\taddq%.l #1,%0\n"
+				     "\tcpushl %%bc,(%0)" : : "a" (set));
+
+		/* next loop will finish the cache ie pass the hole */
+		end_set = LAST_ICACHE_ADDR;
+	}
+	for (set = start_set; set <= end_set; set += (0x10 - 3))
+		asm volatile("cpushl %%bc,(%0)\n"
+			     "\taddq%.l #1,%0\n"
+			     "\tcpushl %%bc,(%0)\n"
+			     "\taddq%.l #1,%0\n"
+			     "\tcpushl %%bc,(%0)\n"
+			     "\taddq%.l #1,%0\n"
+			     "\tcpushl %%bc,(%0)" : : "a" (set));
+
+    } else if (CPU_IS_040_OR_060) {
 	int tmp;
 
 	/*
@@ -250,7 +281,38 @@ EXPORT_SYMBOL(cache_clear);
 
 void cache_push (unsigned long paddr, int len)
 {
-    if (CPU_IS_040_OR_060) {
+    if (CPU_IS_CFV4E) {
+	unsigned long set;
+	unsigned long start_set;
+	unsigned long end_set;
+
+	start_set = paddr & _ICACHE_SET_MASK;
+	end_set = (paddr+len-1) & _ICACHE_SET_MASK;
+
+	if (start_set > end_set) {
+		/* from the begining to the lowest address */
+		for (set = 0; set <= end_set; set += (0x10 - 3))
+			asm volatile("cpushl %%bc,(%0)\n"
+				     "\taddq%.l #1,%0\n"
+				     "\tcpushl %%bc,(%0)\n"
+				     "\taddq%.l #1,%0\n"
+				     "\tcpushl %%bc,(%0)\n"
+				     "\taddq%.l #1,%0\n"
+				     "\tcpushl %%bc,(%0)" : : "a" (set));
+
+		/* next loop will finish the cache ie pass the hole */
+		end_set = LAST_ICACHE_ADDR;
+	}
+	for (set = start_set; set <= end_set; set += (0x10 - 3))
+		asm volatile("cpushl %%bc,(%0)\n"
+			     "\taddq%.l #1,%0\n"
+			     "\tcpushl %%bc,(%0)\n"
+			     "\taddq%.l #1,%0\n"
+			     "\tcpushl %%bc,(%0)\n"
+			     "\taddq%.l #1,%0\n"
+			     "\tcpushl %%bc,(%0)" : : "a" (set));
+
+    } else if (CPU_IS_040_OR_060) {
 	int tmp = PAGE_SIZE;
 
 	/*

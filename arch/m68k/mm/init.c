@@ -122,7 +122,6 @@ void __init mem_init(void)
 	if (MACH_IS_ATARI)
 		atari_stram_mem_init_hook();
 #endif
-
 	/* this will put all memory onto the freelists */
 	totalram_pages = num_physpages = 0;
 	for_each_online_pgdat(pgdat) {
@@ -146,7 +145,7 @@ void __init mem_init(void)
 		}
 	}
 
-#ifndef CONFIG_SUN3
+#if !defined(CONFIG_SUN3) && !defined(CONFIG_COLDFIRE)
 	/* insert pointer tables allocated so far into the tablelist */
 	init_pointer_table((unsigned long)kernel_pg_dir);
 	for (i = 0; i < PTRS_PER_PGD; i++) {

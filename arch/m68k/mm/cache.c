@@ -10,7 +10,11 @@
 #include <asm/pgalloc.h>
 #include <asm/traps.h>
 
+#ifdef CONFIG_COLDFIRE
+#include <asm/cfcache.h>
+#endif /* CONFIG_COLDFIRE */
 
+#ifndef CONFIG_COLDFIRE
 static unsigned long virt_to_phys_slow(unsigned long vaddr)
 {
 	if (CPU_IS_060) {
@@ -69,11 +73,45 @@ static unsigned long virt_to_phys_slow(unsigned long vaddr)
 	}
 	return 0;
 }
+#endif /* CONFIG_COLDFIRE */
+
 
 /* Push n pages at kernel virtual address and clear the icache */
 /* RZ: use cpush %bc instead of cpush %dc, cinv %ic */
 void flush_icache_range(unsigned long address, unsigned long endaddr)
 {
+#ifdef CONFIG_COLDFIRE
+	unsigned long set;
+	unsigned long start_set;
+	unsigned long end_set;
+
+	start_set = address & _ICACHE_SET_MASK;
+	end_set = endaddr & _ICACHE_SET_MASK;
+
+	if (start_set > end_set) {
+	/* from the begining to the lowest address */
+		for (set = 0; set <= end_set; set += (0x10 - 3))
+			asm volatile ("cpushl %%ic,(%0)\n"
+				      "\taddq%.l #1,%0\n"
+				      "\tcpushl %%ic,(%0)\n"
+				      "\taddq%.l #1,%0\n"
+				      "\tcpushl %%ic,(%0)\n"
+				      "\taddq%.l #1,%0\n"
+				      "\tcpushl %%ic,(%0)" : : "a" (set));
+
+		/* next loop will finish the cache ie pass the hole */
+		end_set = LAST_ICACHE_ADDR;
+	}
+	for (set = start_set; set <= end_set; set += (0x10 - 3))
+		asm volatile ("cpushl %%ic,(%0)\n"
+			      "\taddq%.l #1,%0\n"
+			      "\tcpushl %%ic,(%0)\n"
+			      "\taddq%.l #1,%0\n"
+			      "\tcpushl %%ic,(%0)\n"
+			      "\taddq%.l #1,%0\n"
+			      "\tcpushl %%ic,(%0)" : : "a" (set));
+
+#else /* !CONFIG_COLDFIRE */
 
 	if (CPU_IS_040_OR_060) {
 		address &= PAGE_MASK;
@@ -94,9 +132,11 @@ void flush_icache_range(unsigned long address, unsigned long endaddr)
 			      : "=&d" (tmp)
 			      : "di" (FLUSH_I));
 	}
+#endif /* CONFIG_COLDFIRE */
 }
 EXPORT_SYMBOL(flush_icache_range);
 
+#ifndef CONFIG_COLDFIRE
 void flush_icache_user_range(struct vm_area_struct *vma, struct page *page,
 			     unsigned long addr, int len)
 {
@@ -115,4 +155,5 @@ void flush_icache_user_range(struct vm_area_struct *vma, struct page *page,
 			      : "di" (FLUSH_I));
 	}
 }
+#endif /* CONFIG_COLDFIRE */
 

@@ -24,7 +24,11 @@
 
 #undef DEBUG
 
+#ifndef CONFIG_COLDFIRE
 #define PTRTREESIZE	(256*1024)
+#else
+#define PTRTREESIZE     PAGE_SIZE
+#endif
 
 /*
  * For 040/060 we can use the virtual memory area like other architectures,
@@ -50,7 +54,11 @@ static inline void free_io_area(void *addr)
 
 #else
 
+#ifdef CONFIG_COLDFIRE
+#define IO_SIZE         PAGE_SIZE
+#else
 #define IO_SIZE		(256*1024)
+#endif
 
 static struct vm_struct *iolist;
 
@@ -170,7 +178,12 @@ void __iomem *__ioremap(unsigned long physaddr, unsigned long size, int cachefla
 			break;
 		}
 	} else {
+#ifndef CONFIG_COLDFIRE
 		physaddr |= (_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_DIRTY);
+#else
+		physaddr |= (_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_DIRTY | \
+			     _PAGE_READWRITE);
+#endif
 		switch (cacheflag) {
 		case IOMAP_NOCACHE_SER:
 		case IOMAP_NOCACHE_NONSER:

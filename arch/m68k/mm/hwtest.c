@@ -25,6 +25,7 @@
 
 #include <linux/module.h>
 
+#ifndef CONFIG_COLDFIRE
 int hwreg_present( volatile void *regp )
 {
     int	ret = 0;
@@ -82,4 +83,5 @@ int hwreg_write( volatile void *regp, unsigned short val )
 	return( ret );
 }
 EXPORT_SYMBOL(hwreg_write);
+#endif
 
