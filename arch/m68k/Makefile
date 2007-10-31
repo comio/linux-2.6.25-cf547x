@@ -16,7 +16,9 @@
 KBUILD_DEFCONFIG := amiga_defconfig
 
 # override top level makefile
+ifndef CONFIG_COLDFIRE
 AS += -m68020
+endif
 LDFLAGS := -m m68kelf
 LDFLAGS_MODULE += -T $(srctree)/arch/m68k/kernel/module.lds
 ifneq ($(SUBARCH),$(ARCH))
@@ -36,6 +38,7 @@ CHECKFLAGS += -D__mc68000__
 KBUILD_CFLAGS += -pipe -fno-strength-reduce -ffixed-a2
 
 # enable processor switch if compiled only for a single cpu
+ifndef CONFIG_COLDFIRE
 ifndef CONFIG_M68020
 ifndef CONFIG_M68030
 
@@ -49,6 +52,12 @@ endif
 
 endif
 endif
+endif
+
+ifdef CONFIG_M54455
+CFLAGS := $(CFLAGS) -march=isac -mcpu=54455 -msoft-float -g 
+AFLAGS := $(AFLAGS) -march=isac -mcpu=54455 -msoft-float  
+endif
 
 ifdef CONFIG_KGDB
 # If configured for kgdb support, include debugging infos and keep the
@@ -57,7 +66,11 @@ KBUILD_CFLAGS := $(subst -fomit-frame-pointer,,$(KBUILD_CFLAGS)) -g
 endif
 
 ifndef CONFIG_SUN3
+ifndef CONFIG_COLDFIRE
 head-y := arch/m68k/kernel/head.o
+else
+head-y := arch/m68k/coldfire/head.o
+endif
 else
 head-y := arch/m68k/kernel/sun3-head.o
 endif
@@ -79,6 +92,7 @@ core-$(CONFIG_SUN3)		+= arch/m68k/sun3/	arch/m68k/sun3/prom/
 core-$(CONFIG_M68040)		+= arch/m68k/fpsp040/
 core-$(CONFIG_M68060)		+= arch/m68k/ifpsp060/
 core-$(CONFIG_M68KFPU_EMU)	+= arch/m68k/math-emu/
+core-$(CONFIG_COLDFIRE)		+= arch/m68k/coldfire/
 
 all:	zImage
 

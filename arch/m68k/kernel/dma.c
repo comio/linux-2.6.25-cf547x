@@ -17,6 +17,7 @@
 void *dma_alloc_coherent(struct device *dev, size_t size,
 			 dma_addr_t *handle, gfp_t flag)
 {
+#ifndef CONFIG_M54455
 	struct page *page, **map;
 	pgprot_t pgprot;
 	void *addr;
@@ -55,6 +56,18 @@ void *dma_alloc_coherent(struct device *dev, size_t size,
 	kfree(map);
 
 	return addr;
+#else
+	/*
+	 * On the M5445x platform the memory allocated with GFP_DMA
+	 * is guaranteed to be DMA'able.
+	 */
+	void *addr;
+
+	size = PAGE_ALIGN(size);
+	addr = kmalloc(size, GFP_DMA);
+	*handle = virt_to_phys(addr);
+	return addr;
+#endif
 }
 EXPORT_SYMBOL(dma_alloc_coherent);
 
@@ -62,7 +75,11 @@ void dma_free_coherent(struct device *dev, size_t size,
 		       void *addr, dma_addr_t handle)
 {
 	pr_debug("dma_free_coherent: %p, %x\n", addr, handle);
+#ifndef CONFIG_M54455
 	vfree(addr);
+#else
+	kfree(addr);
+#endif
 }
 EXPORT_SYMBOL(dma_free_coherent);
 

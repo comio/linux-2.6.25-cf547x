@@ -58,8 +58,15 @@ int main(void)
 	DEFINE(PT_A2, offsetof(struct pt_regs, a2));
 	DEFINE(PT_PC, offsetof(struct pt_regs, pc));
 	DEFINE(PT_SR, offsetof(struct pt_regs, sr));
+#ifdef CONFIG_COLDFIRE
+	/* Need to get the context out of struct mm for ASID setting */
+	DEFINE(MM_CONTEXT, offsetof(struct mm_struct, context));
+	/* Coldfire exception frame has vector *before* pc */
+	DEFINE(PT_VECTOR, offsetof(struct pt_regs, pc) - 4);
+#else
 	/* bitfields are a bit difficult */
 	DEFINE(PT_VECTOR, offsetof(struct pt_regs, pc) + 4);
+#endif
 
 	/* offsets into the irq_handler struct */
 	DEFINE(IRQ_HANDLER, offsetof(struct irq_node, handler));

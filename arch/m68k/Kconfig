@@ -119,6 +119,20 @@ config SUN3
 
 	  If you don't want to compile a kernel exclusively for a Sun 3, say N.
 
+config COLDFIRE
+	bool "ColdFire V4e support"
+	default y
+	select CFV4E
+	help
+	  Say Y if you want to build a kernel to run on one of the ColdFire
+	  V4e boards.
+
+config CFV4E
+	bool
+	depends on COLDFIRE
+	select MMU_CFV4E if MMU
+	default y
+
 config AMIGA
 	bool "Amiga support"
 	depends on !MMU_SUN3
@@ -294,13 +308,52 @@ config M68060
 	  If you anticipate running this kernel on a computer with a MC68060
 	  processor, say Y. Otherwise, say N.
 
+config M54455
+	bool "MCF54455 support"
+	depends on COLDFIRE
+	default y
+	help
+          This option will add support for the MCF54455 processor with mmu.
+
+config MCFCLK
+	int "M54455EVB System Clock"
+	depends on M54455
+	default 266666666
+	help
+	  System clock for EVB.  Usually 266MHz for u-boot and 200MHz for dBUG.
+
+config MCF_USER_HALT
+	bool "Coldfire User Halt Enable"
+	depends on M54455
+	default n
+	help
+	  Enables the HALT instruction in User Mode.
+
 config MMU_MOTOROLA
 	bool
-	depends on MMU && !MMU_SUN3
+	depends on MMU && !MMU_SUN3 && !COLDFIRE
 	default y
 
 config MMU_SUN3
 	bool
+
+config MMU_CFV4E
+	bool
+
+config SDRAM_BASE
+	hex
+	depends on M54455
+	default 0x40000000
+
+config SDRAM_SIZE
+	hex
+	depends on M54455
+	default 0x0FFFFFFF
+
+config NOR_FLASH_BASE
+	hex "NOR Flash Base Address"
+	depends on M54455
+	default 0x00000000
 
 config M68KFPU_EMU
 	bool "Math emulation support (EXPERIMENTAL)"
@@ -468,6 +521,14 @@ config ZONE_DMA
 source "drivers/pci/Kconfig"
 
 source "drivers/zorro/Kconfig"
+endmenu
+
+menu "Power management options"
+
+config PM
+	bool "Power Management support"
+	help
+	  Support processor power management modes
 
 endmenu
 
@@ -647,7 +708,7 @@ config DN_SERIAL
 
 config SERIAL_CONSOLE
 	bool "Support for serial port console"
-	depends on (AMIGA || ATARI || MAC || SUN3 || SUN3X || VME || APOLLO) && (ATARI_MFPSER=y || ATARI_SCC=y || ATARI_MIDI=y || MAC_SCC=y || AMIGA_BUILTIN_SERIAL=y || GVPIOEXT=y || MULTIFACE_III_TTY=y || SERIAL=y || MVME147_SCC || SERIAL167 || MVME162_SCC || BVME6000_SCC || DN_SERIAL)
+	depends on (AMIGA || ATARI || MAC || SUN3 || SUN3X || VME || APOLLO || COLDFIRE) && (ATARI_MFPSER=y || ATARI_SCC=y || ATARI_MIDI=y || MAC_SCC=y || AMIGA_BUILTIN_SERIAL=y || GVPIOEXT=y || MULTIFACE_III_TTY=y || SERIAL=y || MVME147_SCC || SERIAL167 || MVME162_SCC || BVME6000_SCC || DN_SERIAL || SERIAL_COLDFIRE)
 	---help---
 	  If you say Y here, it will be possible to use a serial port as the
 	  system console (the system console is the device which receives all

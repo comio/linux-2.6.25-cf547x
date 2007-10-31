@@ -67,13 +67,22 @@ EXPORT_SYMBOL(m68k_memory);
 
 struct mem_info m68k_ramdisk;
 
+#if !defined(CONFIG_COLDFIRE)
 static char m68k_command_line[CL_SIZE];
+#else
+char m68k_command_line[CL_SIZE];
+unsigned long uboot_info_stk;
+EXPORT_SYMBOL(uboot_info_stk);
+#endif
 
 void (*mach_sched_init) (irq_handler_t handler) __initdata = NULL;
 /* machine dependent irq functions */
 void (*mach_init_IRQ) (void) __initdata = NULL;
 void (*mach_get_model) (char *model);
 int (*mach_get_hardware_list) (char *buffer);
+#ifdef CONFIG_COLDFIRE
+void (*mach_tick)(void);
+#endif
 /* machine dependent timer functions */
 unsigned long (*mach_gettimeoffset) (void);
 int (*mach_hwclk) (int, struct rtc_time*);
@@ -128,13 +137,17 @@ extern void config_hp300(void);
 extern void config_q40(void);
 extern void config_sun3x(void);
 
+#ifdef CONFIG_COLDFIRE
+void coldfire_sort_memrec(void);
+#endif
+
 #define MASK_256K 0xfffc0000
 
 extern void paging_init(void);
 
 static void __init m68k_parse_bootinfo(const struct bi_record *record)
 {
-	while (record->tag != BI_LAST) {
+	while ((record->tag != BI_LAST) && !(CONFIG_COLDFIRE)) {
 		int unknown = 0;
 		const unsigned long *data = record->data;
 
@@ -192,7 +205,11 @@ static void __init m68k_parse_bootinfo(const struct bi_record *record)
 					      record->size);
 	}
 
-	m68k_realnum_memory = m68k_num_memory;
+#ifdef CONFIG_COLDFIRE
+    coldfire_sort_memrec();
+#endif
+
+    m68k_realnum_memory = m68k_num_memory;
 #ifdef CONFIG_SINGLE_MEMORY_CHUNK
 	if (m68k_num_memory > 1) {
 		printk("Ignoring last %i chunks of physical memory\n",
@@ -205,7 +222,9 @@ static void __init m68k_parse_bootinfo(const struct bi_record *record)
 void __init setup_arch(char **cmdline_p)
 {
 	extern int _etext, _edata, _end;
+#if !defined(CONFIG_SUN3) && !defined(CONFIG_COLDFIRE)
 	int i;
+#endif
 
 	/* The bootinfo is located right after the kernel bss */
 	m68k_parse_bootinfo((const struct bi_record *)&_end);
@@ -220,9 +239,10 @@ void __init setup_arch(char **cmdline_p)
 	 * We should really do our own FPU check at startup.
 	 * [what do we do with buggy 68LC040s? if we have problems
 	 *  with them, we should add a test to check_bugs() below] */
-#ifndef CONFIG_M68KFPU_EMU_ONLY
+#if !defined(CONFIG_M68KFPU_EMU_ONLY) && defined(CONFIG_FPU)
 	/* clear the fpu if we have one */
-	if (m68k_fputype & (FPU_68881|FPU_68882|FPU_68040|FPU_68060)) {
+	if (m68k_fputype & (FPU_68881|FPU_68882|FPU_68040|FPU_68060|
+			    FPU_CFV4E)) {
 		volatile int zero = 0;
 		asm volatile ("frestore %0" : : "m" (zero));
 	}
@@ -310,13 +330,18 @@ void __init setup_arch(char **cmdline_p)
 		config_sun3x();
 		break;
 #endif
+#ifdef CONFIG_COLDFIRE
+	case MACH_CFMMU:
+		config_coldfire();
+		break;
+#endif
 	default:
 		panic("No configuration setup");
 	}
 
 	paging_init();
 
-#ifndef CONFIG_SUN3
+#if !defined(CONFIG_SUN3) && !defined(CONFIG_COLDFIRE)
 	for (i = 1; i < m68k_num_memory; i++)
 		free_bootmem_node(NODE_DATA(i), m68k_memory[i].addr,
 				  m68k_memory[i].size);
@@ -342,6 +367,10 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 #endif /* !CONFIG_SUN3 */
+
+#ifdef CONFIG_COLDFIRE
+	mmu_context_init();
+#endif
 
 /* set ISA defs early as possible */
 #if defined(CONFIG_ISA) && defined(MULTI_ISA)
@@ -373,6 +402,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 #define LOOP_CYCLES_68030	(8)
 #define LOOP_CYCLES_68040	(3)
 #define LOOP_CYCLES_68060	(1)
+#define LOOP_CYCLES_COLDFIRE	(2)
 
 	if (CPU_IS_020) {
 		cpu = "68020";
@@ -386,6 +416,9 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	} else if (CPU_IS_060) {
 		cpu = "68060";
 		clockfactor = LOOP_CYCLES_68060;
+	} else if (CPU_IS_CFV4E) {
+		cpu = "ColdFire V4e";
+		clockfactor = LOOP_CYCLES_COLDFIRE;
 	} else {
 		cpu = "680x0";
 		clockfactor = 0;
@@ -404,6 +437,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		fpu = "68060";
 	else if (m68k_fputype & FPU_SUNFPA)
 		fpu = "Sun FPA";
+	else if (m68k_fputype & FPU_CFV4E)
+		fpu = "ColdFire V4e";
 	else
 		fpu = "none";
 #endif
@@ -420,6 +455,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		mmu = "Sun-3";
 	else if (m68k_mmutype & MMU_APOLLO)
 		mmu = "Apollo";
+	else if (m68k_mmutype & MMU_CFV4E)
+		mmu = "ColdFire";
 	else
 		mmu = "unknown";
 
@@ -482,7 +519,7 @@ int get_hardware_list(char *buffer)
 
 void check_bugs(void)
 {
-#ifndef CONFIG_M68KFPU_EMU
+#if !defined(CONFIG_M68KFPU_EMU) && !defined(CONFIG_M54455)
 	if (m68k_fputype == 0) {
 		printk(KERN_EMERG "*** YOU DO NOT HAVE A FLOATING POINT UNIT, "
 			"WHICH IS REQUIRED BY LINUX/M68K ***\n");

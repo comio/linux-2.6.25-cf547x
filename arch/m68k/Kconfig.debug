@@ -2,4 +2,13 @@ menu "Kernel hacking"
 
 source "lib/Kconfig.debug"
 
+config BOOTPARAM
+	bool 'Compiled-in Kernel Boot Parameter'
+	depends on COLDFIRE
+
+config BOOTPARAM_STRING
+	string 'Kernel Boot Parameter'
+	default 'console=ttyS0,115200'
+	depends on BOOTPARAM
+
 endmenu

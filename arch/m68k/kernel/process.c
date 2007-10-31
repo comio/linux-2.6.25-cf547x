@@ -191,6 +191,7 @@ EXPORT_SYMBOL(kernel_thread);
 
 void flush_thread(void)
 {
+#if !defined(CONFIG_COLDFIRE)
 	unsigned long zero = 0;
 	set_fs(USER_DS);
 	current->thread.fs = __USER_DS;
@@ -198,6 +199,14 @@ void flush_thread(void)
 		asm volatile (".chip 68k/68881\n\t"
 			      "frestore %0@\n\t"
 			      ".chip 68k" : : "a" (&zero));
+#else
+	set_fs(USER_DS);
+	current->thread.fs = USER_DS;
+#if defined(CONFIG_FPU)
+	if (!FPU_IS_EMU)
+		asm volatile ("frestore %0@\n\t" : : "a" (&zero));
+#endif
+#endif
 }
 
 /*
@@ -261,6 +270,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	 * Must save the current SFC/DFC value, NOT the value when
 	 * the parent was last descheduled - RGH  10-08-96
 	 */
+#if !defined(CONFIG_COLDFIRE)
 	p->thread.fs = get_fs().seg;
 
 	if (!FPU_IS_EMU) {
@@ -272,9 +282,34 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 				"fmoveml %/fpiar/%/fpcr/%/fpsr,%1"
 				: : "m" (p->thread.fp[0]), "m" (p->thread.fpcntl[0])
 				: "memory");
+#else
+	p->thread.fs = get_fs();
+
+#if defined(CONFIG_FPU)
+	if (!FPU_IS_EMU) {
+		/* Copy the current fpu state */
+		asm volatile ("fsave %0" : : "m" (p->thread.fpstate[0])
+			      : "memory");
+
+		if (p->thread.fpstate[0]) {
+			asm volatile ("fmovemd %/fp0-%/fp7,%0"
+				      : : "m" (p->thread.fp[0])
+				      : "memory");
+			asm volatile ("fmovel %/fpiar,%0"
+				      : : "m" (p->thread.fpcntl[0])
+				      : "memory");
+			asm volatile ("fmovel %/fpcr,%0"
+				      : : "m" (p->thread.fpcntl[1])
+				      : "memory");
+			asm volatile ("fmovel %/fpsr,%0"
+				      : : "m" (p->thread.fpcntl[2])
+				      : "memory");
+		}
 		/* Restore the state in case the fpu was busy */
 		asm volatile ("frestore %0" : : "m" (p->thread.fpstate[0]));
 	}
+#endif
+#endif
 
 	return 0;
 }
@@ -283,7 +318,9 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 
 int dump_fpu (struct pt_regs *regs, struct user_m68kfp_struct *fpu)
 {
+#if !defined(CONFIG_COLDFIRE) || defined(CONFIG_FPU)
 	char fpustate[216];
+#endif
 
 	if (FPU_IS_EMU) {
 		int i;
@@ -300,6 +337,7 @@ int dump_fpu (struct pt_regs *regs, struct user_m68kfp_struct *fpu)
 	}
 
 	/* First dump the fpu context to avoid protocol violation.  */
+#if !defined(CONFIG_COLDFIRE)
 	asm volatile ("fsave %0" :: "m" (fpustate[0]) : "memory");
 	if (!CPU_IS_060 ? !fpustate[0] : !fpustate[2])
 		return 0;
@@ -310,6 +348,25 @@ int dump_fpu (struct pt_regs *regs, struct user_m68kfp_struct *fpu)
 	asm volatile ("fmovemx %/fp0-%/fp7,%0"
 		:: "m" (fpu->fpregs[0])
 		: "memory");
+#elif defined(CONFIG_FPU)
+	asm volatile ("fsave %0" :: "m" (fpustate[0]) : "memory");
+	if (!CPU_IS_060 ? !fpustate[0] : !fpustate[2])
+		return 0;
+
+	asm volatile ("fmovel %/fpiar,%0"
+		      : : "m" (fpu->fpcntl[0])
+		      : "memory");
+	asm volatile ("fmovel %/fpcr,%0"
+		      : : "m" (fpu->fpcntl[1])
+		      : "memory");
+	asm volatile ("fmovel %/fpsr,%0"
+		      : : "m" (fpu->fpcntl[2])
+		      : "memory");
+	asm volatile ("fmovemd %/fp0-%/fp7,%0"
+		      : : "m" (fpu->fpregs[0])
+		      : "memory");
+#endif
+
 	return 1;
 }
 EXPORT_SYMBOL(dump_fpu);
