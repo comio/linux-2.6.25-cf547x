@@ -29,6 +29,7 @@ typedef struct {
  * Get/set the SFC/DFC registers for MOVES instructions
  */
 
+#ifndef CONFIG_COLDFIRE
 static inline mm_segment_t get_fs(void)
 {
 	mm_segment_t _v;
@@ -49,6 +50,15 @@ static inline void set_fs(mm_segment_t val)
 			      "movec %0,%/dfc\n\t"
 			      : /* no outputs */ : "r" (val.seg) : "memory");
 }
+
+#else /* CONFIG_COLDFIRE */
+
+#include <asm/current.h>
+#define get_fs()        (current->thread.fs)
+#define set_fs(val)     (current->thread.fs = (val))
+#define get_ds()	(KERNEL_DS)
+
+#endif /* CONFIG_COLDFIRE */
 
 #define segment_eq(a,b)	((a).seg == (b).seg)
 

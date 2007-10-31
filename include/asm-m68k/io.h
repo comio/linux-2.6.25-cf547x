@@ -397,10 +397,12 @@ static inline void memcpy_toio(volatile void __iomem *dst, const void *src, int 
 	__builtin_memcpy((void __force *) dst, src, count);
 }
 
-#ifndef CONFIG_SUN3
-#define IO_SPACE_LIMIT 0xffff
-#else
+#if defined(CONFIG_SUN3)
 #define IO_SPACE_LIMIT 0x0fffffff
+#elif defined(CONFIG_COLDFIRE)
+#define IO_SPACE_LIMIT 0xffffffff
+#else
+#define IO_SPACE_LIMIT 0xffff
 #endif
 
 #endif /* __KERNEL__ */
@@ -417,5 +419,23 @@ static inline void memcpy_toio(volatile void __iomem *dst, const void *src, int 
  * Convert a virtual cached pointer to an uncached pointer
  */
 #define xlate_dev_kmem_ptr(p)	p
+
+#ifdef CONFIG_COLDFIRE
+
+#define memset_io(a, b, c) memset((void *)(a), (b), (c))
+#define memcpy_fromio(a, b, c) memcpy((a), (void *)(b), (c))
+#define memcpy_toio(a, b, c) memcpy((void *)(a), (b), (c))
+#if !defined(readb)
+#define readb(addr) \
+    ({ unsigned char __v = (*(volatile unsigned char *) (addr)); __v; })
+#define readw(addr) \
+    ({ unsigned short __v = (*(volatile unsigned short *) (addr)); __v; })
+#define readl(addr) \
+    ({ unsigned int __v = (*(volatile unsigned int *) (addr)); __v; })
+#define writeb(b, addr) (void)((*(volatile unsigned char *) (addr)) = (b))
+#define writew(b, addr) (void)((*(volatile unsigned short *) (addr)) = (b))
+#define writel(b, addr) (void)((*(volatile unsigned int *) (addr)) = (b))
+#endif /* readb */
+#endif /* CONFIG_COLDFIRE */
 
 #endif /* _IO_H */

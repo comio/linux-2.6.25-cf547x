@@ -11,7 +11,10 @@
  * Currently the Atari has 72 and the Amiga 24, but if both are
  * supported in the kernel it is better to make room for 72.
  */
-#if defined(CONFIG_VME) || defined(CONFIG_SUN3) || defined(CONFIG_SUN3X)
+#if defined(CONFIG_COLDFIRE)
+#define SYS_IRQS 256
+#define NR_IRQS SYS_IRQS
+#elif defined(CONFIG_VME) || defined(CONFIG_SUN3) || defined(CONFIG_SUN3X)
 #define NR_IRQS 200
 #elif defined(CONFIG_ATARI) || defined(CONFIG_MAC)
 #define NR_IRQS 72

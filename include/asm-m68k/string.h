@@ -93,6 +93,7 @@ static inline char *strchr(const char *s, int c)
 	return (char *)s - 1;
 }
 
+#ifndef CONFIG_COLDFIRE
 #define __HAVE_ARCH_STRCMP
 static inline int strcmp(const char *cs, const char *ct)
 {
@@ -110,6 +111,7 @@ static inline int strcmp(const char *cs, const char *ct)
 		: "+a" (cs), "+a" (ct), "=d" (res));
 	return res;
 }
+#endif
 
 #define __HAVE_ARCH_MEMSET
 extern void *memset(void *, int, __kernel_size_t);

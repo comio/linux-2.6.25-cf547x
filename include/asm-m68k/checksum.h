@@ -34,6 +34,7 @@ extern __wsum csum_partial_copy_nocheck(const void *src,
 					      void *dst, int len,
 					      __wsum sum);
 
+#ifndef CONFIG_COLDFIRE  /* CF has own copy in arch/m68k/lib/checksum.c */
 /*
  *	This is a version of ip_compute_csum() optimized for IP headers,
  *	which always checksum on 4 octet boundaries.
@@ -59,6 +60,9 @@ static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 		 : "memory");
 	return (__force __sum16)~sum;
 }
+#else
+extern __sum16 ip_fast_csum(const void *iph, unsigned int ihl);
+#endif
 
 /*
  *	Fold a partial checksum
@@ -67,6 +71,11 @@ static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 static inline __sum16 csum_fold(__wsum sum)
 {
 	unsigned int tmp = (__force u32)sum;
+#ifdef CONFIG_COLDFIRE
+	tmp = (tmp & 0xffff) + (tmp >> 16);
+	tmp = (tmp & 0xffff) + (tmp >> 16);
+	return (__force __sum16) ~tmp;
+#else
 	__asm__("swap %1\n\t"
 		"addw %1, %0\n\t"
 		"clrw %1\n\t"
@@ -74,6 +83,7 @@ static inline __sum16 csum_fold(__wsum sum)
 		: "=&d" (sum), "=&d" (tmp)
 		: "0" (sum), "1" (tmp));
 	return (__force __sum16)~sum;
+#endif
 }
 
 

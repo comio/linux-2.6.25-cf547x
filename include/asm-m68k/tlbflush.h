@@ -2,7 +2,7 @@
 #define _M68K_TLBFLUSH_H
 
 
-#ifndef CONFIG_SUN3
+#if !defined(CONFIG_SUN3) && !defined(CONFIG_COLDFIRE)
 
 #include <asm/current.h>
 
@@ -92,7 +92,12 @@ static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end
 	flush_tlb_all();
 }
 
-#else
+static inline void flush_tlb_pgtables(struct mm_struct *mm,
+				      unsigned long start, unsigned long end)
+{
+}
+
+#elif defined(CONFIG_SUN3)
 
 
 /* Reserved PMEGs. */
@@ -214,6 +219,13 @@ static inline void flush_tlb_kernel_page (unsigned long addr)
 	sun3_put_segmap (addr & ~(SUN3_PMEG_SIZE - 1), SUN3_INVALID_PMEG);
 }
 
+static inline void flush_tlb_pgtables(struct mm_struct *mm,
+				      unsigned long start, unsigned long end)
+{
+}
+
+#else /* CONFIG_COLDFIRE */
+#include <asm/cf_tlbflush.h>
 #endif
 
 #endif /* _M68K_TLBFLUSH_H */

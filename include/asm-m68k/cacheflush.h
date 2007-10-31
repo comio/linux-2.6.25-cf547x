@@ -6,6 +6,9 @@
 /* cache code */
 #define FLUSH_I_AND_D	(0x00000808)
 #define FLUSH_I		(0x00000008)
+#ifdef CONFIG_COLDFIRE
+#include <asm/cf_cacheflush.h>
+#else /* !CONFIG_COLDFIRE */
 
 /*
  * Cache handling functions
@@ -153,4 +156,5 @@ static inline void copy_from_user_page(struct vm_area_struct *vma,
 	memcpy(dst, src, len);
 }
 
+#endif /* !CONFIG_COLDFIRE */
 #endif /* _M68K_CACHEFLUSH_H */

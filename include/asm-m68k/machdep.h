@@ -32,4 +32,11 @@ extern void (*mach_heartbeat) (int);
 extern void (*mach_l2_flush) (int);
 extern void (*mach_beep) (unsigned int, unsigned int);
 
+#ifdef CONFIG_COLDFIRE
+extern void __init config_coldfire(void);
+extern void __init mmu_context_init(void);
+extern irq_handler_t mach_default_handler;
+extern void (*mach_tick)(void);
+#endif
+
 #endif /* _M68K_MACHDEP_H */

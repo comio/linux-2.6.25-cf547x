@@ -63,16 +63,25 @@ asmlinkage void resume(void);
 #define smp_read_barrier_depends()	((void)0)
 
 /* interrupt control.. */
-#if 0
-#define local_irq_enable() asm volatile ("andiw %0,%%sr": : "i" (ALLOWINT) : "memory")
-#else
 #include <linux/hardirq.h>
+#ifndef CONFIG_COLDFIRE
 #define local_irq_enable() ({							\
 	if (MACH_IS_Q40 || !hardirq_count())					\
 		asm volatile ("andiw %0,%%sr": : "i" (ALLOWINT) : "memory");	\
 })
-#endif
 #define local_irq_disable() asm volatile ("oriw  #0x0700,%%sr": : : "memory")
+#else /* CONFIG_COLDFIRE */
+#define local_irq_enable()						\
+	asm volatile ("move.w %%sr, %%d0\n\t"				\
+		      "andil #0xf8ff,%%d0\n\t"				\
+		      "move.w %%d0, %%sr\n"				\
+		      : : : "cc", "d0", "memory")
+#define local_irq_disable()						\
+	asm volatile ("move %/sr,%%d0\n\t"				\
+		      "ori.l  #0x0700,%%d0\n\t"				\
+		      "move %%d0,%/sr\n"				\
+		      : : : "cc", "%d0", "memory")
+#endif
 #define local_save_flags(x) asm volatile ("movew %%sr,%0":"=d" (x) : : "memory")
 #define local_irq_restore(x) asm volatile ("movew %0,%%sr": :"d" (x) : "memory")
 

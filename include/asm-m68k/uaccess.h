@@ -1,6 +1,9 @@
 #ifndef __M68K_UACCESS_H
 #define __M68K_UACCESS_H
 
+#ifdef CONFIG_COLDFIRE
+#include <asm/cf_uaccess.h>
+#else
 /*
  * User space memory access functions
  */
@@ -367,4 +370,5 @@ unsigned long __clear_user(void __user *to, unsigned long n);
 
 #define strlen_user(str) strnlen_user(str, 32767)
 
+#endif /* CONFIG_COLDFIRE */
 #endif /* _M68K_UACCESS_H */

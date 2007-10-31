@@ -49,6 +49,19 @@ struct bi_record {
 #endif /* __ASSEMBLY__ */
 
 
+#ifndef __ASSEMBLY__
+
+struct uboot_record {
+    unsigned long bd_info;
+    unsigned long initrd_start;
+    unsigned long initrd_end;
+    unsigned long cmd_line_start;
+    unsigned long cmd_line_stop;
+};
+
+#endif /* __ASSEMBLY__ */
+
+
     /*
      *  Tag Definitions
      *

@@ -22,23 +22,37 @@ static inline unsigned long rdusp(void)
 {
 	unsigned long usp;
 
+#ifndef CONFIG_COLDFIRE
 	__asm__ __volatile__("move %/usp,%0" : "=a" (usp));
+#else
+	__asm__ __volatile__("movel %/usp,%0" : "=a" (usp));
+#endif
 	return usp;
 }
 
 static inline void wrusp(unsigned long usp)
 {
+#ifndef CONFIG_COLDFIRE
 	__asm__ __volatile__("move %0,%/usp" : : "a" (usp));
+#else
+	__asm__ __volatile__("movel %0,%/usp" : : "a" (usp));
+#endif
 }
 
 /*
  * User space process size: 3.75GB. This is hardcoded into a few places,
  * so don't change it unless you know what you are doing.
  */
-#ifndef CONFIG_SUN3
+#if !defined(CONFIG_SUN3) && !defined(CONFIG_COLDFIRE)
 #define TASK_SIZE	(0xF0000000UL)
+#elif defined(CONFIG_COLDFIRE)
+#define TASK_SIZE       (0xC0000000UL)
+#else /* CONFIG_SUN3 */
+#ifdef __ASSEMBLY__
+#define TASK_SIZE	(0x0E000000)
 #else
 #define TASK_SIZE	(0x0E000000UL)
+#endif
 #endif
 
 #ifdef __KERNEL__
@@ -49,9 +63,11 @@ static inline void wrusp(unsigned long usp)
 /* This decides where the kernel will search for a free chunk of vm
  * space during mmap's.
  */
-#ifndef CONFIG_SUN3
-#define TASK_UNMAPPED_BASE	0xC0000000UL
-#else
+#if !defined(CONFIG_SUN3) && !defined(CONFIG_COLDFIRE)
+#define TASK_UNMAPPED_BASE     0xC0000000UL
+#elif defined(CONFIG_COLDFIRE)
+#define TASK_UNMAPPED_BASE     0x80000000UL
+#else /* CONFIG_SUN3 */
 #define TASK_UNMAPPED_BASE	0x0A000000UL
 #endif
 #define TASK_UNMAPPED_ALIGN(addr, off)	PAGE_ALIGN(addr)
@@ -60,7 +76,11 @@ struct thread_struct {
 	unsigned long  ksp;		/* kernel stack pointer */
 	unsigned long  usp;		/* user stack pointer */
 	unsigned short sr;		/* saved status register */
+#ifndef CONFIG_COLDFIRE
 	unsigned short fs;		/* saved fs (sfc, dfc) */
+#else
+	mm_segment_t   fs;
+#endif
 	unsigned long  crp[2];		/* cpu root pointer */
 	unsigned long  esp0;		/* points to SR of stack frame */
 	unsigned long  faddr;		/* info about last fault */
@@ -81,6 +101,7 @@ struct thread_struct {
 /*
  * Do necessary setup to start up a newly executed thread.
  */
+#ifndef CONFIG_COLDFIRE
 static inline void start_thread(struct pt_regs * regs, unsigned long pc,
 				unsigned long usp)
 {
@@ -91,6 +112,23 @@ static inline void start_thread(struct pt_regs * regs, unsigned long pc,
 	regs->sr &= ~0x2000;
 	wrusp(usp);
 }
+#else
+/*
+ * Do necessary setup to start up a newly executed thread.
+ *
+ * pass the data segment into user programs if it exists,
+ * it can't hurt anything as far as I can tell
+ */
+#define start_thread(_regs, _pc, _usp)			\
+do {							\
+	set_fs(USER_DS); /* reads from user space */	\
+	(_regs)->pc = (_pc);				\
+	if (current->mm)				\
+		(_regs)->d5 = current->mm->start_data;	\
+	(_regs)->sr &= ~0x2000;				\
+	wrusp(_usp);					\
+} while (0)
+#endif
 
 /* Forward declaration, a strange C thing */
 struct task_struct;

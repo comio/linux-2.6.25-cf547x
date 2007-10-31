@@ -77,6 +77,7 @@ static inline void raw_outsb(volatile u8 __iomem *port, const u8 *buf,
 		out_8(port, *buf++);
 }
 
+#ifndef CONFIG_COLDFIRE
 static inline void raw_insw(volatile u16 __iomem *port, u16 *buf, unsigned int nr)
 {
 	unsigned int tmp;
@@ -341,6 +342,63 @@ static inline void raw_outsw_swapw(volatile u16 __iomem *port, const u16 *buf,
 		: "g" (port), "g" (buf), "g" (nr)
 		: "d0", "a0", "a1", "d6");
 }
+
+
+#else /*CONFIG_COLDFIRE */
+
+static inline void raw_insw(volatile u16 *port, u16 *buf, unsigned int nr)
+{
+	unsigned int i;
+
+	for (i = 0; i < nr; i++)
+		*buf++ = raw_inw(port);
+}
+
+static inline void raw_outsw(volatile u16 *port, const u16 *buf,
+	unsigned int nr)
+{
+	unsigned int i;
+
+	for (i = 0; i < nr; i++, buf++)
+		raw_outw(*buf, port);
+}
+
+static inline void raw_insl(volatile u32 *port, u32 *buf, unsigned int nr)
+{
+	unsigned int i;
+
+	for (i = 0; i < nr; i++)
+		*buf++ = raw_inl(port);
+}
+
+static inline void raw_outsl(volatile u32 *port, const u32 *buf,
+	unsigned int nr)
+{
+	unsigned int i;
+
+	for (i = 0; i < nr; i++, buf++)
+		raw_outl(*buf, port);
+}
+
+static inline void raw_insw_swapw(volatile u16 *port, u16 *buf,
+				  unsigned int nr)
+{
+	unsigned int i;
+
+	for (i = 0; i < nr; i++)
+		*buf++ = in_le16(port);
+
+}
+
+static inline void raw_outsw_swapw(volatile u16 __iomem *port, const u16 *buf,
+				   unsigned int nr)
+{
+	unsigned int i;
+
+	for (i = 0; i < nr; i++, buf++)
+		out_le16(port, *buf);
+}
+#endif /*CONFIG_COLDFIRE */
 
 #endif /* __KERNEL__ */
 

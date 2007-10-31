@@ -60,7 +60,7 @@ typedef struct user_m68kfp_struct elf_fpregset_t;
 #define ELF_PLAT_INIT(_r, load_addr)	_r->a1 = 0
 
 #define USE_ELF_CORE_DUMP
-#ifndef CONFIG_SUN3
+#if !defined(CONFIG_SUN3) && !defined(CONFIG_COLDFIRE)
 #define ELF_EXEC_PAGESIZE	4096
 #else
 #define ELF_EXEC_PAGESIZE	8192

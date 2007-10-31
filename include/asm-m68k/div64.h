@@ -5,6 +5,7 @@
 
 /* n = n / base; return rem; */
 
+#ifndef CONFIG_COLDFIRE
 #define do_div(n, base) ({					\
 	union {							\
 		unsigned long n32[2];				\
@@ -24,6 +25,9 @@
 	(n) = __n.n64;						\
 	__rem;							\
 })
+#else
+#  include <asm-generic/div64.h>
+#endif
 
 extern uint64_t div64_64(uint64_t dividend, uint64_t divisor);
 #endif /* _M68K_DIV64_H */

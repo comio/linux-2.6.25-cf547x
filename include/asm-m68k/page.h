@@ -4,7 +4,7 @@
 #include <linux/const.h>
 
 /* PAGE_SHIFT determines the page size */
-#ifndef CONFIG_SUN3
+#if !defined(CONFIG_SUN3) && !defined(CONFIG_COLDFIRE)
 #define PAGE_SHIFT	(12)
 #else
 #define PAGE_SHIFT	(13)
@@ -116,10 +116,23 @@ typedef struct page *pgtable_t;
 
 extern unsigned long m68k_memoffset;
 
-#ifndef CONFIG_SUN3
+#if !defined(CONFIG_SUN3)
 
 #define WANT_PAGE_VIRTUAL
 
+#if defined(CONFIG_COLDFIRE)
+static inline unsigned long ___pa(void *vaddr)
+{
+	return (((unsigned long)vaddr & 0x0fffffff) + CONFIG_SDRAM_BASE);
+}
+#define __pa(vaddr)	___pa((void *)(vaddr))
+
+static inline void *__va(unsigned long paddr)
+{
+	return (void *)((paddr & 0x0fffffff) + PAGE_OFFSET);
+}
+
+#else
 static inline unsigned long ___pa(void *vaddr)
 {
 	unsigned long paddr;
@@ -141,6 +154,7 @@ static inline void *__va(unsigned long paddr)
 		: "0" (paddr), "i" (m68k_fixup_memoffset));
 	return vaddr;
 }
+#endif
 
 #else	/* !CONFIG_SUN3 */
 /* This #define is a horrible hack to suppress lots of warnings. --m */
@@ -172,6 +186,8 @@ static inline void *__va(unsigned long x)
  * memory node, but we have no highmem, so that works for now.
  * TODO: implement (fast) pfn<->pgdat_idx conversion functions, this makes lots
  * of the shifts unnecessary.
+ *
+ * PFNs are used to map physical pages.  So PFN[0] maps to the base phys addr.
  */
 #define virt_to_pfn(kaddr)	(__pa(kaddr) >> PAGE_SHIFT)
 #define pfn_to_virt(pfn)	__va((pfn) << PAGE_SHIFT)

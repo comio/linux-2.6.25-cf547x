@@ -4,8 +4,15 @@
 #include <asm/types.h>
 #include <linux/compiler.h>
 
-#ifdef __GNUC__
-
+#if defined(__GNUC__)
+#if defined(__mcfisaaplus__) || defined(__mcfisac__)
+static __inline__ __attribute_const__ __u32 ___arch__swab32(__u32 val)
+{
+	__asm__ ("byterev %0" : "=d" (val) : "0" (val));
+	return val;
+}
+#define __arch__swab32(x) ___arch__swab32(x)
+#elif !defined(__mcoldfire__)
 static __inline__ __attribute_const__ __u32 ___arch__swab32(__u32 val)
 {
 	__asm__("rolw #8,%0; swap %0; rolw #8,%0" : "=d" (val) : "0" (val));
@@ -13,6 +20,7 @@ static __inline__ __attribute_const__ __u32 ___arch__swab32(__u32 val)
 }
 #define __arch__swab32(x) ___arch__swab32(x)
 
+#endif
 #endif
 
 #if defined(__GNUC__) && !defined(__STRICT_ANSI__) || defined(__KERNEL__)

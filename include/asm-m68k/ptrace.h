@@ -38,10 +38,21 @@ struct pt_regs {
   long     d0;
   long     orig_d0;
   long     stkadj;
+#ifndef CONFIG_COLDFIRE
   unsigned short sr;
   unsigned long  pc;
   unsigned format :  4; /* frame format specifier */
   unsigned vector : 12; /* vector offset */
+#else
+  unsigned long mmuar;
+  unsigned long mmusr;
+  unsigned format : 4;  /* frame format specifier */
+  unsigned fs2 : 2;
+  unsigned vector: 8;
+  unsigned fs1 : 2;
+  unsigned short sr;
+  unsigned long pc;
+#endif
 };
 
 /*
