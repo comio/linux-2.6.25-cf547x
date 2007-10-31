@@ -21,12 +21,22 @@ Boston, MA 02111-1307, USA.  */
 
 #define BITS_PER_UNIT 8
 
+#ifdef CONFIG_COLDFIRE
+#define umul_ppmm(w1, w0, u, v) \
+  do { \
+       unsigned long long x; \
+       x = (unsigned long long)u * v; \
+       w0 = (unsigned long)(x & 0x00000000ffffffff); \
+       w1 = (unsigned long)(x & 0xffffffff00000000) >> 32; \
+     } while (0)
+#else /* CONFIG_COLDFIRE */
 #define umul_ppmm(w1, w0, u, v) \
   __asm__ ("mulu%.l %3,%1:%0"						\
            : "=d" ((USItype)(w0)),					\
              "=d" ((USItype)(w1))					\
            : "%0" ((USItype)(u)),					\
              "dmi" ((USItype)(v)))
+#endif /* CONFIG_COLDFIRE */
 
 #define __umulsidi3(u, v) \
   ({DIunion __w;							\

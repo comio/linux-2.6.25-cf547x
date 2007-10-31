@@ -5,6 +5,7 @@
  */
 
 #include <linux/module.h>
+#ifndef CONFIG_COLDFIRE
 #include <asm/uaccess.h>
 
 unsigned long __generic_copy_from_user(void *to, const void __user *from,
@@ -220,3 +221,244 @@ unsigned long __clear_user(void __user *to, unsigned long n)
     return res;
 }
 EXPORT_SYMBOL(__clear_user);
+
+#else /* CONFIG_COLDFIRE */
+
+#include <asm/cf_uaccess.h>
+
+unsigned long __generic_copy_from_user(void *to, const void *from,
+		unsigned long n)
+{
+    unsigned long tmp;
+    __asm__ __volatile__
+	("   tstl %2\n"
+	 "   jeq 2f\n"
+	 "1: movel (%1)+,%3\n"
+	 "   movel %3,(%0)+\n"
+	 "   subql #1,%2\n"
+	 "   jne 1b\n"
+	 "2: movel %4,%2\n"
+	 "   bclr #1,%2\n"
+	 "   jeq 4f\n"
+	 "3: movew (%1)+,%3\n"
+	 "   movew %3,(%0)+\n"
+	 "4: bclr #0,%2\n"
+	 "   jeq 6f\n"
+	 "5: moveb (%1)+,%3\n"
+	 "   moveb %3,(%0)+\n"
+	 "6:\n"
+	 ".section .fixup,\"ax\"\n"
+	 "   .even\n"
+	 "7: movel %2,%%d0\n"
+	 "71:clrl (%0)+\n"
+	 "   subql #1,%%d0\n"
+	 "   jne 71b\n"
+	 "   lsll #2,%2\n"
+	 "   addl %4,%2\n"
+	 "   btst #1,%4\n"
+	 "   jne 81f\n"
+	 "   btst #0,%4\n"
+	 "   jne 91f\n"
+	 "   jra 6b\n"
+	 "8: addql #2,%2\n"
+	 "81:clrw (%0)+\n"
+	 "   btst #0,%4\n"
+	 "   jne 91f\n"
+	 "   jra 6b\n"
+	 "9: addql #1,%2\n"
+	 "91:clrb (%0)+\n"
+	 "   jra 6b\n"
+	 ".previous\n"
+	 ".section __ex_table,\"a\"\n"
+	 "   .align 4\n"
+	 "   .long 1b,7b\n"
+	 "   .long 3b,8b\n"
+	 "   .long 5b,9b\n"
+	 ".previous"
+	 : "=a"(to), "=a"(from), "=d"(n), "=&d"(tmp)
+	 : "d"(n & 3), "0"(to), "1"(from), "2"(n/4)
+	 : "d0", "memory");
+    return n;
+}
+EXPORT_SYMBOL(__generic_copy_from_user);
+
+
+unsigned long __generic_copy_to_user(void *to, const void *from,
+		unsigned long n)
+{
+    unsigned long tmp;
+    __asm__ __volatile__
+	("   tstl %2\n"
+	 "   jeq 3f\n"
+	 "1: movel (%1)+,%3\n"
+	 "22:movel %3,(%0)+\n"
+	 "2: subql #1,%2\n"
+	 "   jne 1b\n"
+	 "3: movel %4,%2\n"
+	 "   bclr #1,%2\n"
+	 "   jeq 4f\n"
+	 "   movew (%1)+,%3\n"
+	 "24:movew %3,(%0)+\n"
+	 "4: bclr #0,%2\n"
+	 "   jeq 5f\n"
+	 "   moveb (%1)+,%3\n"
+	 "25:moveb %3,(%0)+\n"
+	 "5:\n"
+	 ".section .fixup,\"ax\"\n"
+	 "   .even\n"
+	 "60:addql #1,%2\n"
+	 "6: lsll #2,%2\n"
+	 "   addl %4,%2\n"
+	 "   jra 5b\n"
+	 "7: addql #2,%2\n"
+	 "   jra 5b\n"
+	 "8: addql #1,%2\n"
+	 "   jra 5b\n"
+	 ".previous\n"
+	 ".section __ex_table,\"a\"\n"
+	 "   .align 4\n"
+	 "   .long 1b,60b\n"
+	 "   .long 22b,6b\n"
+	 "   .long 2b,6b\n"
+	 "   .long 24b,7b\n"
+	 "   .long 3b,60b\n"
+	 "   .long 4b,7b\n"
+	 "   .long 25b,8b\n"
+	 "   .long 5b,8b\n"
+	 ".previous"
+	 : "=a"(to), "=a"(from), "=d"(n), "=&d"(tmp)
+	 : "r"(n & 3), "0"(to), "1"(from), "2"(n / 4)
+	 : "memory");
+    return n;
+}
+EXPORT_SYMBOL(__generic_copy_to_user);
+
+/*
+ * Copy a null terminated string from userspace.
+ */
+
+long strncpy_from_user(char *dst, const char *src, long count)
+{
+	long res = -EFAULT;
+	if (!(access_ok(VERIFY_READ, src, 1))) /* --tym-- */
+		return res;
+    if (count == 0) return count;
+    __asm__ __volatile__
+	("1: moveb (%2)+,%%d0\n"
+	 "12:moveb %%d0,(%1)+\n"
+	 "   jeq 2f\n"
+	 "   subql #1,%3\n"
+	 "   jne 1b\n"
+	 "2: subl %3,%0\n"
+	 "3:\n"
+	 ".section .fixup,\"ax\"\n"
+	 "   .even\n"
+	 "4: movel %4,%0\n"
+	 "   jra 3b\n"
+	 ".previous\n"
+	 ".section __ex_table,\"a\"\n"
+	 "   .align 4\n"
+	 "   .long 1b,4b\n"
+	 "   .long 12b,4b\n"
+	 ".previous"
+	 : "=d"(res), "=a"(dst), "=a"(src), "=d"(count)
+	 : "i"(-EFAULT), "0"(count), "1"(dst), "2"(src), "3"(count)
+	 : "d0", "memory");
+    return res;
+}
+EXPORT_SYMBOL(strncpy_from_user);
+
+/*
+ * Return the size of a string (including the ending 0)
+ *
+ * Return 0 on exception, a value greater than N if too long
+ */
+long strnlen_user(const char *src, long n)
+{
+    long res = -EFAULT;
+    if (!(access_ok(VERIFY_READ, src, 1))) /* --tym-- */
+	return res;
+
+	res = -(long)src;
+	__asm__ __volatile__
+		("1:\n"
+		 "   tstl %2\n"
+		 "   jeq 3f\n"
+		 "2: moveb (%1)+,%%d0\n"
+		 "22:\n"
+		 "   subql #1,%2\n"
+		 "   tstb %%d0\n"
+		 "   jne 1b\n"
+		 "   jra 4f\n"
+		 "3:\n"
+		 "   addql #1,%0\n"
+		 "4:\n"
+		 "   addl %1,%0\n"
+		 "5:\n"
+		 ".section .fixup,\"ax\"\n"
+		 "   .even\n"
+		 "6: moveq %3,%0\n"
+		 "   jra 5b\n"
+		 ".previous\n"
+		 ".section __ex_table,\"a\"\n"
+		 "   .align 4\n"
+		 "   .long 2b,6b\n"
+		 "   .long 22b,6b\n"
+		 ".previous"
+		 : "=d"(res), "=a"(src), "=d"(n)
+		 : "i"(0), "0"(res), "1"(src), "2"(n)
+		 : "d0");
+	return res;
+}
+EXPORT_SYMBOL(strnlen_user);
+
+
+/*
+ * Zero Userspace
+ */
+
+unsigned long __clear_user(void *to, unsigned long n)
+{
+    __asm__ __volatile__
+	("   tstl %1\n"
+	 "   jeq 3f\n"
+	 "1: movel %3,(%0)+\n"
+	 "2: subql #1,%1\n"
+	 "   jne 1b\n"
+	 "3: movel %2,%1\n"
+	 "   bclr #1,%1\n"
+	 "   jeq 4f\n"
+	 "24:movew %3,(%0)+\n"
+	 "4: bclr #0,%1\n"
+	 "   jeq 5f\n"
+	 "25:moveb %3,(%0)+\n"
+	 "5:\n"
+	 ".section .fixup,\"ax\"\n"
+	 "   .even\n"
+	 "61:addql #1,%1\n"
+	 "6: lsll #2,%1\n"
+	 "   addl %2,%1\n"
+	 "   jra 5b\n"
+	 "7: addql #2,%1\n"
+	 "   jra 5b\n"
+	 "8: addql #1,%1\n"
+	 "   jra 5b\n"
+	 ".previous\n"
+	 ".section __ex_table,\"a\"\n"
+	 "   .align 4\n"
+	 "   .long 1b,61b\n"
+	 "   .long 2b,6b\n"
+	 "   .long 3b,61b\n"
+	 "   .long 24b,7b\n"
+	 "   .long 4b,7b\n"
+	 "   .long 25b,8b\n"
+	 "   .long 5b,8b\n"
+	 ".previous"
+	 : "=a"(to), "=d"(n)
+	 : "r"(n & 3), "d"(0), "0"(to), "1"(n/4));
+    return n;
+}
+EXPORT_SYMBOL(__clear_user);
+
+#endif /* CONFIG_COLDFIRE */
+
