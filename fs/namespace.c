@@ -1364,7 +1364,11 @@ int copy_mount_options(const void __user * data, unsigned long *where)
 	/* copy_from_user cannot cross TASK_SIZE ! */
 	size = TASK_SIZE - (unsigned long)data;
 	if (size > PAGE_SIZE)
+#ifndef CONFIG_COLDFIRE
 		size = PAGE_SIZE;
+#else
+		size = PAGE_SIZE - ((unsigned long)data & ~PAGE_MASK);
+#endif
 
 	i = size - exact_copy_from_user((void *)page, data, size);
 	if (!i) {
