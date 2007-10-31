@@ -45,7 +45,9 @@
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
 #include <asm/mcfuart.h>
+#ifdef CONFIG_NETtel
 #include <asm/nettel.h>
+#endif
 #include <asm/uaccess.h>
 #include "mcfserial.h"
 
@@ -61,7 +63,8 @@ struct timer_list mcfrs_timer_struct;
 #define	CONSOLE_BAUD_RATE	38400
 #define	DEFAULT_CBAUD		B38400
 #elif defined(CONFIG_MOD5272) || defined(CONFIG_M5208EVB) || \
-      defined(CONFIG_M5329EVB) || defined(CONFIG_GILBARCO)
+      defined(CONFIG_M5329EVB) || defined(CONFIG_GILBARCO) || \
+      defined(CONFIG_M54455)
 #define CONSOLE_BAUD_RATE 	115200
 #define DEFAULT_CBAUD		B115200
 #elif defined(CONFIG_ARNEWSH) || defined(CONFIG_FREESCALE) || \
@@ -94,7 +97,7 @@ static struct tty_driver *mcfrs_serial_driver;
 #undef SERIAL_DEBUG_FLOW
 
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
-    defined(CONFIG_M520x) || defined(CONFIG_M532x)
+    defined(CONFIG_M520x) || defined(CONFIG_M532x) || defined(CONFIG_M54455)
 #define	IRQBASE	(MCFINT_VECBASE+MCFINT_UART0)
 #else
 #define	IRQBASE	73
@@ -1604,6 +1607,20 @@ static void mcfrs_irqinit(struct mcf_serial *info)
 		/* GPIOs also must be initalized, depends on board */
 		break;
 	}
+#elif defined(CONFIG_M54455)
+	volatile unsigned char *uartp;
+	uartp = info->addr;
+	switch (info->line) {
+	case 0:
+		MCF_GPIO_PAR_UART |= 0x000F;
+		break;
+	case 1:
+		MCF_GPIO_PAR_UART |= 0x0FF0;
+		break;
+	case 2:
+		/* GPIOs also must be initalized, depends on board */
+		break;
+	}
 #else
 	volatile unsigned char	*icrp, *uartp;
 
@@ -1966,7 +1983,9 @@ struct console mcfrs_console = {
 
 static int __init mcfrs_console_init(void)
 {
+#ifndef CONFIG_M54455
 	register_console(&mcfrs_console);
+#endif
 	return 0;
 }
 
