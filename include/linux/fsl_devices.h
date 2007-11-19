@@ -126,5 +126,16 @@ struct mpc8xx_pcmcia_ops {
 	int(*voltage_set)(int slot, int vcc, int vpp);
 };
 
+struct fsl_ata_platform_data {
+#ifdef	CONFIG_FSL_PATA_USE_DMA
+	int	udma_mask;	/* UDMA modes h/w can handle */
+	int	fifo_alarm;	/* value for fifo_alarm reg */
+	int	max_sg;		/* longest sglist h/w can handle */
+#endif
+	int	(*init)(struct platform_device *pdev);
+	void	(*exit)(void);
+	int	(*get_clk_rate)(void);
+};
+
 #endif /* _FSL_DEVICE_H_ */
 #endif /* __KERNEL__ */

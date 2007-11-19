@@ -374,6 +374,11 @@ ENTRY(__start)
 		MMUTR_SG, MMUDR_SZ16M, MMUDR_DNCP, MMUDR_SP, MMUDR_R, MMUDR_W, \
 		0, MMUDR_LK, %d0
 
+	/* Map ATA registers -- sacrifice a data TLB due to the hw design */
+	mmu_map	(0x90000000), (0x90000000), 0, 0, \
+		MMUTR_SG, MMUDR_SZ16M, MMUDR_DNCP, MMUDR_SP, MMUDR_R, MMUDR_W, \
+		0, MMUDR_LK, %d0
+
 	/* Do unity mapping to enable the MMU.  Map first 16 MB in place as 
 	   code (delete TLBs after MMU is enabled and we are executing in high 
 	   memory). */
