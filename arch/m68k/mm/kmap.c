@@ -133,8 +133,18 @@ void __iomem *__ioremap(unsigned long physaddr, unsigned long size, int cachefla
 	}
 #endif
 
+#ifdef CONFIG_M54455
+	if (physaddr >= 0xf0000000) {
+		/* short circuit mappings for xf0000000 */
 #ifdef DEBUG
-	printk("ioremap: 0x%lx,0x%lx(%d) - ", physaddr, size, cacheflag);
+		printk(KERN_INFO "ioremap: short circuiting 0x%lx mapping\n", physaddr);
+#endif
+		return (void __iomem *)physaddr;
+	}
+#endif
+
+#ifdef DEBUG
+	printk("ioremap: paddr=0x%lx,size=0x%lx(%d) - ", physaddr, size, cacheflag);
 #endif
 	/*
 	 * Mappings have to be aligned
@@ -153,7 +163,7 @@ void __iomem *__ioremap(unsigned long physaddr, unsigned long size, int cachefla
 	virtaddr = (unsigned long)area->addr;
 	retaddr = virtaddr + offset;
 #ifdef DEBUG
-	printk("0x%lx,0x%lx,0x%lx", physaddr, virtaddr, retaddr);
+	printk(" paddr=0x%lx,vaddr=0x%lx,retaddr=0x%lx", physaddr, virtaddr, retaddr);
 #endif
 
 	/*

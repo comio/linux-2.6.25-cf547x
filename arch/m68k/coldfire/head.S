@@ -56,13 +56,13 @@
  * Setup ACR mappings to provide the following memory map:
  *   Data
  *     0xA0000000 -> 0xAFFFFFFF [0] NO CACHE / PRECISE / SUPER ONLY
- *     0xFC000000 -> 0xFCFFFFFF [1] NO CACHE / PRECISE / SUPER ONLY
+ *     0xF0000000 -> 0xFFFFFFFF [1] NO CACHE / PRECISE / SUPER ONLY
  *   Code
  *     None currently (mapped via TLBs)
  */
 
 #define ACR0_DEFAULT	#0xA00FA048   /* ACR0 default value */
-#define ACR1_DEFAULT	#0xFC00A040   /* ACR1 default value */
+#define ACR1_DEFAULT	#0xF00FA040   /* ACR1 default value */
 #define ACR2_DEFAULT	#0x00000000   /* ACR2 default value */
 #define ACR3_DEFAULT	#0x00000000   /* ACR3 default value */
 
