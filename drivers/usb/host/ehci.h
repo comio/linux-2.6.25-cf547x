@@ -120,6 +120,12 @@ struct ehci_hcd {			/* one per controller */
 
 	u8			sbrn;		/* packed release number */
 
+	/*
+	 * OTG controllers and transceivers need software interaction;
+	 * other external transceivers should be software-transparent
+	 */
+	struct otg_transceiver	*transceiver;
+
 	/* irq statistics */
 #ifdef EHCI_STATS
 	struct ehci_stats	stats;
@@ -748,6 +754,22 @@ ehci_port_speed(struct ehci_hcd *ehci, unsigned int portsc)
 #if defined(CONFIG_ARM) && defined(CONFIG_ARCH_IXP4XX)
 #define readl_be(addr)		__raw_readl((__force unsigned *)addr)
 #define writel_be(val, addr)	__raw_writel(val, (__force unsigned *)addr)
+#endif
+
+#if defined(CONFIG_COLDFIRE)
+/*
+ * Sorry, include/asm-m68k/io.h is messed up.  It will give you a
+ * BE readl or a LE readl depending on whether or not CONFIG_PCI is set.
+ * how broken is that?  Do the right thing here.
+ */
+#undef readl
+#undef writel
+
+#define readl(addr)		in_le32((__force unsigned *)(addr))
+#define writel(val,addr)	out_le32((__force unsigned *)(addr),(val))
+
+#define readl_be(addr)		in_be32((__force unsigned *)(addr))
+#define writel_be(val, addr)	out_be32((__force unsigned *)(addr), (val))
 #endif
 
 static inline unsigned int ehci_readl(const struct ehci_hcd *ehci,

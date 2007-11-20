@@ -91,6 +91,19 @@ enum fsl_usb2_operating_modes {
 	FSL_USB2_DR_OTG,
 };
 
+/* DDD
+ * replace _operating_modes with _controller
+ *
+ * the operating_mode tests in fsl_platform_verify() aren't needed,
+ * since the ehci driver isn't going to be probe()d unless it's
+ * "fsl-ehci" device anyway, and what we really need to know is
+ * which controller (MPH/DR) we're dealing with
+ */
+enum fsl_usb2_controller {
+	FSL_USB2_MPH,
+	FSL_USB2_DR,
+};
+
 enum fsl_usb2_phy_modes {
 	FSL_USB2_PHY_NONE,
 	FSL_USB2_PHY_ULPI,
@@ -101,9 +114,36 @@ enum fsl_usb2_phy_modes {
 
 struct fsl_usb2_platform_data {
 	/* board specific information */
-	enum fsl_usb2_operating_modes	operating_mode;
+	/*
+	 * DDD see note above
+	 * enum fsl_usb2_operating_modes	operating_mode;
+	 */
+	enum fsl_usb2_controller	controller;
 	enum fsl_usb2_phy_modes		phy_mode;
 	unsigned int			port_enables;
+	/*
+	 * DDD this could arguably be moved to a separate
+	 * fsl usb2 device header file
+	 */
+	char *name;			/* pretty print */
+	int (*platform_init) (struct platform_device *);
+	void (*platform_uninit) (struct platform_device *);
+	int (*platform_verify) (struct platform_device *);
+	u32				xcvr_type;	/* PORTSCX_PTS_* */
+	u32				view;		/* ULPI viewport register */
+	u32				r_start;	/* start of MEM resource */
+	u32				r_len;		/* length of MEM resource */
+	void __iomem			*regs;		/* ioremap'd register base */
+	unsigned			big_endian_mmio : 1;
+	unsigned			big_endian_desc : 1;
+	unsigned			es : 1;		/* need USBMODE:ES */
+	unsigned			have_sysif_regs : 1;
+	unsigned			le_setup_buf : 1;
+	unsigned			does_otg : 1;	/* set IFF it's an OTG port */
+
+	unsigned			power_budget;	/* for hcd->power_budget */
+	struct fsl_xcvr_ops		*xcvr_ops;
+	int				max_ep_nr;	/* max # of endpoints */
 };
 
 /* Flags in fsl_usb2_mph_platform_data */

@@ -231,6 +231,26 @@ config SUPERH_BUILT_IN_M66592
 	   However, this problem is improved if change a value of
 	   NET_IP_ALIGN to 4.
 
+config USB_GADGET_MCF5445X
+	boolean "MCF5445X USB Device Controller"
+	depends on M54455 && USB_M5445X_ULPI
+	select USB_GADGET_DUALSPEED
+	help
+	   Freescale's MCF5445X processors include
+	   an integrated device controller (as part of the OTG module).
+	   It has four programmable, bidirectional endpoints,
+	   including endpoint 0.
+
+	   Say "y" to link the driver statically, or "m" to build a
+	   dynamically linked module called "mcf5445_udc" and force all
+	   gadget drivers to also be dynamically linked.
+
+config USB_MCF5445X
+	tristate
+	depends on USB_GADGET_MCF5445X
+	default USB_GADGET
+	select USB_GADGET_SELECTED
+
 config USB_GADGET_GOKU
 	boolean "Toshiba TC86C001 'Goku-S'"
 	depends on PCI
@@ -284,17 +304,6 @@ config USB_OMAP
 	depends on USB_GADGET_OMAP
 	default USB_GADGET
 	select USB_GADGET_SELECTED
-
-config USB_OTG
-	boolean "OTG Support"
-	depends on USB_GADGET_OMAP && ARCH_OMAP_OTG && USB_OHCI_HCD
-	help
-	   The most notable feature of USB OTG is support for a
-	   "Dual-Role" device, which can act as either a device
-	   or a host.  The initial role choice can be changed
-	   later, when two dual-role devices talk to each other.
-
-	   Select this only if your OMAP board has a Mini-AB connector.
 
 config USB_GADGET_S3C2410
 	boolean "S3C2410 USB Device Controller"
@@ -368,6 +377,18 @@ config USB_DUMMY_HCD
 # first and will be selected by default.
 
 endchoice
+
+config USB_OTG
+	boolean "OTG Support"
+	depends on (USB_GADGET_OMAP && ARCH_OMAP_OTG && USB_OHCI_HCD) || \
+		   (USB_GADGET_MCF5445X && USB_M5445X_ULPI)
+	help
+	   The most notable feature of USB OTG is support for a
+	   "Dual-Role" device, which can act as either a device
+	   or a host.  The initial role choice can be changed
+	   later, when two dual-role devices talk to each other.
+
+	   Select this only if your OMAP board has a Mini-AB connector.
 
 config USB_GADGET_DUALSPEED
 	bool

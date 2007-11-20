@@ -287,6 +287,9 @@ MODULE_PARM_DESC(host_addr, "Host Ethernet Address");
 #define	DEV_CONFIG_CDC
 #endif
 
+#ifdef CONFIG_USB_GADGET_MCF5445X
+#define DEV_CONFIG_CDC
+#endif
 
 /*-------------------------------------------------------------------------*/
 

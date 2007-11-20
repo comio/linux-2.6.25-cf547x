@@ -40,7 +40,8 @@ static inline void ehci_qtd_init(struct ehci_hcd *ehci, struct ehci_qtd *qtd,
 {
 	memset (qtd, 0, sizeof *qtd);
 	qtd->qtd_dma = dma;
-	qtd->hw_token = cpu_to_le32 (QTD_STS_HALT);
+	// DDD official code` has: qtd->hw_token = cpu_to_le32 (QTD_STS_HALT);
+	qtd->hw_token = cpu_to_hc32 (ehci, QTD_STS_HALT);
 	qtd->hw_next = EHCI_LIST_END(ehci);
 	qtd->hw_alt_next = EHCI_LIST_END(ehci);
 	INIT_LIST_HEAD (&qtd->qtd_list);
@@ -211,9 +212,11 @@ static int ehci_mem_init (struct ehci_hcd *ehci, gfp_t flags)
 	}
 
 	/* Hardware periodic table */
-	ehci->periodic = (__le32 *)
+	// DDD official code has: ehci->periodic = (__le32 *)
+	ehci->periodic = (__hc32 *)
 		dma_alloc_coherent (ehci_to_hcd(ehci)->self.controller,
-			ehci->periodic_size * sizeof(__le32),
+			// DDD official: ehci->periodic_size * sizeof(__le32),
+			ehci->periodic_size * sizeof(__hc32),
 			&ehci->periodic_dma, 0);
 	if (ehci->periodic == NULL) {
 		goto fail;

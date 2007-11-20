@@ -41,7 +41,8 @@ static inline void fsl_platform_set_host_mode(struct usb_hcd *hcd)
 
 	/* set host mode and select "big endian" */
 	temp = fsl_readl(&regs->usbmode);
-	fsl_writel(temp | USBMODE_CM_HOST | USBMODE_ES, &regs->usbmode);
+	temp |= USBMODE_CM_HOST | (pdata->es ? USBMODE_ES : 0);
+	fsl_writel(temp, &regs->usbmode);
 
 	pr_debug("%s: set usbmode to 0x%x\n\n", __FUNCTION__,
 		fsl_readl(&regs->usbmode));

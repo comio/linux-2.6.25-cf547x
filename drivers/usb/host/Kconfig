@@ -32,6 +32,7 @@ config USB_EHCI_HCD
 config USB_EHCI_ROOT_HUB_TT
 	bool "Root Hub Transaction Translators (EXPERIMENTAL)"
 	depends on USB_EHCI_HCD && EXPERIMENTAL
+	default y if M54455
 	---help---
 	  Some EHCI chips have vendor-specific extensions to integrate
 	  transaction translators, so that no OHCI or UHCI companion
@@ -60,12 +61,12 @@ config USB_EHCI_TT_NEWSCHED
 
 config USB_EHCI_BIG_ENDIAN_MMIO
 	bool
-	depends on USB_EHCI_HCD && (PPC_CELLEB || PPC_PS3 || 440EPX || ARCH_IXP4XX)
+	depends on USB_EHCI_HCD && (PPC_CELLEB || PPC_PS3 || 440EPX || ARCH_IXP4XX || M54455)
 	default y
 
 config USB_EHCI_BIG_ENDIAN_DESC
 	bool
-	depends on USB_EHCI_HCD && (440EPX || ARCH_IXP4XX)
+	depends on USB_EHCI_HCD && (440EPX || ARCH_IXP4XX || M54455)
 	default y
 
 config USB_EHCI_FSL
@@ -259,4 +260,20 @@ config USB_R8A66597_HCD
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called r8a66597-hcd.
+
+choice
+	prompt "Select transceiver"
+	depends on M54455
+	default USB_M5445X_ULPI 
+
+config USB_M5445X_ULPI
+	bool "External ULPI"
+	---help---
+	  Enable support for the external HS ULPI transceiver.
+
+config USB_M5445X_FSLS
+	bool "On-chip (FL/LS only)"
+	---help---
+	  Enable support for the on-chip FL/LS transceiver.
+endchoice
 

@@ -18,6 +18,8 @@
 #ifndef _EHCI_FSL_H
 #define _EHCI_FSL_H
 
+#include <linux/usb/fsl_xcvr.h>
+
 /* offsets for the non-ehci registers in the FSL SOC USB controller */
 #define FSL_SOC_USB_ULPIVP	0x170
 #define FSL_SOC_USB_PORTSC1	0x184
@@ -34,5 +36,29 @@
 #define FSL_SOC_USB_PRICTRL	0x40c	/* NOTE: big-endian */
 #define FSL_SOC_USB_SICTRL	0x410	/* NOTE: big-endian */
 #define FSL_SOC_USB_CTRL	0x500	/* NOTE: big-endian */
-#define SNOOP_SIZE_2GB		0x1e
+
+#ifdef CONFIG_MPC834x
+#include <sysdev/fsl_usb.h>
+#endif
+
+#ifdef CONFIG_ARCH_MX3
+#include <asm/arch/mx31_usb.h>
+#endif
+
+#ifdef CONFIG_ARCH_MX27
+#include <asm/arch/mx27_usb.h>
+#endif
+
+#ifdef CONFIG_M54455
+#include <asm-m68k/mcf5445x_usb.h>
+#endif
+
+
+static void fsl_platform_set_vbus_power(struct platform_device *pdev, int on)
+{
+	struct fsl_usb2_platform_data *pdata = pdev->dev.platform_data;
+
+	if (pdata->xcvr_ops && pdata->xcvr_ops->set_vbus_power)
+		pdata->xcvr_ops->set_vbus_power(pdata, on);
+}
 #endif				/* _EHCI_FSL_H */
