@@ -1,6 +1,7 @@
 PHDRS
 {
-  text PT_LOAD FILEHDR PHDRS FLAGS (7);
+  headers PT_PHDR PHDRS ;
+  text PT_LOAD FILEHDR PHDRS FLAGS (5);
   data PT_LOAD FLAGS (7);
 }
 #ifdef CONFIG_SUN3
