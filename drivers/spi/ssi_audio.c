@@ -1,0 +1,906 @@
+/*
+ * MCF5445x audio driver.
+ *
+ * Yaroslav Vinogradov yaroslav.vinogradov@freescale.com
+ * Copyright Freescale Semiconductor, Inc. 2006
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ */
+
+#include <linux/device.h>
+#include <linux/init.h>
+#include <linux/delay.h>
+#include <linux/spi/spi.h>
+#include <linux/fs.h>
+#include <linux/kernel.h>
+#include <linux/major.h>
+#include <asm/mcfsim.h>
+#include <linux/interrupt.h>
+#include <linux/soundcard.h>
+#include <asm/uaccess.h>
+#include <asm/virtconvert.h>
+
+#include <asm/coldfire.h>
+#include <asm/coldfire_edma.h>
+#include <asm/mcf5445x_ssi.h>
+#include <asm/mcf5445x_ccm.h>
+#include <asm/mcf5445x_gpio.h>
+
+#define SOUND_DEVICE_NAME "sound"
+#define DRIVER_NAME "ssi_audio"
+
+
+/* #define AUDIO_DEBUG */
+
+#ifdef CONFIG_MMU
+#define USE_MMU
+#endif
+
+#define MAX_SPEED_HZ 12000000
+
+#define M5445x_AUDIO_IRQ_SOURCE 49
+#define M5445x_AUDIO_IRQ_VECTOR (128+M5445x_AUDIO_IRQ_SOURCE)
+#define M5445x_AUDIO_IRQ_LEVEL	5
+
+/* TLV320DAC23 audio chip registers */
+
+#define CODEC_LEFT_IN_REG			(0x00)
+#define CODEC_RIGHT_IN_REG			(0x01)
+#define CODEC_LEFT_HP_VOL_REG		(0x02)
+#define CODEC_RIGHT_HP_VOL_REG		(0x03)
+#define CODEC_ANALOG_APATH_REG		(0x04)
+#define CODEC_DIGITAL_APATH_REG		(0x05)
+#define CODEC_POWER_DOWN_REG		(0x06)
+#define CODEC_DIGITAL_IF_FMT_REG	(0x07)
+#define CODEC_SAMPLE_RATE_REG		(0x08)
+#define CODEC_DIGITAL_IF_ACT_REG	(0x09)
+#define CODEC_RESET_REG				(0x0f)
+
+#define CODEC_SAMPLE_8KHZ		(0x0C)
+#define CODEC_SAMPLE_16KHZ		(0x58)
+#define CODEC_SAMPLE_22KHZ		(0x62)
+#define CODEC_SAMPLE_32KHZ		(0x18)
+#define CODEC_SAMPLE_44KHZ		(0x22)
+#define CODEC_SAMPLE_48KHZ		(0x00)
+
+/* Audio buffer data size */
+#define	BUFSIZE		(64*1024)
+/* DMA transfer size */
+#define DMASIZE		(16*1024)
+
+/* transmit eDMA channel for SSI channel 0 */
+#define DMA_TCD 	10
+/* transmit eDMA channel for SSI channel 1 */
+#define DMA_TCD2 	11
+
+struct ssi_audio {
+	struct spi_device	*spi;
+	u32 speed;
+	u32 stereo;
+	u32 bits;
+	u32 format;
+	u8  isopen;
+	u8  dmaing;
+	u8  ssi_enabled;
+	u8  channel;
+	spinlock_t lock;
+	u8* audio_buf;
+};
+
+static struct ssi_audio* audio_device = NULL;
+volatile u32 audio_start;
+volatile u32 audio_count;
+volatile u32 audio_append;
+volatile u32 audio_appstart;
+volatile u32 audio_txbusy;
+
+struct ssi_audio_format {
+	unsigned int	format;
+	unsigned int	bits;
+} ssi_audio_formattable[] = {
+	{ AFMT_MU_LAW,		8 },
+	{ AFMT_A_LAW,		8 },
+	{ AFMT_IMA_ADPCM,	8 },
+	{ AFMT_U8,		8 },
+	{ AFMT_S16_LE,		16 },
+	{ AFMT_S16_BE,		16 },
+	{ AFMT_S8,		8 },
+	{ AFMT_U16_LE,		16 },
+	{ AFMT_U16_BE,		16 },
+};
+
+#define	FORMATSIZE	(sizeof(ssi_audio_formattable) / sizeof(struct ssi_audio_format))
+
+static void ssi_audio_setsamplesize(int val)
+{
+	int	i;
+
+	if (audio_device == NULL) return;
+
+	for (i = 0; (i < FORMATSIZE); i++) {
+		if (ssi_audio_formattable[i].format == val) {
+			audio_device->format = ssi_audio_formattable[i].format;
+			audio_device->bits = ssi_audio_formattable[i].bits;
+			break;
+		}
+	}
+
+#ifdef AUDIO_DEBUG
+	printk(DRIVER_NAME ":ssi_audio_setsamplesize %d %d\n", audio_device->format, audio_device->bits);
+#endif
+}
+
+static void ssi_audio_txdrain(void)
+{
+#ifdef AUDIO_DEBUG
+	printk(DRIVER_NAME ":ssi_audio_txdrain()\n");
+#endif
+
+	if (audio_device == NULL) return;
+
+	while (!signal_pending(current)) {
+		if (audio_txbusy == 0)
+			break;
+		current->state = TASK_INTERRUPTIBLE;
+		schedule_timeout(1);
+	}
+}
+
+#ifdef CONFIG_SSIAUDIO_USE_EDMA
+/*
+ *	Configure and start DMA engine.
+ */
+void __inline__ ssi_audio_dmarun(void)
+{
+	set_edma_params(DMA_TCD,
+#ifdef USE_MMU
+					virt_to_phys(&(audio_device->audio_buf[audio_start])),
+#else
+					(u32)&(audio_device->audio_buf[audio_start]),
+#endif
+					(u32)&MCF_SSI_TX0,
+					MCF_EDMA_TCD_ATTR_SSIZE_32BIT | MCF_EDMA_TCD_ATTR_DSIZE_32BIT,
+					8,
+					4,
+					0,
+					audio_count/8,
+					audio_count/8,
+					0,
+					0,
+					0, // major_int
+					0  // disable_req
+					);
+
+	set_edma_params(DMA_TCD2,
+#ifdef USE_MMU
+					virt_to_phys(&(audio_device->audio_buf[audio_start+4])),
+#else
+					(u32)&(audio_device->audio_buf[audio_start+4]),
+#endif
+					(u32)&MCF_SSI_TX1,
+					MCF_EDMA_TCD_ATTR_SSIZE_32BIT | MCF_EDMA_TCD_ATTR_DSIZE_32BIT,
+					8,
+					4,
+					0,
+					audio_count/8,
+					audio_count/8,
+					0,
+					0,
+					1, // major_int
+                    0  // disable_req
+					);
+
+	audio_device->dmaing = 1;
+	audio_txbusy = 1;
+
+	start_edma_transfer(DMA_TCD);
+	start_edma_transfer(DMA_TCD2);
+#if 0
+	MCF_EDMA_ERQ |= (1<<DMA_TCD) | (1<<DMA_TCD2);
+	MCF_EDMA_SSRT = DMA_TCD;
+	MCF_EDMA_SSRT = DMA_TCD2;
+#endif
+
+}
+
+/*
+ *	Start DMA'ing a new buffer of data if any available.
+ */
+static void ssi_audio_dmabuf(void)
+{
+#ifdef AUDIO_DEBUG
+	printk(DRIVER_NAME ":ssi_audio_dmabuf(): append=%x start=%x\n", audio_append, audio_appstart);
+#endif
+
+	/* If already running then nothing to do... */
+	if (audio_device->dmaing)
+		return;
+
+	/* Set DMA buffer size */
+	audio_count = (audio_append >= audio_appstart) ?
+		(audio_append - audio_appstart) :
+		(BUFSIZE - audio_appstart);
+	if (audio_count > DMASIZE)
+		audio_count = DMASIZE;
+
+	/* Adjust pointers and counters accordingly */
+	audio_appstart += audio_count;
+	if (audio_appstart >= BUFSIZE)
+		audio_appstart = 0;
+
+	if (audio_count > 0)
+		ssi_audio_dmarun();
+	else {
+		audio_txbusy = 0;
+#ifdef AUDIO_DEBUG
+		printk(DRIVER_NAME ":DMA buffer is empty!\n");
+#endif
+	}
+}
+
+void __inline__ stop_dma(void) {
+	stop_edma_transfer(DMA_TCD);
+	stop_edma_transfer(DMA_TCD2);
+}
+
+static int ssi_audio_dma_handler_empty(int channel, void *dev_id)
+{
+	return IRQ_HANDLED;
+}
+
+static int ssi_audio_dma_handler(int channel, void *dev_id)
+{
+#ifdef AUDIO_DEBUG
+	printk(DRIVER_NAME ":ssi_audio_dma_handler(channel=%d)\n", channel);
+#endif
+
+	/* Clear DMA interrupt */
+	stop_dma();
+
+	audio_device->dmaing = 0;
+
+	/* Update data pointers and counts */
+	audio_start += audio_count;
+	if (audio_start >= BUFSIZE)
+		audio_start = 0;
+	audio_count = 0;
+
+	/* Start new DMA buffer if we can */
+	ssi_audio_dmabuf();
+
+	return IRQ_HANDLED;
+}
+
+static void init_dma(void)
+{
+	/* SSI DMA Signals mapped to DMA request */
+	MCF_CCM_MISCCR &= ~MCF_CCM_MISCCR_TIMDMA;
+	init_edma();
+}
+
+#endif	/* CONFIG_SSIAUDIO_USE_EDMA */
+
+
+/* Write CODEC register using SPI
+ *   address - CODEC register address
+ *   data - data to be written into register
+ */
+static int codec_write(u8 addr, u16 data)
+{
+	u16 spi_word;
+
+	if (audio_device==NULL || audio_device->spi==NULL)
+		return -ENODEV;
+
+	spi_word = ((addr & 0x7F)<<9)|(data & 0x1FF);
+	return spi_write(audio_device->spi, (const u8*)&spi_word, sizeof(spi_word));
+}
+
+static inline void enable_ssi(void)
+{
+	if (audio_device==NULL || audio_device->ssi_enabled) return;
+	audio_device->ssi_enabled = 1;
+	MCF_SSI_CR |= MCF_SSI_CR_SSI_EN;  /* enable SSI module */
+	MCF_SSI_CR |= MCF_SSI_CR_TE;  	  /* enable tranmitter */
+}
+
+static inline void disable_ssi(void)
+{
+	if (audio_device==NULL || audio_device->ssi_enabled==0) return;
+	MCF_SSI_CR &= ~MCF_SSI_CR_TE;  		/* disable transmitter */
+	MCF_SSI_CR &= ~MCF_SSI_CR_SSI_EN;	/* disable SSI module  */
+	audio_device->ssi_enabled = 0;
+}
+
+/* Audio CODEC initialization */
+/* TODO: also the SSI frequency/dividers must be adjusted */
+static void adjust_codec_speed(void) {
+#ifdef AUDIO_DEBUG
+	printk(DRIVER_NAME ":adjust_codec_speed: %d\n", audio_device->speed);
+#endif
+
+	if (audio_device->speed == 8000) {
+		codec_write(CODEC_SAMPLE_RATE_REG,CODEC_SAMPLE_8KHZ);
+	} else if (audio_device->speed == 16000) {
+		codec_write(CODEC_SAMPLE_RATE_REG,CODEC_SAMPLE_16KHZ);
+	} else if (audio_device->speed == 22000) {
+		codec_write(CODEC_SAMPLE_RATE_REG,CODEC_SAMPLE_22KHZ);
+	} else if (audio_device->speed == 44000 || audio_device->speed == 44100) {
+		codec_write(CODEC_SAMPLE_RATE_REG,CODEC_SAMPLE_44KHZ);
+	} else if (audio_device->speed == 48000) {
+		codec_write(CODEC_SAMPLE_RATE_REG,CODEC_SAMPLE_48KHZ);
+	} else {
+		/* default 44KHz */
+		codec_write(CODEC_SAMPLE_RATE_REG,CODEC_SAMPLE_44KHZ);
+	}
+}
+
+static void codec_reset(void)
+{
+	codec_write(CODEC_RESET_REG, 0); /* reset the audio chip */
+	udelay(1500); /* wait for reset */
+}
+
+static void init_audio_codec(void)
+{
+#ifdef AUDIO_DEBUG
+	printk(DRIVER_NAME ":init_audio_codec()\n");
+#endif
+	codec_reset();
+
+	codec_write(CODEC_LEFT_IN_REG, 0x017);
+	codec_write(CODEC_RIGHT_IN_REG, 0x017);
+	codec_write(CODEC_POWER_DOWN_REG, 0x000); /* Turn off line input */
+	codec_write(CODEC_DIGITAL_IF_FMT_REG, 0x00A); /* I2S slave mode */
+	/* codec_write(CODEC_DIGITAL_IF_FMT_REG, 0x042); // I2S master mode */
+	codec_write(CODEC_DIGITAL_APATH_REG, 0x007); /* Set A path */
+
+	/* set sample rate */
+    adjust_codec_speed();
+
+	codec_write(CODEC_LEFT_HP_VOL_REG, 0x075); /* set volume */
+	codec_write(CODEC_RIGHT_HP_VOL_REG, 0x075); /* set volume */
+	codec_write(CODEC_DIGITAL_IF_ACT_REG, 1); /* Activate digital interface */
+	codec_write(CODEC_ANALOG_APATH_REG, 0x0F2);
+}
+
+
+static void chip_init(void)
+{
+#ifdef CONFIG_SSIAUDIO_USE_EDMA
+	init_dma();
+#endif
+
+	/* Enable the SSI pins */
+	MCF_GPIO_PAR_SSI = ( 0
+							| MCF_GPIO_PAR_SSI_MCLK
+							| MCF_GPIO_PAR_SSI_STXD(3)
+							| MCF_GPIO_PAR_SSI_SRXD(3)
+							| MCF_GPIO_PAR_SSI_FS(3)
+							| MCF_GPIO_PAR_SSI_BCLK(3) );
+
+}
+
+static void init_ssi(void)
+{
+#ifdef AUDIO_DEBUG
+	printk(DRIVER_NAME ":init_ssi()\n");
+#endif
+
+	/* Dividers are for MCF54445 on 266Mhz, the output is 44.1Khz*/
+	/* Enable SSI clock in CCM */
+	MCF_CCM_CDR = MCF_CCM_CDR_SSIDIV(47);
+
+	/* Issue a SSI reset */
+	MCF_SSI_CR &= ~MCF_SSI_CR_SSI_EN;  /* disable SSI module */
+
+	/* SSI module uses internal CPU clock */
+	MCF_CCM_MISCCR |= MCF_CCM_MISCCR_SSISRC;
+
+	MCF_CCM_MISCCR |= MCF_CCM_MISCCR_SSIPUE;
+	MCF_CCM_MISCCR |= MCF_CCM_MISCCR_SSIPUS_UP;
+
+	MCF_SSI_CR = 0
+			| MCF_SSI_CR_CIS
+			| MCF_SSI_CR_TCH    /* Enable two channel mode */
+			| MCF_SSI_CR_MCE    /* Set clock out on SSI_MCLK pin */
+			| MCF_SSI_CR_I2S_MASTER    /* Set I2S master mode */
+			| MCF_SSI_CR_SYN      /* Enable synchronous mode */
+			| MCF_SSI_CR_NET
+			;
+
+	MCF_SSI_TCR = 0
+			| MCF_SSI_TCR_TXDIR  /* internally generated bit clock */
+			| MCF_SSI_TCR_TFDIR  /* internally generated frame sync */
+			| MCF_SSI_TCR_TSCKP  /* Clock data on falling edge of bit clock */
+			| MCF_SSI_TCR_TFSI   /* Frame sync active low */
+			| MCF_SSI_TCR_TEFS   /* TX frame sync 1 bit before data */
+			| MCF_SSI_TCR_TFEN0  /* TX FIFO 0 enabled */
+			| MCF_SSI_TCR_TFEN1  /* TX FIFO 1 enabled */
+			| MCF_SSI_TCR_TXBIT0
+			;
+
+	MCF_SSI_CCR = MCF_SSI_CCR_WL(7)  /* 16 bit word length */
+			| MCF_SSI_CCR_DC(1)  	 /* Frame rate divider */
+			| MCF_SSI_CCR_PM(0)
+			| MCF_SSI_CCR_DIV2
+			;
+
+	MCF_SSI_FCSR = 0
+			| MCF_SSI_FCSR_TFWM0(0)
+			| MCF_SSI_FCSR_TFWM1(0)
+			;
+
+	MCF_SSI_IER =   0 // interrupts
+#ifndef CONFIG_SSIAUDIO_USE_EDMA
+				| MCF_SSI_IER_TIE   /* transmit interrupts */
+				| MCF_SSI_IER_TFE0  /* transmit FIFO 0 empty */
+				| MCF_SSI_IER_TFE1  /* transmit FIFO 1 empty */
+#else
+				| MCF_SSI_IER_TDMAE /* DMA request enabled */
+				| MCF_SSI_IER_TFE0  /* transmit FIFO 0 empty */
+				| MCF_SSI_IER_TFE1  /* transmit FIFO 1 empty */
+#endif
+				;
+
+#ifndef CONFIG_SSIAUDIO_USE_EDMA
+	/* enable IRQ:  SSI interrupt */
+	MCF_INTC1_ICR(M5445x_AUDIO_IRQ_SOURCE) = M5445x_AUDIO_IRQ_LEVEL;
+	MCF_INTC1_CIMR = M5445x_AUDIO_IRQ_SOURCE;
+#endif
+}
+
+#ifndef CONFIG_SSIAUDIO_USE_EDMA
+/* interrupt for SSI */
+static int ssi_audio_isr(int irq, void *dev_id)
+{
+	unsigned long	*bp;
+
+	if (audio_txbusy==0) {
+		return IRQ_HANDLED;
+	}
+
+	spin_lock(&(audio_device->lock));
+
+	if (audio_start == audio_append) {
+		disable_ssi();
+		audio_txbusy = 0;
+	} else {
+		if (MCF_SSI_ISR & (MCF_SSI_ISR_TFE0|MCF_SSI_ISR_TFE1)) {
+			bp = (unsigned long *) &audio_device->audio_buf[audio_start];
+			if (audio_device->channel) {
+				MCF_SSI_TX1 = *bp;
+				audio_device->channel = 0;
+			} else {
+				MCF_SSI_TX0 = *bp;
+				audio_device->channel = 1;
+			}
+			audio_start += 4;
+			if (audio_start >= BUFSIZE)
+				audio_start = 0;
+		}
+	}
+
+	spin_unlock(&(audio_device->lock));
+
+	return IRQ_HANDLED;
+}
+#endif
+
+/* Set initial driver playback defaults. */
+static void init_driver_variables(void)
+{
+	audio_device->speed = 44100;
+	audio_device->format = AFMT_S16_LE;
+	audio_device->bits = 16;
+	audio_device->stereo = 1;
+	audio_device->ssi_enabled = 0;
+
+	audio_start = 0;
+	audio_count = 0;
+	audio_append = 0;
+	audio_appstart = 0;
+	audio_txbusy = 0;
+	audio_device->dmaing = 0;
+}
+
+/* open audio device */
+static int ssi_audio_open(struct inode *inode, struct file *filp)
+{
+#ifdef AUDIO_DEBUG
+	printk(DRIVER_NAME ":ssi_audio_open()\n");
+#endif
+
+	if (audio_device==NULL) return (-ENODEV);
+
+	if (audio_device->isopen)
+		return(-EBUSY);
+
+	spin_lock(&(audio_device->lock));
+
+	audio_device->isopen = 1;
+
+	init_driver_variables();
+	init_ssi();
+	init_audio_codec();
+
+	spin_unlock(&(audio_device->lock));
+
+	udelay(100);
+
+	return 0;
+}
+
+/* close audio device */
+static int ssi_audio_close(struct inode *inode, struct file *filp)
+{
+#ifdef AUDIO_DEBUG
+	printk(DRIVER_NAME ":ssi_audio_close()\n");
+#endif
+
+	if (audio_device==NULL) return (-ENODEV);
+
+	ssi_audio_txdrain();
+
+	spin_lock(&(audio_device->lock));
+
+#ifdef CONFIG_SSIAUDIO_USE_EDMA
+	stop_dma();
+#endif
+	disable_ssi();
+	codec_reset();
+	init_driver_variables();
+	audio_device->isopen = 0;
+
+	spin_unlock(&(audio_device->lock));
+	return 0;
+}
+
+/* write to audio device */
+static ssize_t ssi_audio_write(struct file *filp, const char *buf, size_t count, loff_t *ppos)
+{
+	unsigned long	*dp, *buflp;
+	unsigned short	*bufwp;
+	unsigned char	*bufbp;
+	unsigned int	slen, bufcnt, i, s, e;
+
+#ifdef AUDIO_DEBUG
+	printk(DRIVER_NAME ":ssi_audio_write(buf=%x,count=%d)\n", (int) buf, count);
+#endif
+
+	if (audio_device==NULL) return (-ENODEV);
+
+	if (count <= 0)
+		return 0;
+
+	spin_lock(&(audio_device->lock));
+
+	buflp = (unsigned long *) buf;
+	bufwp = (unsigned short *) buf;
+	bufbp = (unsigned char *) buf;
+
+	bufcnt = count & ~0x3;
+
+	bufcnt <<= 1;
+	if (audio_device->stereo == 0)
+		bufcnt <<= 1;
+	if (audio_device->bits == 8)
+		bufcnt <<= 1;
+
+tryagain:
+	/*
+	 *	Get a snapshot of buffer, so we can figure out how
+	 *	much data we can fit in...
+	 */
+	s = audio_start;
+	e = audio_append;
+	dp = (unsigned long *) &(audio_device->audio_buf[e]);
+
+	slen = ((s > e) ? (s - e) : (BUFSIZE - (e - s))) - 4;
+	if (slen > bufcnt)
+		slen = bufcnt;
+	if ((BUFSIZE - e) < slen)
+		slen = BUFSIZE - e;
+
+	if (slen == 0) {
+		if (signal_pending(current))
+			return(-ERESTARTSYS);
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(1);
+		goto tryagain;
+	}
+
+	/* For DMA we need to have data as 32 bit
+	   values (since SSI TX register is 32 bit).
+	   So, the incomming 16 bit data must be put to buffer as 32 bit values.
+	   Also, the endianess is converted if needed
+	*/
+	if (audio_device->stereo) {
+		if (audio_device->bits == 16) {
+			if (audio_device->format==AFMT_S16_LE) {
+				/*- convert endianess, probably could be done by SSI also */
+				for (i = 0; (i < slen); i += 4) {
+					unsigned short val = le16_to_cpu((*bufwp++));
+					*dp++ = val;
+				}
+			} else {
+				for (i = 0; (i < slen); i += 4) {
+					*dp++ = *bufwp++;
+				}
+			}
+		} else {
+			for (i = 0; (i < slen); i += 4) {
+				*dp    = (((unsigned long) *bufbp++) << 24);
+				*dp++ |= (((unsigned long) *bufbp++) << 8);
+			}
+		}
+	} else {
+		if (audio_device->bits == 16) {
+			for (i = 0; (i < slen); i += 4) {
+				*dp++ = (((unsigned long)*bufwp)<<16) | *bufwp;
+				bufwp++;
+			}
+		} else {
+			for (i = 0; (i < slen); i += 4) {
+				*dp++ = (((unsigned long) *bufbp) << 24) |
+					(((unsigned long) *bufbp) << 8);
+				bufbp++;
+			}
+		}
+	}
+
+	e += slen;
+	if (e >= BUFSIZE)
+		e = 0;
+	audio_append = e;
+
+	/* If not outputing audio, then start now */
+	if (audio_txbusy == 0) {
+		audio_txbusy++;
+		audio_device->channel = 0;
+		enable_ssi();
+#ifdef CONFIG_SSIAUDIO_USE_EDMA
+		ssi_audio_dmabuf(); /* start first DMA transfer */
+#endif
+	}
+
+	bufcnt -= slen;
+
+	if (bufcnt > 0)
+		goto tryagain;
+
+	spin_unlock(&(audio_device->lock));
+
+	return count;
+}
+
+/* ioctl: control the driver */
+static int ssi_audio_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	long	val;
+	int	rc = 0;
+
+#ifdef AUDIO_DEBUG
+    printk(DRIVER_NAME ":ssi_audio_ioctl(cmd=%x,arg=%x)\n", (int) cmd, (int) arg);
+#endif
+
+	if (audio_device==NULL) return (-ENODEV);
+
+	switch (cmd) {
+
+	case SNDCTL_DSP_SPEED:
+		if (access_ok(VERIFY_READ, (void *) arg, sizeof(val))) {
+			get_user(val, (unsigned long *) arg);
+#ifdef AUDIO_DEBUG
+			printk(DRIVER_NAME ":ssi_audio_ioctl: SNDCTL_DSP_SPEED: %ld\n", val);
+#endif
+			ssi_audio_txdrain();
+			audio_device->speed = val;
+			init_audio_codec();
+		} else {
+			rc = -EINVAL;
+		}
+		break;
+
+	case SNDCTL_DSP_SAMPLESIZE:
+		if (access_ok(VERIFY_READ, (void *) arg, sizeof(val))) {
+			get_user(val, (unsigned long *) arg);
+			ssi_audio_txdrain();
+			ssi_audio_setsamplesize(val);
+		} else {
+			rc = -EINVAL;
+		}
+		break;
+
+	case SNDCTL_DSP_STEREO:
+		if (access_ok(VERIFY_READ, (void *) arg, sizeof(val))) {
+			get_user(val, (unsigned long *) arg);
+			ssi_audio_txdrain();
+			audio_device->stereo = val;
+		} else {
+			rc = -EINVAL;
+		}
+		break;
+
+	case SNDCTL_DSP_GETBLKSIZE:
+		if (access_ok(VERIFY_WRITE, (void *) arg, sizeof(long)))
+			put_user(BUFSIZE, (long *) arg);
+		else
+			rc = -EINVAL;
+		break;
+
+	case SNDCTL_DSP_SYNC:
+		ssi_audio_txdrain();
+		break;
+
+	default:
+		rc = -EINVAL;
+		break;
+	}
+
+	return rc;
+}
+
+/****************************************************************************/
+
+struct file_operations	ssi_audio_fops = {
+	open: ssi_audio_open,		/* open */
+	release: ssi_audio_close,	/* close */
+	write: ssi_audio_write,		/* write */
+	ioctl: ssi_audio_ioctl,		/* ioctl */
+};
+
+/* initialize audio driver */
+static int __devinit ssi_audio_probe(struct spi_device *spi)
+{
+	struct ssi_audio	*audio;
+	int	err;
+
+#ifdef AUDIO_DEBUG
+	printk(DRIVER_NAME": probe\n");
+#endif
+
+	if (!spi->irq) {
+		dev_dbg(&spi->dev, "no IRQ?\n");
+		return -ENODEV;
+	}
+
+	/* don't exceed max specified sample rate */
+	if (spi->max_speed_hz > MAX_SPEED_HZ) {
+		dev_dbg(&spi->dev, "f(sample) %d KHz?\n",
+				(spi->max_speed_hz)/1000);
+		return -EINVAL;
+	}
+
+	/* register charcter device */
+	if (register_chrdev(SOUND_MAJOR, SOUND_DEVICE_NAME, &ssi_audio_fops) < 0) {
+		printk(KERN_WARNING DRIVER_NAME ": failed to register major %d\n", SOUND_MAJOR);
+		dev_dbg(&spi->dev, DRIVER_NAME ": failed to register major %d\n", SOUND_MAJOR);
+		return -ENODEV;
+	}
+
+	audio = kzalloc(sizeof(struct ssi_audio), GFP_KERNEL);
+	if (!audio) {
+		err = -ENOMEM;
+		goto err_out;
+	}
+
+	/* DMA buffer must be from GFP_DMA zone, so it will not be cached */
+	audio->audio_buf = kmalloc(BUFSIZE, GFP_DMA);
+	if (audio->audio_buf == NULL) {
+		dev_dbg(&spi->dev, DRIVER_NAME ": failed to allocate DMA[%d] buffer\n", BUFSIZE);
+		err = -ENOMEM;
+		goto err_free_mem;
+	}
+
+	audio_device = audio;
+
+	dev_set_drvdata(&spi->dev, audio);
+	spi->dev.power.power_state = PMSG_ON;
+
+	audio->spi = spi;
+
+#ifndef CONFIG_SSIAUDIO_USE_EDMA
+	if (request_irq(spi->irq, ssi_audio_isr, SA_INTERRUPT,	spi->dev.bus_id, audio)) {
+		dev_dbg(&spi->dev, "irq %d busy?\n", spi->irq);
+		err = -EBUSY;
+		goto err_free_mem;
+	}
+
+#else
+	/* request 2 eDMA channels since two channel output mode is used */
+	if (request_edma_channel(DMA_TCD,
+							ssi_audio_dma_handler_empty,
+							NULL,
+							audio,
+							&(audio_device->lock),
+							DRIVER_NAME
+							)!=0)
+	{
+		dev_dbg(&spi->dev, "DMA channel %d busy?\n", DMA_TCD);
+		err = -EBUSY;
+		goto err_free_mem;
+	}
+	if (request_edma_channel(DMA_TCD2,
+							ssi_audio_dma_handler,
+							NULL,
+							audio,
+							&(audio_device->lock),
+							DRIVER_NAME
+							)!=0)
+	{
+		dev_dbg(&spi->dev, "DMA channel %d busy?\n", DMA_TCD2);
+		err = -EBUSY;
+		goto err_free_mem;
+	}
+
+#endif
+	chip_init();
+	printk(DRIVER_NAME ": Probed successfully\n");
+
+	return 0;
+
+ err_free_mem:
+ 	kfree(audio);
+	audio_device = NULL;
+ err_out:
+ 	unregister_chrdev(SOUND_MAJOR, SOUND_DEVICE_NAME);
+	return err;
+}
+
+static int __devexit ssi_audio_remove(struct spi_device *spi)
+{
+	struct ssi_audio *audio = dev_get_drvdata(&spi->dev);
+
+	ssi_audio_txdrain();
+#ifndef CONFIG_SSIAUDIO_USE_EDMA
+	free_irq(spi->irq, audio);
+#else
+	free_edma_channel(DMA_TCD, audio);
+	free_edma_channel(DMA_TCD2, audio);
+#endif
+	kfree(audio->audio_buf);
+	kfree(audio);
+	audio_device = NULL;
+	unregister_chrdev(SOUND_MAJOR, SOUND_DEVICE_NAME);
+	dev_dbg(&spi->dev, "unregistered audio\n");
+	return 0;
+}
+
+static int ssi_audio_suspend(struct spi_device *spi, pm_message_t message) {
+	return 0;
+}
+
+static int ssi_audio_resume(struct spi_device *spi) {
+	return 0;
+}
+
+static struct spi_driver ssi_audio_driver = {
+	.driver = {
+		.name	= DRIVER_NAME,
+		.bus	= &spi_bus_type,
+		.owner	= THIS_MODULE,
+	},
+	.probe		= ssi_audio_probe,
+	.remove		= __devexit_p(ssi_audio_remove),
+	.suspend	= ssi_audio_suspend,
+	.resume		= ssi_audio_resume,
+};
+
+static int __init ssi_audio_init(void)
+{
+	return spi_register_driver(&ssi_audio_driver);
+}
+module_init(ssi_audio_init);
+
+static void __exit ssi_audio_exit(void)
+{
+	spi_unregister_driver(&ssi_audio_driver);
+}
+module_exit(ssi_audio_exit);
+
+MODULE_DESCRIPTION("SSI/I2S Audio Driver");
+MODULE_LICENSE("GPL");

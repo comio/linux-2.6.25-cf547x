@@ -35,6 +35,15 @@ config SPI_DEBUG
 	  Say "yes" to enable debug messaging (like dev_dbg and pr_debug),
 	  sysfs, and debugfs support in SPI controller and protocol drivers.
 
+config COLDFIRE_EDMA
+	tristate "Coldfire eDMA"
+	depends on COLDFIRE && EXPERIMENTAL
+	help
+	    Support for Coldfire eDMA controller. Required for example
+	    by SSI audio device driver.
+
+
+
 #
 # MASTER side ... talking to discrete SPI slave chips including microcontrollers
 #
@@ -99,6 +108,21 @@ config SPI_BUTTERFLY
 	  Butterfly <http://www.atmel.com/products/avr/butterfly>, an
 	  inexpensive battery powered microcontroller evaluation board.
 	  This same cable can be used to flash new firmware.
+
+config SPI_COLDFIRE
+	tristate "Coldfire QSPI/DSPI SPI Master"
+	depends on SPI_MASTER && COLDFIRE && EXPERIMENTAL
+	help
+	  SPI driver for Freescale Coldfire QSPI module in master mode.
+	  Tested with the 5282 processor, but should also work with other
+	  Coldfire variants.
+
+config SPI_COLDFIRE_DSPI_EDMA	  
+	boolean "Coldfire DSPI master driver uses eDMA"
+	depends on SPI_MASTER && COLDFIRE && SPI_COLDFIRE && EXPERIMENTAL && COLDFIRE_EDMA
+	default n
+	help
+	  Say "yes" if you want DSPI master driver to use eDMA for transfers.
 
 config SPI_IMX
 	tristate "Freescale iMX SPI controller"
@@ -242,6 +266,18 @@ config SPI_TLE62X0
 #
 # Add new SPI protocol masters in alphabetical order above this line
 #
+config SPI_COLDFIRE_SSI_AUDIO
+	tristate "Coldfire SSI AUDIO"
+	depends on SPI_MASTER && SPI_COLDFIRE && EXPERIMENTAL
+	help
+	  SSI audio device driver
+
+config SSIAUDIO_USE_EDMA
+	boolean "Coldfire DSPI master driver uses eDMA"
+	default y
+	depends on EXPERIMENTAL && COLDFIRE_EDMA && SPI_COLDFIRE_SSI_AUDIO
+	help
+	  Say "yes" if you want SSI audio driver to use eDMA for SSI transfers.
 
 # (slave support would go here)
 
