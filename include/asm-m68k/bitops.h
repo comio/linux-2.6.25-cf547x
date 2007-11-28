@@ -423,7 +423,7 @@ static inline int ext2_find_next_zero_bit(const void *vaddr, unsigned size,
    __constant_coldfire_test_and_set_bit(nr, vaddr) :	\
    __generic_coldfire_test_and_set_bit(nr, vaddr))
 
-
+#if 0
 static __inline__ int __constant_coldfire_test_and_set_bit(int nr,
 	volatile void *vaddr)
 {
@@ -435,6 +435,17 @@ static __inline__ int __constant_coldfire_test_and_set_bit(int nr,
 	     : "di" (nr & 7));
 	return retval;
 }
+#else
+static __inline__ int __constant_coldfire_test_and_set_bit(int nr,volatile void * vaddr)
+{
+	char retval;
+	volatile char *p = &((volatile char *)vaddr)[(nr^31) >> 3];
+	__asm__ __volatile__ ("bset %2,(%4); sne %0"
+	     : "=d" (retval), "=m" (*p)
+	     : "di" (nr & 7), "m" (*p), "a" (p));
+	return retval;
+}
+#endif
 
 static __inline__ int __generic_coldfire_test_and_set_bit(int nr,
 	volatile void *vaddr)
@@ -454,6 +465,7 @@ static __inline__ int __generic_coldfire_test_and_set_bit(int nr,
    __constant_coldfire_set_bit(nr, vaddr) :	\
    __generic_coldfire_set_bit(nr, vaddr))
 
+#if 0
 static __inline__ void __constant_coldfire_set_bit(int nr,
 	volatile void *vaddr)
 {
@@ -461,6 +473,14 @@ static __inline__ void __constant_coldfire_set_bit(int nr,
 	__asm__ __volatile__ ("bset %1,%0"
 	     : "+QUd" (*p) : "di" (nr & 7));
 }
+#else
+static __inline__ void __constant_coldfire_set_bit(int nr, volatile void * vaddr)
+{
+	volatile char *p = &((volatile char *)vaddr)[(nr^31) >> 3];
+	__asm__ __volatile__ ("bset %1,(%3)"
+	     : "=m" (*p) : "di" (nr & 7), "m" (*p), "a" (p));
+}
+#endif
 
 static __inline__ void __generic_coldfire_set_bit(int nr, volatile void *vaddr)
 {
@@ -476,6 +496,7 @@ static __inline__ void __generic_coldfire_set_bit(int nr, volatile void *vaddr)
    __constant_coldfire_test_and_clear_bit(nr, vaddr) :	\
    __generic_coldfire_test_and_clear_bit(nr, vaddr))
 
+#if 0
 static __inline__ int __constant_coldfire_test_and_clear_bit(int nr,
 	volatile void *vaddr)
 {
@@ -488,6 +509,19 @@ static __inline__ int __constant_coldfire_test_and_clear_bit(int nr,
 
 	return retval;
 }
+#else
+static __inline__ int __constant_coldfire_test_and_clear_bit(int nr, volatile void *vaddr)
+{
+	char retval;
+	volatile char *p = &((volatile char *)vaddr)[(nr^31) >> 3];
+
+	__asm__ __volatile__ ("bclr %2,(%4); sne %0"
+	     : "=d" (retval), "=m" (*p)
+	     : "id" (nr & 7), "m" (*p), "a" (p));
+
+	return retval;
+}
+#endif
 
 static __inline__ int __generic_coldfire_test_and_clear_bit(int nr,
 	volatile void *vaddr)
@@ -514,6 +548,7 @@ static __inline__ int __generic_coldfire_test_and_clear_bit(int nr,
    __constant_coldfire_clear_bit(nr, vaddr) :	\
    __generic_coldfire_clear_bit(nr, vaddr))
 
+#if 0
 static __inline__ void __constant_coldfire_clear_bit(int nr,
 	volatile void *vaddr)
 {
@@ -521,6 +556,14 @@ static __inline__ void __constant_coldfire_clear_bit(int nr,
 	__asm__ __volatile__ ("bclr %1,%0"
 	     : "+QUd" (*p) : "id" (nr & 7));
 }
+#else
+static __inline__ void __constant_coldfire_clear_bit(int nr, volatile void * vaddr)
+{
+	volatile char *p = &((volatile char *)vaddr)[(nr^31) >> 3];
+	__asm__ __volatile__ ("bclr %1,(%3)"
+	     : "=m" (*p) : "id" (nr & 7), "m" (*p), "a" (p));
+}
+#endif
 
 static __inline__ void __generic_coldfire_clear_bit(int nr,
 	volatile void *vaddr)
@@ -537,6 +580,7 @@ static __inline__ void __generic_coldfire_clear_bit(int nr,
    __constant_coldfire_test_and_change_bit(nr, vaddr) :	\
    __generic_coldfire_test_and_change_bit(nr, vaddr))
 
+#if 0
 static __inline__ int __constant_coldfire_test_and_change_bit(int nr,
 	volatile void *vaddr)
 {
@@ -549,6 +593,19 @@ static __inline__ int __constant_coldfire_test_and_change_bit(int nr,
 
 	return retval;
 }
+#else
+static __inline__ int __constant_coldfire_test_and_change_bit(int nr, volatile void * vaddr)
+{
+	char retval;
+	volatile char *p = &((volatile char *)vaddr)[(nr^31) >> 3];
+
+	__asm__ __volatile__ ("bchg %2,(%4); sne %0"
+	     : "=d" (retval), "=m" (*p)
+	     : "id" (nr & 7), "m" (*p), "a" (p));
+
+	return retval;
+}
+#endif
 
 static __inline__ int __generic_coldfire_test_and_change_bit(int nr,
 	volatile void *vaddr)
@@ -570,6 +627,7 @@ static __inline__ int __generic_coldfire_test_and_change_bit(int nr,
    __constant_coldfire_change_bit(nr, vaddr) :	\
    __generic_coldfire_change_bit(nr, vaddr))
 
+#if 0
 static __inline__ void __constant_coldfire_change_bit(int nr,
 	volatile void *vaddr)
 {
@@ -577,6 +635,14 @@ static __inline__ void __constant_coldfire_change_bit(int nr,
 	__asm__ __volatile__ ("bchg %1,%0"
 	     : "+QUd" (*p) : "id" (nr & 7));
 }
+#else
+static __inline__ void __constant_coldfire_change_bit(int nr, volatile void * vaddr)
+{
+	volatile char *p = &((volatile char *)vaddr)[(nr^31) >> 3];
+	__asm__ __volatile__ ("bchg %1,(%3)"
+	     : "=m" (*p) : "id" (nr & 7), "m" (*p), "a" (p));
+}
+#endif
 
 static __inline__ void __generic_coldfire_change_bit(int nr,
 	volatile void *vaddr)
