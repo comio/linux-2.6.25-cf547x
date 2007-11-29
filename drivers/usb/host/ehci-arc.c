@@ -373,14 +373,30 @@ static int ehci_fsl_drv_resume(struct platform_device *pdev)
 	pr_debug("%s pdev=0x%p  pdata=0x%p  ehci=0x%p  hcd=0x%p\n",
 		 __FUNCTION__, pdev, pdata, ehci, hcd);
 
-	pr_debug("%s ehci->regs=0x%p  hcd->regs=0x%p",
+	pr_debug("%s ehci->regs=0x%p  hcd->regs=0x%p\n",
 		 __FUNCTION__, ehci->regs, hcd->regs);
 
 	memcpy(ehci->regs, (void *)&usb_ehci_regs, sizeof(struct ehci_regs));
+
+#if 0 // DDD test
 	ehci_writel(ehci, usb_ehci_portsc, &ehci->regs->port_status[0]);
+	printk("set portsc %08x  %08x\n", usb_ehci_portsc,
+		ehci_readl(ehci,  &ehci->regs->port_status[0]));
+	printk("set usbmode %08x\n", 
+		ehci_readl(ehci,  &ehci->regs + FSL_SOC_USB_USBMODE));
 
 	tmp = USBMODE_CM_HOST | (pdata->es ? USBMODE_ES : 0);
 	ehci_writel(ehci, tmp, hcd->regs + FSL_SOC_USB_USBMODE);
+#else
+	tmp = USBMODE_CM_HOST | (pdata->es ? USBMODE_ES : 0);
+	ehci_writel(ehci, tmp, hcd->regs + FSL_SOC_USB_USBMODE);
+	printk("tmp %08x  set usbmode %08x\n", tmp,
+		ehci_readl(ehci,  hcd->regs + FSL_SOC_USB_USBMODE));
+
+	ehci_writel(ehci, usb_ehci_portsc, &ehci->regs->port_status[0]);
+	printk("set portsc %08x  %08x\n", usb_ehci_portsc,
+		ehci_readl(ehci,  &ehci->regs->port_status[0]));
+#endif
 
 	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 	hcd->state = HC_STATE_RUNNING;
