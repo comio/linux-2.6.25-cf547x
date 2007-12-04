@@ -21,6 +21,7 @@
 #include <asm/machdep.h>
 #include <asm/coldfire.h>
 #include <asm/cfcache.h>
+#include <asm/cacheflush.h>
 #include <asm/bootinfo.h>
 #include <asm/io.h>
 #include <asm/cfmmu.h>
@@ -165,6 +166,7 @@ asmlinkage void __init cf_early_init(void)
 		+ sizeof(record->data[0]) + sizeof(record->data[1]);
 
 	/* Invalidate caches via CACR */
+	flush_bcache();
 	cacr_set(CACHE_DISABLE_MODE);
 
 	/* Turn on caches via CACR, enable EUSP */
