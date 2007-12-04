@@ -18,7 +18,7 @@
 #ifndef OTG_FSM_H
 #define OTG_FSM_H
 
-#if 1
+#if 0
 #define DEBUG 	1
 #define VERBOSE 	1
 #endif

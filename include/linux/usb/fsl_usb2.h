@@ -104,9 +104,8 @@ struct fsl_usb_host_regs {
 #if 0
 	u32 endptctrl[USB_MAX_ENDPOINTS]; /* Endpoint Control Registers */
 #else
-	// DDD: do these exits in the host register set??
-	// DDD see DCCPARAMS:DEN for the real number of device endpoints
-	// DDD 16 is the max
+	/* DDD see DCCPARAMS:DEN for the real number of device endpoints */
+	/* DDD 16 is the max */
 	u32 endptctrl[16];	/* Endpoint Control Registers */
 #endif
 };

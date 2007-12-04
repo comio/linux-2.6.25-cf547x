@@ -321,11 +321,6 @@ static void pullup_enable(struct fsl_udc *udc)
 	temp = fsl_readl(&dr_regs->usbcmd);
 	temp |= USB_CMD_RUN_STOP;
 	fsl_writel(temp, &dr_regs->usbcmd);
-
-#ifdef NEVER /* DDD FIXME: we want this? */
-	if (!udc->transceiver)
-		*((u16 *)(MCF_FBCS1_CSAR)) &= ~0x1; /* Enable pullup register */
-#endif
 }
 
 static void pullup_disable(struct fsl_udc *udc)
@@ -345,12 +340,6 @@ static void pullup_disable(struct fsl_udc *udc)
 	tmp = fsl_readl(&dr_regs->usbcmd);
 	tmp &= ~USB_CMD_RUN_STOP;
 	fsl_writel(tmp, &dr_regs->usbcmd);
-
-#ifdef NEVER /* DDD FIXME: we want this? */
-	if (!udc->transceiver)
-		*((u16 *)(MCF_FBCS1_CSAR)) |= 0x1; /* Disable pullup register */
-#endif
-
 }
 
 static void dr_controller_run(struct fsl_udc *udc)
@@ -2598,9 +2587,6 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err4;
 	}
-#if 0 // DDD why this? hoarks OTG host
-	pullup_disable(udc);
-#endif
 
 	create_proc_file();
 	return 0;
