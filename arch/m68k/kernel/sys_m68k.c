@@ -29,6 +29,9 @@
 #include <asm/traps.h>
 #include <asm/page.h>
 #include <asm/unistd.h>
+#ifdef CONFIG_COLDFIRE
+#include <asm/cacheflush.h>
+#endif
 
 /*
  * sys_pipe() is the normal C calling standard for creating
@@ -257,6 +260,7 @@ asmlinkage int sys_ipc (uint call, int first, int second,
 	return -EINVAL;
 }
 
+#ifndef CONFIG_COLDFIRE
 /* Convert virtual (user) address VADDR to physical address PADDR */
 #define virt_to_phys_040(vaddr)						\
 ({									\
@@ -580,6 +584,7 @@ cache_flush_060 (unsigned long addr, int scope, int cache, unsigned long len)
     }
   return 0;
 }
+#endif /* CONFIG_COLDFIRE */
 
 /* sys_cacheflush -- flush (part of) the processor cache.  */
 asmlinkage int
@@ -612,6 +617,7 @@ sys_cacheflush (unsigned long addr, int scope, int cache, unsigned long len)
 			goto out;
 	}
 
+#ifndef CONFIG_COLDFIRE
 	if (CPU_IS_020_OR_030) {
 		if (scope == FLUSH_SCOPE_LINE && len < 256) {
 			unsigned long cacr;
@@ -656,6 +662,16 @@ sys_cacheflush (unsigned long addr, int scope, int cache, unsigned long len)
 		ret = cache_flush_060 (addr, scope, cache, len);
 	    }
 	}
+#else /* CONFIG_COLDFIRE */
+	if ((cache & FLUSH_CACHE_INSN) && (cache & FLUSH_CACHE_DATA))
+		flush_bcache();
+	else if (cache & FLUSH_CACHE_INSN)
+		flush_icache();
+	else
+		flush_dcache();
+
+	ret = 0;
+#endif /* CONFIG_COLDFIRE */
 out:
 	unlock_kernel();
 	return ret;

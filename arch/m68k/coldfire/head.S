@@ -244,13 +244,17 @@ ENTRY(__start)
 /* Setup initial stack pointer */
 	movel	#0x40001000,%sp	
 
-/* Clear usp */
+/* Setup usp */
 	subl	%a0,%a0
 	movel	%a0,%usp
 
 	movel  #(MCF_RAMBAR1 + 0x221), %d0
 	movec   %d0, %rambar1
 	movew	#0x2700,%sr
+
+/* reset cache */
+	movel	#(CF_CACR_ICINVA + CF_CACR_DCINVA),%d0
+	movecl	%d0,%cacr
 
 	movel	#(MMU_BASE+1),%d0
 	movecl	%d0,%mmubar

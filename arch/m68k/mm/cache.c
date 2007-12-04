@@ -81,36 +81,7 @@ static unsigned long virt_to_phys_slow(unsigned long vaddr)
 void flush_icache_range(unsigned long address, unsigned long endaddr)
 {
 #ifdef CONFIG_COLDFIRE
-	unsigned long set;
-	unsigned long start_set;
-	unsigned long end_set;
-
-	start_set = address & _ICACHE_SET_MASK;
-	end_set = endaddr & _ICACHE_SET_MASK;
-
-	if (start_set > end_set) {
-	/* from the begining to the lowest address */
-		for (set = 0; set <= end_set; set += (0x10 - 3))
-			asm volatile ("cpushl %%ic,(%0)\n"
-				      "\taddq%.l #1,%0\n"
-				      "\tcpushl %%ic,(%0)\n"
-				      "\taddq%.l #1,%0\n"
-				      "\tcpushl %%ic,(%0)\n"
-				      "\taddq%.l #1,%0\n"
-				      "\tcpushl %%ic,(%0)" : : "a" (set));
-
-		/* next loop will finish the cache ie pass the hole */
-		end_set = LAST_ICACHE_ADDR;
-	}
-	for (set = start_set; set <= end_set; set += (0x10 - 3))
-		asm volatile ("cpushl %%ic,(%0)\n"
-			      "\taddq%.l #1,%0\n"
-			      "\tcpushl %%ic,(%0)\n"
-			      "\taddq%.l #1,%0\n"
-			      "\tcpushl %%ic,(%0)\n"
-			      "\taddq%.l #1,%0\n"
-			      "\tcpushl %%ic,(%0)" : : "a" (set));
-
+	cf_icache_flush_range(address, endaddr);
 #else /* !CONFIG_COLDFIRE */
 
 	if (CPU_IS_040_OR_060) {

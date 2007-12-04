@@ -37,6 +37,7 @@
 #include <asm/cf_pgtable.h>
 #include <asm/traps.h>
 #include <asm/ucontext.h>
+#include <asm/cacheflush.h>
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
@@ -605,10 +606,9 @@ static inline int rt_setup_ucontext(struct ucontext __user *uc,
 	return err;
 }
 
-extern void IcacheInvalidateCacheBlock(void *, unsigned long);
 static inline void push_cache(unsigned long vaddr)
 {
-	IcacheInvalidateCacheBlock((void *)vaddr, 8);
+	cf_cache_push(__pa(vaddr), 8);
 }
 
 static inline void __user *
