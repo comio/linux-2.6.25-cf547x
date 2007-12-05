@@ -2538,6 +2538,7 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 	 * set the fsl_udc->gadget.xxx
 	 */
 	udc->gadget.ops = &fsl_gadget_ops;
+	udc->gadget.is_dualspeed = 1;
 
 	/* gadget.ep0 is a pointer */
 	udc->gadget.ep0 = &udc->eps[0].ep;
