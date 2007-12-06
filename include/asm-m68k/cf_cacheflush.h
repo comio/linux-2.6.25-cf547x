@@ -127,7 +127,9 @@ static inline void flush_bcache(void)
 static inline void cf_cache_clear(unsigned long paddr, int len)
 {
 	/* number of lines */
-	len =  (len + (CACHE_LINE_SIZE-1)) / CACHE_LINE_SIZE;
+	len = (len + (CACHE_LINE_SIZE-1)) / CACHE_LINE_SIZE;
+	if (len == 0)
+		return;
 
 	/* align on set boundary */
 	paddr &= 0xfffffff0;
@@ -161,7 +163,9 @@ static inline void cf_cache_clear(unsigned long paddr, int len)
 static inline void cf_cache_push(unsigned long paddr, int len)
 {
 	/* number of lines */
-	len =  (len + (CACHE_LINE_SIZE-1)) / CACHE_LINE_SIZE;
+	len = (len + (CACHE_LINE_SIZE-1)) / CACHE_LINE_SIZE;
+	if (len == 0)
+		return;
 
 	/* align on set boundary */
 	paddr &= 0xfffffff0;
@@ -195,7 +199,9 @@ static inline void cf_cache_push(unsigned long paddr, int len)
 static inline void cf_cache_flush(unsigned long paddr, int len)
 {
 	/* number of lines */
-	len =  (len + (CACHE_LINE_SIZE-1)) / CACHE_LINE_SIZE;
+	len = (len + (CACHE_LINE_SIZE-1)) / CACHE_LINE_SIZE;
+	if (len == 0)
+		return;
 
 	/* align on set boundary */
 	paddr &= 0xfffffff0;
@@ -234,6 +240,8 @@ static inline void cf_cache_flush_range(unsigned long vstart, unsigned long vend
 	vstart &= 0xfffffff0;
 	vend = PAGE_ALIGN((vend + (CACHE_LINE_SIZE-1))) & 0xfffffff0;
 	len = vend - vstart;
+	if (len == 0)
+		return;
 	vstart = __pa(vstart);
 	vend = vstart + len;
 
