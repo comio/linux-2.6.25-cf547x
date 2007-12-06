@@ -36,6 +36,7 @@
 #include <asm/mcf5445x_sdramc.h>
 #include <asm/mcf5445x_fbcs.h>
 #include <asm/mcf5445x_dtim.h>
+#include <asm/mcf5445x_xbs.h>
 
 /* JKM -- testing */
 #include <linux/pfn.h>
@@ -130,6 +131,17 @@ asmlinkage void __init cf_early_init(void)
 	/* Init optional SDRAM chip select */
 	MCF_SDRAMC_SDCS(1) = (256*1024*1024) | 0x1B;
 #endif
+
+	/* Setup SDRAM crossbar(XBS) priorities */
+printk(KERN_INFO "Bumping USB Priority\n");
+	MCF_XBS_PRS2 = (MCF_XBS_PRS_M0(MCF_XBS_PRI_2) |
+			MCF_XBS_PRS_M1(MCF_XBS_PRI_3) |
+			MCF_XBS_PRS_M2(MCF_XBS_PRI_4) |
+			MCF_XBS_PRS_M3(MCF_XBS_PRI_5) |
+			MCF_XBS_PRS_M5(MCF_XBS_PRI_6) |
+			MCF_XBS_PRS_M6(MCF_XBS_PRI_1) |
+			MCF_XBS_PRS_M7(MCF_XBS_PRI_7));
+	
 
 	m68k_machtype = MACH_CFMMU;
 	m68k_fputype = FPU_CFV4E;
