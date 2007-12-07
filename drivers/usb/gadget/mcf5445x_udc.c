@@ -34,7 +34,7 @@
  *
  */
 
-#define DEBUG
+#undef DEBUG
 #undef VERBOSE
 
 #include <linux/module.h>
