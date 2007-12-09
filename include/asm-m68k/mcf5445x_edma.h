@@ -11,11 +11,27 @@
 #ifndef __MCF5445X_EDMA_H__
 #define __MCF5445X_EDMA_H__
 
-/*********************************************************************
-*
-* Enhanced DMA (EDMA)
-*
-*********************************************************************/
+/*
+ * Enhanced DMA (EDMA)
+ */
+
+/* Channels */
+#define MCF_EDMA_CHAN_DREQ0	0	/* External DMA request 0 */
+#define MCF_EDMA_CHAN_DREQ1	1	/* External DMA request 1 */
+#define MCF_EDMA_CHAN_UART0_RX	2	/* UART0 Receive */
+#define MCF_EDMA_CHAN_UART0_TX	3	/* UART0 Transmit */
+#define MCF_EDMA_CHAN_UART1_RX	4	/* UART1 Receive */
+#define MCF_EDMA_CHAN_UART1_TX	5	/* UART1 Transmit */
+#define MCF_EDMA_CHAN_UART2_RX	6	/* UART2 Receive */
+#define MCF_EDMA_CHAN_UART2_TX	7	/* UART2 Transmit */
+#define MCF_EDMA_CHAN_TIMER0	8	/* Timer 0 / SSI0 Rx */
+#define MCF_EDMA_CHAN_TIMER1	9	/* Timer 1 / SSI1 Rx */
+#define MCF_EDMA_CHAN_TIMER2	10	/* Timer 2 / SSI0 Tx */
+#define MCF_EDMA_CHAN_TIMER3	11	/* Timer 3 / SSI1 Tx */
+#define MCF_EDMA_CHAN_DSPI_RX	12	/* DSPI Receive */
+#define MCF_EDMA_CHAN_DSPI_TX	13	/* DSPI Transmit */
+#define MCF_EDMA_CHAN_ATA_RX	14	/* ATA Receive */
+#define MCF_EDMA_CHAN_ATA_TX	15	/* ATA Transmit */
 
 /* Register read/write macros */
 #define MCF_EDMA_CR                     MCF_REG32(0xFC044000)
@@ -1452,7 +1468,5 @@
 #define MCF_EDMA_TCD15_CSR_DONE         (0x0080)
 #define MCF_EDMA_TCD15_CSR_LINKCH(x)    (((x)&0x003F)<<8)
 #define MCF_EDMA_TCD15_CSR_BWC(x)       (((x)&0x0003)<<14)
-
-/********************************************************************/
 
 #endif /* __MCF5445X_EDMA_H__ */

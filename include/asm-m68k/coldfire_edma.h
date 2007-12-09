@@ -20,11 +20,14 @@
 #define EDMA_DRIVER_NAME "ColdFire-eDMA"
 #define DMA_DEV_MINOR 1
 
+#ifdef CONFIG_M54455
 #define EDMA_INT_CHANNEL_BASE 		8
 #define EDMA_INT_CONTROLLER_BASE 	64
+#define EDMA_INT_BASE			(EDMA_INT_CHANNEL_BASE + \
+					 EDMA_INT_CONTROLLER_BASE)
 #define EDMA_CHANNELS			16
- 
-#define EDMA_IRQ_LEVEL			5
+#define EDMA_INT_ERR			16	/* edma error interrupt */
+#endif /* CONFIG_M54455 */
  
 typedef irqreturn_t (*edma_irq_handler)(int, void *);
 typedef void (*edma_error_handler)(int, void *);
@@ -38,7 +41,7 @@ typedef void (*edma_error_handler)(int, void *);
  *   nbytes  - number of bytes to be transfered in minor loop
  *   slast   - last source address adjustment
  *   citer   - major loop count
- *   biter   - beggining minor loop count
+ *   biter   - begining minor loop count
  *   doff    - destination offset
  *   dlast_sga - last destination address adjustment
  *   major_int - generate interrupt after each major loop
