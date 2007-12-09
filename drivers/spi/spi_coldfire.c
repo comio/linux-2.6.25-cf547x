@@ -1311,7 +1311,7 @@ static int coldfire_spi_probe(struct platform_device *pdev)
 
 	irq = platform_info->irq_vector;
 
-	status = request_irq(platform_info->irq_vector, qspi_interrupt, SA_INTERRUPT, dev->bus_id, drv_data);
+	status = request_irq(platform_info->irq_vector, qspi_interrupt, IRQF_DISABLED, dev->bus_id, drv_data);
 	if (status < 0) {
 		dev_err(&pdev->dev, "unable to attach ColdFire QSPI interrupt\n");
 		goto out_error_master_alloc;
