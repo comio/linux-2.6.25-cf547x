@@ -252,7 +252,7 @@ void __init coldfire_sched_init(irq_handler_t handler)
 		     MCF_DTIM_DTMR_FRR	| MCF_DTIM_DTMR_RST_EN, \
 		     MCF_DTIM0_DTMR);
 
-	request_irq(mcf_timervector, handler, SA_INTERRUPT, \
+	request_irq(mcf_timervector, handler, IRQF_DISABLED, \
 		    "timer", (void *)MCF_DTIM0_DTMR);
 
 	settimericr(1, mcf_timerlevel);

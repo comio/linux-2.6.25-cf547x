@@ -12,6 +12,7 @@
 #include <linux/pci.h>
 #include <asm/io.h>
 
+#if 0
 void __iomem *__attribute__ ((weak))
 ioport_map(unsigned long port, unsigned int len)
 {
@@ -52,3 +53,4 @@ void pci_iounmap(struct pci_dev *dev, void __iomem *addr)
 	/* Nothing .. */
 }
 EXPORT_SYMBOL(ioport_unmap);
+#endif

@@ -75,10 +75,19 @@ static int ata_get_clk_rate(void)
 	return MCF_BUSCLK;
 }
 
+/* JKM -- move these to a header file */
+#define MCF_IDE_DMA_WATERMARK	32	/* DMA watermark level in bytes */
+#define MCF_IDE_DMA_BD_NR	(512/3/4) /* number of BDs per channel */
+
 static struct fsl_ata_platform_data ata_data = {
 	.init             = ata_init,
 	.exit             = ata_exit,
 	.get_clk_rate     = ata_get_clk_rate,
+#ifdef CONFIG_PATA_FSL_USE_DMA
+        .udma_mask        = 0x0F, /* the board handles up to UDMA3 */
+        .fifo_alarm       = MCF_IDE_DMA_WATERMARK / 2,
+        .max_sg           = MCF_IDE_DMA_BD_NR,
+#endif
 };
 
 static struct resource pata_fsl_resources[] = {

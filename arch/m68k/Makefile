@@ -32,6 +32,10 @@ ifdef CONFIG_SUN3
 LDFLAGS_vmlinux = -N
 endif
 
+ifdef CONFIG_COLDFIRE
+# LDFLAGS_vmlinux = --verbose
+endif
+
 CHECKFLAGS += -D__mc68000__
 
 # without -fno-strength-reduce the 53c7xx.c driver fails ;-(

@@ -56,7 +56,7 @@ struct pci_ops pci_root_ops = {
  *
  * Initialize the pcibios based on cmd line params.
  */
-char * __init
+char *
 pcibios_setup(char *str)
 {
 	if (!strcmp(str, "debug")) {
@@ -124,7 +124,7 @@ pcibios_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
  *
  * Update a PCI interrupt.
  */
-void __init
+void
 pcibios_update_irq(struct pci_dev *dev, int irq)
 {
 	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
@@ -171,7 +171,7 @@ pcibios_enable_device(struct pci_dev *dev, int mask)
 /*
  * pcibios_fixup_bus(struct pci_bus *bus)
  */
-void __init
+void
 pcibios_fixup_bus(struct pci_bus *bus)
 {
 	struct pci_dev *dev = bus->self;

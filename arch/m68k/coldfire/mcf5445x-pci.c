@@ -8,6 +8,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/interrupt.h>
 #include <linux/pci.h>
 
 #include <asm/mcfsim.h>
@@ -76,7 +77,7 @@ void mcf5445x_pci_dumpregs(void);
 #endif
 
 /*
- * static void mcf5445x_conf_device(struct pci_dev *dev)
+ * mcf5445x_conf_device(struct pci_dev *dev)
  *
  * Machine dependent Configure the given device.
  *
@@ -84,7 +85,7 @@ void mcf5445x_pci_dumpregs(void);
  *
  * dev		- the pci device.
  */
-void __init
+void
 mcf5445x_conf_device(struct pci_dev *dev)
 {
 	set_fpga(FPGA_PCI_IRQ_ENABLE, 0x0f);

@@ -306,7 +306,18 @@ static inline void isa_delay(void)
 #define outw(val,port) out_le16((port),(val))
 #define inl(port)      in_le32(port)
 #define outl(val,port) out_le32((port),(val))
-
+#define insb(port, buf, nr)	\
+		raw_insb((u8 *)(port), (u8 *)(buf), (nr))
+#define outsb(port, buf, nr)	\
+		raw_outsb((u8 *)(port), (u8 *)(buf), (nr))
+#define insw(port, buf, nr)	\
+		raw_insw_swapw((u16 *)(port), (u16 *)(buf), (nr))
+#define outsw(port, buf, nr)	\
+		raw_outsw_swapw((u16 *)(port), (u16 *)(buf), (nr))
+#define insl(port, buf, nr)	\
+		raw_insw_swapw((u16 *)(port), (u16 *)(buf), (nr)<<1)
+#define outsl(port, buf, nr)	\
+		raw_outsw_swapw((u16 *)(port), (u16 *)(buf), (nr)<<1)
 #else
 /*
  * kernel with both ISA and PCI compiled in, those have

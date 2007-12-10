@@ -9,6 +9,7 @@ else
 ifndef CONFIG_COLDFIRE
   extra-y := head.o vmlinux.lds
   obj-y := entry.o signal.o traps.o ints.o
+  obj-$(CONFIG_PCI) += bios32.o
 else   # CONFIG_COLDFIRE
   extra-y := ../coldfire/head.o vmlinux.lds
 endif
@@ -19,7 +20,6 @@ obj-y	+= process.o ptrace.o module.o \
 
 devres-y = ../../../kernel/irq/devres.o
 
-obj-$(CONFIG_PCI)	+= bios32.o
 obj-y$(CONFIG_MMU_SUN3) += dma.o	# no, it's not a typo
 
 EXTRA_AFLAGS := -traditional

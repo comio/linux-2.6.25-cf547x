@@ -42,11 +42,13 @@ pcibios_penalize_isa_irq(int irq, int active)
 	/* no dynamic PCI IRQ allocation */
 }
 
+#if 0
 static inline void
 pcibios_add_platform_entries(struct pci_dev *dev)
 {
 	/* no special handling */
 }
+#endif
 
 static inline void
 pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
