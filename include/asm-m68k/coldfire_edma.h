@@ -96,10 +96,30 @@ int request_edma_channel(int channel,
 		void *dev,
 		spinlock_t *lock,
 		const char *device_id);
+
+/**
+ * set_edma_callback - Update the channel callback/arg
+ * @channel: channel number
+ * @handler: dma handler
+ * @error_handler: dma error handler
+ * @arg: argument to pass back
+ *
+ * Returns 0 if success or a negative value if failure
+ */
+int set_edma_callback(int channel,
+		edma_irq_handler handler,
+		edma_error_handler error_handler,
+		void *arg);
   
 /* Free eDMA channel
  *  channel - eDMA TCD number
  *  dev - device
  */
 int free_edma_channel(int channel, void *dev);
+
+/*
+ * DMA Modes
+ */
+#define	DMA_MODE_READ		0
+#define DMA_MODE_WRITE		1
 #endif

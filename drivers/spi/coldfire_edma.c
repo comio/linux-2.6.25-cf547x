@@ -206,6 +206,31 @@ int request_edma_channel(int channel,
 EXPORT_SYMBOL(request_edma_channel);
 
 /**
+ * set_edma_callback - Update the channel callback/arg
+ * @channel: channel number
+ * @handler: dma handler
+ * @error_handler: dma error handler
+ * @arg: argument to pass back
+ *
+ * Returns 0 if success or a negative value if failure
+ */
+int set_edma_callback(int channel,
+	edma_irq_handler handler,
+	edma_error_handler error_handler,
+	void *arg )
+{
+	if (devp!=NULL && channel>=0 && channel<=EDMA_CHANNELS &&
+	    devp->dma_interrupt_handlers[channel].allocated) {
+		devp->dma_interrupt_handlers[channel].irq_handler = handler;
+		devp->dma_interrupt_handlers[channel].error_handler = error_handler;
+		devp->dma_interrupt_handlers[channel].arg = arg;
+		return 0;
+	}
+	return -EINVAL;
+}
+EXPORT_SYMBOL(set_edma_callback);
+
+/**
  * free_edma_channel - Free the edma channel
  * @channel: channel number
  * @arg: argument created with
@@ -216,8 +241,10 @@ int free_edma_channel(int channel, void *arg)
 {
 	if (devp!=NULL && channel>=0 && channel<=EDMA_CHANNELS) {
 		if (devp->dma_interrupt_handlers[channel].allocated) {
+#if 0
 			if (devp->dma_interrupt_handlers[channel].arg != arg)
 				return -EBUSY;
+#endif
 
 			devp->dma_interrupt_handlers[channel].allocated = 0;
 			devp->dma_interrupt_handlers[channel].arg = NULL;
