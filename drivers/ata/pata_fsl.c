@@ -497,19 +497,6 @@ err_out:
 }
 #endif /* CONFIG_FSL_PATA_USE_DMA */
 
-static u8 pata_fsl_irq_ack(struct ata_port *ap, unsigned int chk_drq)
-{
-	unsigned int bits = chk_drq ? ATA_BUSY | ATA_DRQ : ATA_BUSY;
-	u8 status;
-
-	status = ata_busy_wait(ap, bits, 1000);
-	if (status & bits)
-		if (ata_msg_err(ap))
-			printk(KERN_ERR "abnormal status 0x%X\n", status);
-
-	return status;
-}
-
 static void ata_dummy_noret(struct ata_port *ap) { return; }
 
 static struct scsi_host_template pata_fsl_sht = {
@@ -538,7 +525,6 @@ static struct ata_port_operations pata_fsl_port_ops = {
 	.set_dmamode		= pata_fsl_set_dmamode,
 #endif
 
-	.port_disable		= ata_port_disable,
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
 	.check_status		= ata_check_status,
@@ -563,7 +549,6 @@ static struct ata_port_operations pata_fsl_port_ops = {
 
 	.irq_clear		= ata_dummy_noret,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= pata_fsl_irq_ack,
 
 	.port_start		= pata_fsl_port_start,
 
