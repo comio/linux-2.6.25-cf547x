@@ -57,7 +57,7 @@
 #include <linux/moduleparam.h>
 #include <linux/device.h>
 #include <linux/usb/ch9.h>
-#include <linux/usb_gadget.h>
+#include <linux/usb/gadget.h>
 #include <linux/usb/otg.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
