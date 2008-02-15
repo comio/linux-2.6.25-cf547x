@@ -1115,7 +1115,7 @@ static int init_queue(struct driver_data *drv_data)
 	INIT_WORK(&drv_data->pump_messages, pump_messages/*, drv_data*/);
 
 	drv_data->workqueue = create_singlethread_workqueue(
-					drv_data->master->cdev.dev->bus_id);
+					drv_data->master->dev.parent->bus_id);
 	if (drv_data->workqueue == NULL)
 		return -EBUSY;
 
@@ -1223,7 +1223,7 @@ static int coldfire_spi_probe(struct platform_device *pdev)
   	if (!master)
  		return -ENOMEM;
 
- 	drv_data = class_get_devdata(&master->cdev);
+ 	drv_data = spi_master_get_devdata(master);
  	drv_data->master = master;
 
 	INIT_LIST_HEAD(&drv_data->queue);
