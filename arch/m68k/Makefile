@@ -33,6 +33,7 @@ LDFLAGS_vmlinux = -N
 endif
 
 ifdef CONFIG_COLDFIRE
+# OBJCOPYFLAGS    := -R .note -R .note.gnu.build-id -R .comment -S
 # LDFLAGS_vmlinux = --verbose
 endif
 
@@ -59,8 +60,8 @@ endif
 endif
 
 ifdef CONFIG_M54455
-CFLAGS := $(CFLAGS) -march=isac -mcpu=54455 -msoft-float -g 
-AFLAGS := $(AFLAGS) -march=isac -mcpu=54455 -msoft-float  
+KBUILD_CFLAGS += -march=isac -mcpu=54455 -msoft-float -g
+KBUILD_AFLAGS += -march=isac -mcpu=54455 -msoft-float  
 endif
 
 ifdef CONFIG_KGDB
