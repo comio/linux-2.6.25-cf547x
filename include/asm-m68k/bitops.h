@@ -832,6 +832,7 @@ static  __inline__ int fls(int x)
 #include <asm-generic/bitops/fls64.h>
 #include <asm-generic/bitops/sched.h>
 #include <asm-generic/bitops/hweight.h>
+#include <asm-generic/bitops/lock.h>
 
 #define minix_find_first_zero_bit(addr, size)	find_next_zero_bit((addr), \
 							(size), 0)
