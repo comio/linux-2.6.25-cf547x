@@ -20,6 +20,11 @@
 #include <asm/mcf5445x_pci.h>
 #include <asm/mcf5445x_pciarb.h>
 #include <asm/mcf5445x_eport.h>
+#include <asm/mcf5445x_fbcs.h>
+#include <asm/mcf5445x_xbs.h>
+#include <asm/mcf5445x_dtim.h>
+#elif defined(CONFIG_M547X_8X)
+#include <asm/m5485sim.h>
 #endif
 
 /*

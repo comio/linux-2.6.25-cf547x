@@ -70,7 +70,33 @@
 /* cache disabled for testing */
 #define CACHE_INITIAL_MODE 	(CF_CACR_EUSP)
 #endif /* CONFIG_M5445X_DISABLE_CACHE */
-#endif /* CONFIG_M54455 */
+
+#elif defined(CONFIG_M547X_8X)
+/*
+ * M547x/M548x Cache Configuration
+ *	- cache line size is 16 bytes
+ *	- cache is 4-way set associative
+ *	- each cache has 512 sets (128k / 16bytes / 4way)
+ *	- I-Cache size is 32KB
+ *	- D-Cache size is 32KB
+ */
+#define ICACHE_SIZE 0x8000		/* instruction - 32k */
+#define DCACHE_SIZE 0x8000		/* data - 32k */
+
+#define CACHE_LINE_SIZE 0x0010		/* 16 bytes */
+#define CACHE_SETS 0x0200		/* 512 sets */
+#define CACHE_WAYS 0x0004		/* 4 way */
+
+#define CACHE_DISABLE_MODE	(CF_CACR_DCINVA+	\
+				 CF_CACR_BCINVA+	\
+				 CF_CACR_ICINVA)
+
+#define CACHE_INITIAL_MODE 	(CF_CACR_DEC+		\
+				 CF_CACR_BEC+		\
+				 CF_CACR_IEC+		\
+				 CF_CACR_DESB+		\
+				 CF_CACR_EUSP)
+#endif /* CONFIG_M547X_8X */
 
 #ifndef __ASSEMBLY__
 

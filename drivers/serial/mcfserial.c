@@ -45,6 +45,11 @@
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
 #include <asm/mcfuart.h>
+#if defined(CONFIG_M547X_8X)
+#include <asm/m5485sim.h>
+#include <asm/m5485psc.h>
+#include <asm/m5485gpio.h>
+#endif
 #ifdef CONFIG_NETtel
 #include <asm/nettel.h>
 #endif
@@ -64,7 +69,7 @@ struct timer_list mcfrs_timer_struct;
 #define	DEFAULT_CBAUD		B38400
 #elif defined(CONFIG_MOD5272) || defined(CONFIG_M5208EVB) || \
       defined(CONFIG_M5329EVB) || defined(CONFIG_GILBARCO) || \
-      defined(CONFIG_M54455)
+      defined(CONFIG_M54455) || defined(CONFIG_M547X_8X)
 #define CONSOLE_BAUD_RATE 	115200
 #define DEFAULT_CBAUD		B115200
 #elif defined(CONFIG_ARNEWSH) || defined(CONFIG_FREESCALE) || \
@@ -97,7 +102,8 @@ static struct tty_driver *mcfrs_serial_driver;
 #undef SERIAL_DEBUG_FLOW
 
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
-    defined(CONFIG_M520x) || defined(CONFIG_M532x) || defined(CONFIG_M54455)
+    defined(CONFIG_M520x) || defined(CONFIG_M532x) || defined(CONFIG_M54455) || \
+    defined(CONFIG_M547X_8X)
 #define	IRQBASE	(MCFINT_VECBASE+MCFINT_UART0)
 #else
 #define	IRQBASE	73
@@ -117,7 +123,11 @@ static struct mcf_serial mcfrs_table[] = {
 	{  /* ttyS1 */
 		.magic = 0,
 		.addr = (volatile unsigned char *) (MCF_MBAR+MCFUART_BASE2),
+#if defined(CONFIG_M547X_8X)
+		.irq = IRQBASE-1,
+#else
 		.irq = IRQBASE+1,
+#endif
 		.flags = ASYNC_BOOT_AUTOCONF,
 	},
 #endif
@@ -125,7 +135,11 @@ static struct mcf_serial mcfrs_table[] = {
 	{  /* ttyS2 */
 		.magic = 0,
 		.addr = (volatile unsigned char *) (MCF_MBAR+MCFUART_BASE3),
+#if defined(CONFIG_M547X_8X)
+		.irq = IRQBASE-2,
+#else
 		.irq = IRQBASE+2,
+#endif
 		.flags = ASYNC_BOOT_AUTOCONF,
 	},
 #endif
@@ -133,7 +147,11 @@ static struct mcf_serial mcfrs_table[] = {
 	{  /* ttyS3 */
 		.magic = 0,
 		.addr = (volatile unsigned char *) (MCF_MBAR+MCFUART_BASE4),
+#if defined(CONFIG_M547X_8X)
+		.irq = IRQBASE-3,
+#else
 		.irq = IRQBASE+3,
+#endif
 		.flags = ASYNC_BOOT_AUTOCONF,
 	},
 #endif
@@ -412,7 +430,12 @@ irqreturn_t mcfrs_interrupt(int irq, void *dev_id)
 	struct mcf_serial	*info;
 	unsigned char		isr;
 
+/* JKM -- revisit! IRQ compute */
+#if defined(CONFIG_M547X_8X)
+	info = &mcfrs_table[(IRQBASE - irq)];
+#else
 	info = &mcfrs_table[(irq - IRQBASE)];
+#endif
 	isr = info->addr[MCFUART_UISR] & info->imr;
 
 	if (isr & MCFUART_UIR_RXREADY)
@@ -1621,6 +1644,22 @@ static void mcfrs_irqinit(struct mcf_serial *info)
 		/* GPIOs also must be initalized, depends on board */
 		break;
 	}
+#elif defined(CONFIG_M547X_8X)
+	volatile unsigned char  *uartp;
+	uartp = (volatile unsigned char *)info->addr;
+
+	if (info->line > 3) {
+		printk("SERIAL: don't know how to handle UART %d interrupt?\n",
+			info->line);
+		return;
+	}
+
+	/* Set GPIO port register to enable PSC(port) signals */
+	MCF_PAR_PSCn(info->line) = (0
+		| MCF_PAR_PSC_TXD
+		| MCF_PAR_PSC_RXD);
+
+	MCF_ICR(info->irq - 64) = ILP_PSCn(info->line);
 #else
 	volatile unsigned char	*icrp, *uartp;
 
@@ -1983,7 +2022,7 @@ struct console mcfrs_console = {
 
 static int __init mcfrs_console_init(void)
 {
-#ifndef CONFIG_M54455
+#if !(defined(CONFIG_M54455) || defined(CONFIG_M547X_8X))
 	register_console(&mcfrs_console);
 #endif
 	return 0;

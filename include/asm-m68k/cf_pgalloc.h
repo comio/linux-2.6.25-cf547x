@@ -1,9 +1,14 @@
 #ifndef M68K_CF_PGALLOC_H
 #define M68K_CF_PGALLOC_H
 
+/* JKM -- added -- needed? */
+#include <linux/highmem.h>
+
 #include <asm/coldfire.h>
 #include <asm/page.h>
 #include <asm/cf_tlbflush.h>
+/* JKM -- added -- needed? */
+#include <asm/cf_cacheflush.h>
 
 extern inline void pte_free_kernel(pte_t *pte)
 {

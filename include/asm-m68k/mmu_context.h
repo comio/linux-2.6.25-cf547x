@@ -152,6 +152,7 @@ static inline void activate_mm(struct mm_struct *prev_mm,
 
 #else /* CONFIG_COLDFIRE */
 
+#include <asm/coldfire.h>
 #include <asm/atomic.h>
 #include <asm/bitops.h>
 #include <asm/mmu.h>
@@ -227,6 +228,77 @@ static inline void activate_mm(struct mm_struct *active_mm,
 #define deactivate_mm(tsk, mm) do { } while (0)
 
 extern void mmu_context_init(void);
+#if defined(CONFIG_M547X_8X)
+#define prepare_arch_switch(next) load_ksp_mmu(next)
+
+static inline void load_ksp_mmu(struct task_struct *task)
+{
+	int flags;
+	struct mm_struct *mm;
+	int asid;
+	pgd_t *pgd;
+	pmd_t *pmd;
+	pte_t *pte;
+	unsigned long mmuar;
+
+	local_irq_save(flags);
+	mmuar = task->thread.ksp;
+
+	/* Search for a valid TLB entry, if one is found, don't remap */
+	*MMUAR = mmuar;
+	*MMUOR = MMUOR_STLB | MMUOR_ADR;
+	if ((*MMUSR) & MMUSR_HIT)
+		goto end;
+
+	if (mmuar >= PAGE_OFFSET) {
+		mm = &init_mm;
+	} else {
+		printk ("load_ksp_mmu: non-kernel mm found: 0x%08x\n", (unsigned int) task->mm);
+		mm = task->mm;
+	}
+
+        if (!mm)
+	    goto bug;
+
+        pgd = pgd_offset(mm, mmuar);
+        if (pgd_none(*pgd))
+	    goto bug;
+	    
+    	pmd = pmd_offset(pgd, mmuar);
+    	if (pmd_none(*pmd))
+	    goto bug;
+    	
+	pte = (mmuar >= PAGE_OFFSET) ? pte_offset_kernel(pmd, mmuar)
+	                             : pte_offset_map(pmd, mmuar);
+    	if (pte_none(*pte) || !pte_present(*pte))
+	    goto bug;
+
+        set_pte(pte, pte_mkyoung(*pte));
+        asid = mm->context & 0xff;
+        if (!pte_dirty(*pte) && mmuar<=PAGE_OFFSET)
+    	    set_pte(pte, pte_wrprotect(*pte));
+
+        *MMUTR = (mmuar & PAGE_MASK) | (asid << CF_ASID_MMU_SHIFT)
+               | (((int)(pte->pte) & (int)CF_PAGE_MMUTR_MASK ) >> CF_PAGE_MMUTR_SHIFT)
+               | MMUTR_V;
+
+        *MMUDR = (pte_val(*pte) & PAGE_MASK) 
+	       | ((pte->pte) & CF_PAGE_MMUDR_MASK)
+               | MMUDR_SZ8K | MMUDR_X;
+	    
+	*MMUOR = MMUOR_ACC | MMUOR_UAA;
+	asm ("nop");
+
+	goto end;
+
+bug:
+	printk ("ksp load failed: mm=0x%08x ksp=0x%08x\n", (unsigned int) mm, (unsigned int) mmuar);
+
+end:
+	local_irq_restore(flags);
+}
+
+#endif /* CONFIG_M547X_8X */
 
 #endif /* CONFIG_COLDFIRE */
 #endif

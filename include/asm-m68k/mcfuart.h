@@ -22,6 +22,15 @@
 #define MCFUART_BASE3		0xfc068000	/* Base address of UART3 */
 #define MCFINT_VECBASE		64
 #define MCFINT_UART0		26
+
+#elif defined(CONFIG_M547X_8X)
+
+#define MCFUART_BASE1		0x8600		/* Base address of UART1 */
+#define MCFUART_BASE2		0x8700		/* Base address of UART2 */
+#define MCFUART_BASE3		0x8800		/* Base address of UART3 */
+#define MCFUART_BASE4		0x8900		/* Base address of UART4 */
+#define MCFINT_VECBASE		64
+#define MCFINT_UART0		35
 #endif
 
 
@@ -96,6 +105,11 @@
 #define	MCFUART_USR_TXREADY	0x04		/* Transmitter ready */
 #define	MCFUART_USR_RXFULL	0x02		/* Receiver full */
 #define	MCFUART_USR_RXREADY	0x01		/* Receiver ready */
+
+#if defined(CONFIG_M547X_8X)
+#define	MCFUART_USR_TXREADY_BN	0x0a
+#define	MCFUART_USR_TXEMPTY_BN	0x0b
+#endif
 
 #define	MCFUART_USR_RXERR	(MCFUART_USR_RXBREAK | MCFUART_USR_RXFRAMING | \
 				MCFUART_USR_RXPARITY | MCFUART_USR_RXOVERRUN)

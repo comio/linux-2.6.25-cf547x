@@ -5,9 +5,10 @@
  * Copyright (C) 1998  D. Jeff Dionne <jeff@lineo.ca>,
  *                     Kenneth Albanowski <kjahds@kjahds.com>,
  * Copyright (C) 2000  Lineo Inc. (www.lineo.com)
- * Matt Waddel Matt.Waddel@freescale.com
- * Copyright Freescale Semiconductor, Inc. 2007
- * Kurt Mahan kmahan@freescale.com
+ *
+ * Copyright Freescale Semiconductor, Inc. 2007, 2008
+ * 	Kurt Mahan kmahan@freescale.com
+ * 	Matt Waddel Matt.Waddel@freescale.com
  *
  * Based on:
  * linux/arch/m68k/kernel/ints.c &
@@ -46,7 +47,7 @@ static int irq_depth[SYS_IRQS];
 /*
  * IRQ Controller
  */
-#ifdef CONFIG_M54455
+#if defined(CONFIG_M54455)
 void m5445x_irq_enable(unsigned int irq);
 void m5445x_irq_disable(unsigned int irq);
 static struct irq_controller m5445x_irq_controller = {
@@ -55,6 +56,17 @@ static struct irq_controller m5445x_irq_controller = {
 	.enable		= m5445x_irq_enable,
 	.disable	= m5445x_irq_disable,
 };
+#elif defined(CONFIG_M547X_8X)
+void m547x_8x_irq_enable(unsigned int irq);
+void m547x_8x_irq_disable(unsigned int irq);
+static struct irq_controller m547x_8x_irq_controller = {
+	.name		= "M547X_8X",
+	.lock		= SPIN_LOCK_UNLOCKED,
+	.enable		= m547x_8x_irq_enable,
+	.disable	= m547x_8x_irq_disable,
+};
+#else
+# error No IRQ controller defined
 #endif
 
 #define	POOL_SIZE 	SYS_IRQS
@@ -75,9 +87,12 @@ void __init init_IRQ(void)
 {
 	int i;
 
-#ifdef CONFIG_M54455
+#if defined(CONFIG_M54455)
 	for (i = 0; i < SYS_IRQS; i++)
 		irq_controller[i] = &m5445x_irq_controller;
+#elif defined(CONFIG_M547X_8X)
+	for (i = 0; i < SYS_IRQS; i++)
+		irq_controller[i] = &m547x_8x_irq_controller;
 #endif
 }
 
@@ -380,5 +395,58 @@ void m5445x_irq_disable(unsigned int irq)
 		MCF_INTC1_ICR(irq) = 0x00;
 		MCF_INTC1_SIMR = irq;
 	}
+}
+#elif defined(CONFIG_M547X_8X)
+/*
+ * M547X_8X Implementation
+ */
+void m547x_8x_irq_enable(unsigned int irq)
+{
+	/* enable the interrupt hardware */
+	if (irq < 64)
+		return;
+
+	/* adjust past non-hardware ints */
+	irq -= 64;
+
+/* JKM -- re-add EPORT later */
+#if 0
+	/* check for eport */
+	if ((irq > 0) && (irq < 8)) {
+		/* enable eport */
+		MCF_EPORT_EPPAR &= ~(3 << (irq*2));	/* level */
+		MCF_EPORT_EPDDR &= ~(1 << irq);		/* input */
+		MCF_EPORT_EPIER |= 1 << irq;		/* irq enabled */
+	}
+#endif
+
+	if (irq < 32)
+		MCF_IMRL &= ~(1 << irq);
+	else
+		MCF_IMRH &= ~(1 << (irq - 32));
+}
+
+void m547x_8x_irq_disable(unsigned int irq)
+{
+	/* disable the interrupt hardware */
+	if (irq < 64)
+		return;
+
+	/* adjust past non-hardware ints */
+	irq -= 64;
+
+/* JKM -- re-add EPORT later */
+#if 0
+	/* check for eport */
+	if ((irq > 0) && (irq < 8)) {
+		/* disable eport */
+		MCF_EPORT_EPIER &= ~(1 << irq);
+	}
+#endif
+
+	if (irq < 32)
+		MCF_IMRL |= (1 << irq);
+	else
+		MCF_IMRH |= (1 << (irq - 32));
 }
 #endif

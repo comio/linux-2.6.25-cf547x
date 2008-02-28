@@ -1,8 +1,9 @@
 /*
- *  linux/arch/m68k/coldifre/config.c
+ *  linux/arch/m68k/coldfire/config.c
  *
+ *  Kurt Mahan kmahan@freescale.com
  *  Matt Waddel Matt.Waddel@freescale.com
- *  Copyright Freescale Semiconductor, Inc. 2007
+ *  Copyright Freescale Semiconductor, Inc. 2007, 2008
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -32,11 +33,16 @@
 #include <asm/movs.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
+
+#include <asm/mcfsim.h>
+
+#if 0
 #include <asm/mcf5445x_intc.h>
 #include <asm/mcf5445x_sdramc.h>
 #include <asm/mcf5445x_fbcs.h>
 #include <asm/mcf5445x_dtim.h>
 #include <asm/mcf5445x_xbs.h>
+#endif
 
 /* JKM -- testing */
 #include <linux/pfn.h>
@@ -85,15 +91,21 @@ int __init uboot_commandline(char *bootargs)
 {
 	int len = 0, cmd_line_len;
 	static struct uboot_record uboot_info;
+	u32 offset = PAGE_OFFSET_RAW - PHYS_OFFSET;
 
 	extern unsigned long uboot_info_stk;
 
-	/* Add 0x80000000 to get post-remapped kernel memory location */
-	uboot_info.bd_info = (*(u32 *)(uboot_info_stk)) + 0x80000000;
-	uboot_info.initrd_start = (*(u32 *)(uboot_info_stk+4)) + 0x80000000;
-	uboot_info.initrd_end = (*(u32 *)(uboot_info_stk+8)) + 0x80000000;
-	uboot_info.cmd_line_start = (*(u32 *)(uboot_info_stk+12)) + 0x80000000;
-	uboot_info.cmd_line_stop = (*(u32 *)(uboot_info_stk+16)) + 0x80000000;
+	/* validate address */
+	if ((uboot_info_stk < PAGE_OFFSET_RAW) ||
+	    (uboot_info_stk >= (PAGE_OFFSET_RAW + CONFIG_SDRAM_SIZE)))
+		return 0;
+
+	/* Add offset to get post-remapped kernel memory location */
+	uboot_info.bd_info = (*(u32 *)(uboot_info_stk)) + offset;
+	uboot_info.initrd_start = (*(u32 *)(uboot_info_stk+4)) + offset;
+	uboot_info.initrd_end = (*(u32 *)(uboot_info_stk+8)) + offset;
+	uboot_info.cmd_line_start = (*(u32 *)(uboot_info_stk+12)) + offset;
+	uboot_info.cmd_line_stop = (*(u32 *)(uboot_info_stk+16)) + offset;
 
 	cmd_line_len = uboot_info.cmd_line_stop - uboot_info.cmd_line_start;
 	if ((cmd_line_len > 0) && (cmd_line_len < CL_SIZE-1))
@@ -106,21 +118,36 @@ int __init uboot_commandline(char *bootargs)
 /*
  * This routine does things not done in the bootloader.
  */
+#if defined(CONFIG_M54455)
 #define DEFAULT_COMMAND_LINE "root=/dev/mtdblock1 rw rootfstype=jffs2 ip=none mtdparts=physmap-flash.0:5M(kernel)ro,-(jffs2)"
+#elif defined(CONFIG_M547X_8X)
+#define DEFAULT_COMMAND_LINE "debug root=/dev/nfs nfsroot=172.27.155.1:/tftpboot/rigo/rootfs/ ip=172.27.155.85:172.27.155.1"
+#endif
 asmlinkage void __init cf_early_init(void)
 {
 	struct bi_record *record = (struct bi_record *) &_end;
 
 	extern char _end;
 
+#if defined(CONFIG_M54455)
 	SET_VBR((void *)MCF_RAMBAR1);
+#elif defined(CONFIG_M547X_8X)
+	SET_VBR((void *)MCF_RAMBAR0);
+#endif
 
 	/* Mask all interrupts */
+#if defined(CONFIG_M54455)
 	MCF_INTC0_IMRL = 0xFFFFFFFF;
 	MCF_INTC0_IMRH = 0xFFFFFFFF;
 	MCF_INTC1_IMRL = 0xFFFFFFFF;
 	MCF_INTC1_IMRH = 0xFFFFFFFF;
+#elif defined(CONFIG_M547X_8X)
+/* JKM -- ?? */
+	MCF_IMRL = 0xFFFFFFFF;
+	MCF_IMRH = 0xFFFFFFFF;
+#endif
 
+#if defined(CONFIG_M54455)
 #if defined(CONFIG_NOR_FLASH_BASE)
 	MCF_FBCS_CSAR(1) = CONFIG_NOR_FLASH_BASE;
 #else
@@ -131,9 +158,10 @@ asmlinkage void __init cf_early_init(void)
 	/* Init optional SDRAM chip select */
 	MCF_SDRAMC_SDCS(1) = (256*1024*1024) | 0x1B;
 #endif
+#endif /* CONFIG_M54455 */
 
+#if defined(CONFIG_M54455)
 	/* Setup SDRAM crossbar(XBS) priorities */
-printk(KERN_INFO "Bumping USB Priority\n");
 	MCF_XBS_PRS2 = (MCF_XBS_PRS_M0(MCF_XBS_PRI_2) |
 			MCF_XBS_PRS_M1(MCF_XBS_PRI_3) |
 			MCF_XBS_PRS_M2(MCF_XBS_PRI_4) |
@@ -141,6 +169,7 @@ printk(KERN_INFO "Bumping USB Priority\n");
 			MCF_XBS_PRS_M5(MCF_XBS_PRI_6) |
 			MCF_XBS_PRS_M6(MCF_XBS_PRI_1) |
 			MCF_XBS_PRS_M7(MCF_XBS_PRI_7));
+#endif
 	
 
 	m68k_machtype = MACH_CFMMU;
@@ -152,6 +181,7 @@ printk(KERN_INFO "Bumping USB Priority\n");
 	m68k_memory[m68k_num_memory].addr = CONFIG_SDRAM_BASE;
 	m68k_memory[m68k_num_memory++].size = CONFIG_SDRAM_SIZE;
 
+#if defined(CONFIG_M54455)
 	if (!uboot_commandline(m68k_command_line)) {
 #if defined(CONFIG_BOOTPARAM)
 		strncpy(m68k_command_line, CONFIG_BOOTPARAM_STRING, CL_SIZE-1);
@@ -159,6 +189,10 @@ printk(KERN_INFO "Bumping USB Priority\n");
 		strcpy(m68k_command_line, DEFAULT_COMMAND_LINE);
 #endif
 	}
+#else
+/* JKM -- hack until mappings get resolved */
+	strcpy(m68k_command_line, DEFAULT_COMMAND_LINE);
+#endif
 
 
 #if defined(CONFIG_BLK_DEV_INITRD)
@@ -185,6 +219,7 @@ printk(KERN_INFO "Bumping USB Priority\n");
 	cacr_set(CACHE_INITIAL_MODE);
 }
 
+#if defined(CONFIG_M54455)
 void settimericr(unsigned int timer, unsigned int level)
 {
 	volatile unsigned char *icrp;
@@ -202,6 +237,7 @@ void settimericr(unsigned int timer, unsigned int level)
 		coldfire_enable_irq0(irq);
 	}
 }
+#endif
 
 /* Assembler routines */
 asmlinkage void buserr(void);
@@ -214,7 +250,11 @@ void __init coldfire_trap_init(void)
 	int i = 0;
 	e_vector *vectors;
 
+#if defined(CONFIG_M54455)
 	vectors = (e_vector *)MCF_RAMBAR1;
+#elif defined(CONFIG_M547X_8X)
+	vectors = (e_vector *)MCF_RAMBAR0;
+#endif
 	/*
 	 * There is a common trap handler and common interrupt
 	 * handler that handle almost every vector. We treat
@@ -234,6 +274,8 @@ void __init coldfire_trap_init(void)
 	vectors[2] = buserr;
 	vectors[32] = system_call;
 }
+
+#if defined(CONFIG_M54455)
 
 void coldfire_tick(void)
 {
@@ -285,13 +327,49 @@ unsigned long coldfire_gettimeoffset(void)
 	return offset;
 }
 
+#elif defined(CONFIG_M547X_8X)
+
+void coldfire_tick(void)
+{
+	/* Reset the ColdFire timer */
+	MCF_SSR(0) = MCF_SSR_ST;
+}
+
+void __init coldfire_sched_init(irq_handler_t handler)
+{
+	int irq = ISC_SLTn(0);
+
+	MCF_SCR(0) = 0;
+	MCF_ICR(irq) = ILP_SLT0;
+	request_irq(64 + irq, handler, IRQF_DISABLED, "ColdFire Timer 0", NULL);
+	MCF_SLTCNT(0) = MCF_BUSCLK / HZ;
+	MCF_SCR(0) |=  MCF_SCR_TEN | MCF_SCR_IEN | MCF_SCR_RUN;
+}
+
+unsigned long coldfire_gettimeoffset(void)
+{
+	volatile unsigned long trr, tcn, offset;
+	trr = MCF_SLTCNT(0);
+	tcn = MCF_SCNT(0);
+
+	offset = (trr - tcn) * ((1000000 >> 3) / HZ) / (trr >> 3);
+	if (MCF_SSR(0) & MCF_SSR_ST)
+		offset += 1000000 / HZ;
+
+	return offset;
+}
+
+#endif
+
 void coldfire_reboot(void)
 {
+#if defined(CONFIG_M54455)
 	/* disable interrupts and do a software reset */
 	asm("movew #0x2700, %%sr\n\t"
 	    "moveb #0x80, %%d0\n\t"
 	    "moveb %%d0, 0xfc0a0000\n\t"
 	    : : : "%d0");
+#endif
 }
 
 /* int coldfire_hwclk(int i, struct rtc_time *t)
@@ -305,6 +383,7 @@ static void coldfire_get_model(char *model)
 	sprintf(model, "Version 4 ColdFire");
 }
 
+/* JKM -- Why do we need these? */
 void coldfire_enable_irq(unsigned int vec)
 {
 	unsigned long flags;
@@ -318,13 +397,21 @@ void coldfire_enable_irq(unsigned int vec)
 
 	local_irq_save(flags);
 	irq_enable[vec]++;
+#if defined(CONFIG_M54455)
 	if (vec < 32)
 		MCF_INTC0_IMRL &= ~(1 << vec);
 	else
 		MCF_INTC0_IMRH &= ~(1 << (vec - 32));
+#elif defined(CONFIG_M547X_8X)
+	if (vec < 32)
+		MCF_IMRL &= ~(1 << vec);
+	else
+		MCF_IMRH &= ~(1 << (vec - 32));
+#endif
 	local_irq_restore(flags);
 }
 
+/* JKM -- Why do we need these? */
 void coldfire_disable_irq(unsigned int vec)
 {
 	unsigned long flags;
@@ -338,10 +425,17 @@ void coldfire_disable_irq(unsigned int vec)
 
 	local_irq_save(flags);
 	if (--irq_enable[vec] == 0) {
+#if defined(CONFIG_M54455)
 		if (vec < 32)
 			MCF_INTC0_IMRL |= (1 << vec);
 		else
 			MCF_INTC0_IMRH |= (1 << (vec - 32));
+#elif defined(CONFIG_M547X_8X)
+		if (vec < 32)
+			MCF_IMRL |= (1 << vec);
+		else
+			MCF_IMRH |= (1 << (vec - 32));
+#endif
 
 	}
 	local_irq_restore(flags);

@@ -63,6 +63,10 @@ ifdef CONFIG_M54455
 KBUILD_CFLAGS += -march=isac -mcpu=54455 -msoft-float -g
 KBUILD_AFLAGS += -march=isac -mcpu=54455 -msoft-float  
 endif
+ifdef CONFIG_M547X_8X
+KBUILD_CFLAGS += -mcfv4e -g
+KBUILD_AFLAGS += -mcfv4e
+endif
 
 ifdef CONFIG_KGDB
 # If configured for kgdb support, include debugging infos and keep the

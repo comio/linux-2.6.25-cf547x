@@ -2,9 +2,9 @@
  *  head.S is the MMU enabled ColdFire specific initial boot code
  *
  *  Ported to ColdFire by
- *  Matt Waddel Matt.Waddel@freescale.com
- *  Kurt Mahan kmahan@freescale.com
- *  Copyright Freescale Semiconductor, Inc. 2007
+ *    Matt Waddel Matt.Waddel@freescale.com
+ *    Kurt Mahan kmahan@freescale.com
+ *  Copyright Freescale Semiconductor, Inc. 2007, 2008
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -52,6 +52,7 @@
 #define __FINIT		.previous
 #endif
 
+/* JKM -- REVISE DOCS FOR RIGO */
 /*
  * Setup ACR mappings to provide the following memory map:
  *   Data
@@ -61,13 +62,20 @@
  *     None currently (mapped via TLBs)
  */
 
+#if defined(CONFIG_M54455)
 #define ACR0_DEFAULT	#0xA00FA048   /* ACR0 default value */
 #define ACR1_DEFAULT	#0xF00FA040   /* ACR1 default value */
 #define ACR2_DEFAULT	#0x00000000   /* ACR2 default value */
 #define ACR3_DEFAULT	#0x00000000   /* ACR3 default value */
-
 /* ACR mapping for FPGA (maps 0) */
 #define ACR0_FPGA	#0x000FA048   /* ACR0 enable FPGA */
+#elif defined(CONFIG_M547X_8X)
+#define ACR0_DEFAULT	#0xE000C040   /* ACR0 default value */
+#define ACR1_DEFAULT	#0x00000000   /* ACR1 default value */
+#define ACR2_DEFAULT	#0x00000000   /* ACR2 default value */
+#define ACR3_DEFAULT	#0x00000000   /* ACR3 default value */
+#endif
+
 
 /* Several macros to make the writing of subroutines easier:
  * - func_start marks the beginning of the routine which setups the frame
@@ -227,7 +235,7 @@ ENTRY(_stext)
 
 	.long	BOOTINFOV_MAGIC
 	.long	0
-1:	jmp	__start-0x80000000
+1:	jmp	__start-(0xc0000000-CONFIG_SDRAM_BASE)
 
 .equ	kernel_pg_dir,_stext
 .equ	.,_stext+0x1000
@@ -237,19 +245,40 @@ ENTRY(_start)
 __INIT
 ENTRY(__start)
 
+/* JKM -- make sure Rigo handles UBOOT */
 /* Save the location of u-boot info - cmd line, bd_info, etc. */
 	movel	%a7,%a4		/* Don't use %a4 before cf_early_init */
+/* JKM -- fix to use CONFIG_SDRAM_BASE) */
+#if defined(CONFIG_M54455)
 	addl	#0x80000004,%a4	/* 0x80000004= 1 stack push + high mem offset */
+#elif defined(CONFIG_M547X_8X)
+	addl	#0xc0000004,%a4	/* 0x80000004= 1 stack push + high mem offset */
+#endif
 
+/* JKM -- fix this to work off of CONFIG_SDRAM_BASE */
 /* Setup initial stack pointer */
+#if defined(CONFIG_M54455)
 	movel	#0x40001000,%sp	
+#elif defined(CONFIG_M547X_8X)
+	movel	#0x00001000,%sp	
+#endif
 
 /* Setup usp */
 	subl	%a0,%a0
 	movel	%a0,%usp
 
+#if defined(CONFIG_M54455)
 	movel  #(MCF_RAMBAR1 + 0x221), %d0
 	movec   %d0, %rambar1
+#elif defined(CONFIG_M547X_8X)
+	movel   #MCF_MBAR, %d0
+	movec   %d0, %mbar
+	move.l  #(MCF_RAMBAR0 + 0x21), %d0
+	movec   %d0, %rambar0
+	move.l  #(MCF_RAMBAR1 + 0x21), %d0
+	movec   %d0, %rambar1
+#endif
+
 	movew	#0x2700,%sr
 
 /* reset cache */
@@ -278,6 +307,7 @@ ENTRY(__start)
 	/* If you change the memory size to another value make a matching 
 	   change in paging_init(cf-mmu.c) to zones_size[]. */
 
+#if defined(CONFIG_M54455)
 	/* Map 256MB as code */
 	mmu_map	(PAGE_OFFSET+0*0x1000000),  (PHYS_OFFSET+0*0x1000000), \
 		MMUOR_ITLB, 0, MMUTR_SG, MMUDR_SZ16M, MMUDR_IC,  MMUDR_SP, \
@@ -383,16 +413,104 @@ ENTRY(__start)
 		MMUTR_SG, MMUDR_SZ16M, MMUDR_DNCP, MMUDR_SP, MMUDR_R, MMUDR_W, \
 		0, MMUDR_LK, %d0
 
-	/* Do unity mapping to enable the MMU.  Map first 16 MB in place as 
-	   code (delete TLBs after MMU is enabled and we are executing in high 
-	   memory). */
+#elif defined(CONFIG_M547X_8X)
+
+	/* Map first 8 MB as code */
+	mmu_map (PAGE_OFFSET+0*1024*1024),  (0*1024*1024), MMUOR_ITLB, 0, \
+		MMUTR_SG, MMUDR_SZ1M, MMUDR_IC,  MMUDR_SP, 0, 0, MMUDR_X, \
+		MMUDR_LK, %d0
+	mmu_map (PAGE_OFFSET+1*1024*1024),  (1*1024*1024), MMUOR_ITLB, 0, \
+		MMUTR_SG, MMUDR_SZ1M, MMUDR_IC,  MMUDR_SP, 0, 0, MMUDR_X, \
+		MMUDR_LK, %d0
+	mmu_map (PAGE_OFFSET+2*1024*1024),  (2*1024*1024), MMUOR_ITLB, 0, \
+		MMUTR_SG, MMUDR_SZ1M, MMUDR_IC,  MMUDR_SP, 0, 0, MMUDR_X, \
+		MMUDR_LK, %d0
+	mmu_map (PAGE_OFFSET+3*1024*1024),  (3*1024*1024), MMUOR_ITLB, 0, \
+		MMUTR_SG, MMUDR_SZ1M, MMUDR_IC,  MMUDR_SP, 0, 0, MMUDR_X, \
+		MMUDR_LK, %d0
+	mmu_map (PAGE_OFFSET+4*1024*1024),  (4*1024*1024), MMUOR_ITLB, 0, \
+		MMUTR_SG, MMUDR_SZ1M, MMUDR_IC,  MMUDR_SP, 0, 0, MMUDR_X, \
+		MMUDR_LK, %d0
+	mmu_map (PAGE_OFFSET+5*1024*1024),  (5*1024*1024), MMUOR_ITLB, 0, \
+		MMUTR_SG, MMUDR_SZ1M, MMUDR_IC,  MMUDR_SP, 0, 0, MMUDR_X, \
+		MMUDR_LK, %d0
+	mmu_map (PAGE_OFFSET+6*1024*1024),  (6*1024*1024), MMUOR_ITLB, 0, \
+		MMUTR_SG, MMUDR_SZ1M, MMUDR_IC,  MMUDR_SP, 0, 0, MMUDR_X, \
+		MMUDR_LK, %d0
+	mmu_map (PAGE_OFFSET+7*1024*1024),  (7*1024*1024), MMUOR_ITLB, 0, \
+		MMUTR_SG, MMUDR_SZ1M, MMUDR_IC,  MMUDR_SP, 0, 0, MMUDR_X, \
+		MMUDR_LK, %d0
+
+	/* Map first 8 MB as data */
+	mmu_map (PAGE_OFFSET+0*1024*1024),  (0*1024*1024), 0, 0, \
+		MMUTR_SG, MMUDR_SZ1M, MMUDR_DNCP, MMUDR_SP, MMUDR_R, \
+		MMUDR_W, 0, MMUDR_LK, %d0
+	mmu_map (PAGE_OFFSET+1*1024*1024),  (1*1024*1024), 0, 0, \
+		MMUTR_SG, MMUDR_SZ1M, MMUDR_DNCP, MMUDR_SP, MMUDR_R, \
+		MMUDR_W, 0, MMUDR_LK, %d0
+	mmu_map (PAGE_OFFSET+2*1024*1024),  (2*1024*1024), 0, 0, \
+		MMUTR_SG, MMUDR_SZ1M, MMUDR_DNCP, MMUDR_SP, MMUDR_R, \
+		MMUDR_W, 0, MMUDR_LK, %d0
+	mmu_map (PAGE_OFFSET+3*1024*1024),  (3*1024*1024), 0, 0, \
+		MMUTR_SG, MMUDR_SZ1M, MMUDR_DNCP, MMUDR_SP, MMUDR_R, \
+		MMUDR_W, 0, MMUDR_LK, %d0
+	mmu_map (PAGE_OFFSET+4*1024*1024),  (4*1024*1024), 0, 0, \
+		MMUTR_SG, MMUDR_SZ1M, MMUDR_DNCP, MMUDR_SP, MMUDR_R, \
+		MMUDR_W, 0, MMUDR_LK, %d0
+	mmu_map (PAGE_OFFSET+5*1024*1024),  (5*1024*1024), 0, 0, \
+		MMUTR_SG, MMUDR_SZ1M, MMUDR_DNCP, MMUDR_SP, MMUDR_R, \
+		MMUDR_W, 0, MMUDR_LK, %d0
+	mmu_map (PAGE_OFFSET+6*1024*1024),  (6*1024*1024), 0, 0, \
+		MMUTR_SG, MMUDR_SZ1M, MMUDR_DNCP, MMUDR_SP, MMUDR_R, \
+		MMUDR_W, 0, MMUDR_LK, %d0
+	mmu_map (PAGE_OFFSET+7*1024*1024),  (7*1024*1024), 0, 0, \
+		MMUTR_SG, MMUDR_SZ1M, MMUDR_DNCP, MMUDR_SP, MMUDR_R, \
+		MMUDR_W, 0, MMUDR_LK, %d0
+#endif
+	/*
+	 * Do unity mapping to enable the MMU.  Map first chunk of memory
+	 * in place as code/data.  The TLBs will be deleted after the MMU is
+	 * enabled and we are executing in high memory.
+	 */
+
+#if defined(CONFIG_M54455)
+	/* Map first 16 MB as code */
 	mmu_map	(PHYS_OFFSET+0*0x1000000), (PHYS_OFFSET+0*0x1000000), \
 		MMUOR_ITLB, 0, MMUTR_SG, MMUDR_SZ16M, MMUDR_INC,  MMUDR_SP, 0, \
 		0, MMUDR_X, 0, %d0
-	/* Map first 16 MB as data too.  */
+	/* Map first 16 MB as data too  */
 	mmu_map	(PHYS_OFFSET+0*0x1000000), (PHYS_OFFSET+0*0x1000000), 0, 0, \
 		MMUTR_SG, MMUDR_SZ16M, MMUDR_DNCP, MMUDR_SP, MMUDR_R, MMUDR_W, \
 		0, 0, %d0
+#elif defined(CONFIG_M547X_8X)
+	/* Map first 4 MB as code */
+	mmu_map (0*1024*1024), (0*1024*1024), MMUOR_ITLB, 0, \
+		MMUTR_SG, MMUDR_SZ1M, MMUDR_IC,  MMUDR_SP, 0, 0, \
+		MMUDR_X, 0, %d0
+	mmu_map (1*1024*1024), (1*1024*1024), MMUOR_ITLB, 0, \
+		MMUTR_SG, MMUDR_SZ1M, MMUDR_IC,  MMUDR_SP, 0, 0, \
+		MMUDR_X, 0, %d0
+	mmu_map (2*1024*1024), (2*1024*1024), MMUOR_ITLB, 0, \
+		MMUTR_SG, MMUDR_SZ1M, MMUDR_IC,  MMUDR_SP, 0, 0, \
+		MMUDR_X, 0, %d0
+	mmu_map (3*1024*1024), (3*1024*1024), MMUOR_ITLB, 0, \
+		MMUTR_SG, MMUDR_SZ1M, MMUDR_IC,  MMUDR_SP, 0, 0, \
+		MMUDR_X, 0, %d0
+
+	/* Map first 4 MB as data too */
+	mmu_map (0*1024*1024), (0*1024*1024), 0, 0, \
+		MMUTR_SG, MMUDR_SZ1M, MMUDR_DCB, MMUDR_SP, MMUDR_R, \
+		MMUDR_W, 0, 0, %d0
+	mmu_map (1*1024*1024), (1*1024*1024), 0, 0, \
+		MMUTR_SG, MMUDR_SZ1M, MMUDR_DCB, MMUDR_SP, MMUDR_R, \
+		MMUDR_W, 0, 0, %d0
+	mmu_map (2*1024*1024), (2*1024*1024), 0, 0, \
+		MMUTR_SG, MMUDR_SZ1M, MMUDR_DCB, MMUDR_SP, MMUDR_R, \
+		MMUDR_W, 0, 0, %d0
+	mmu_map (3*1024*1024), (3*1024*1024), 0, 0, \
+		MMUTR_SG, MMUDR_SZ1M, MMUDR_DCB, MMUDR_SP, MMUDR_R, \
+		MMUDR_W, 0, 0, %d0
+#endif
 
 	/* Turn on MMU */
 	movel	#(MMUCR_EN),%a0
@@ -412,9 +530,20 @@ ENTRY(__running_high)
 	addl	#PAGE_OFFSET,%a1
 	movel	%a1,%a0@
 
-	/* Unmap first 16 MB, code and data.  */
+	/* Unmap unity mappings */
+#if defined(CONFIG_M54455)
 	mmu_unmap (PHYS_OFFSET+0*0x1000000), MMUOR_ITLB, %d0
 	mmu_unmap (PHYS_OFFSET+0*0x1000000), 0, %d0
+#elif defined(CONFIG_M547X_8X)
+	mmu_unmap (PHYS_OFFSET+0*0x1000000), MMUOR_ITLB, %d0
+	mmu_unmap (PHYS_OFFSET+1*0x1000000), MMUOR_ITLB, %d0
+	mmu_unmap (PHYS_OFFSET+2*0x1000000), MMUOR_ITLB, %d0
+	mmu_unmap (PHYS_OFFSET+3*0x1000000), MMUOR_ITLB, %d0
+	mmu_unmap (PHYS_OFFSET+0*0x1000000), 0, %d0
+	mmu_unmap (PHYS_OFFSET+1*0x1000000), 0, %d0
+	mmu_unmap (PHYS_OFFSET+2*0x1000000), 0, %d0
+	mmu_unmap (PHYS_OFFSET+3*0x1000000), 0, %d0
+#endif
 
 /* Setup initial stack pointer */
 	lea	init_task,%a2 
@@ -438,8 +567,9 @@ func_start	set_context,%d0,(1*4)
 	movec	%d0,%asid
 func_return	set_context
 
+#ifdef CONFIG_M54455
 /*
- * set_fpga(addr,val)
+ * set_fpga(addr,val) on the M54455EVB
  *
  * Map in 0x00000000 -> 0x0fffffff and then do the write.
  */
@@ -456,6 +586,7 @@ set_fpga:
 	nop
 	movew	%d1,%sr
 	rts
+#endif
 
 	.data
 	.align	4

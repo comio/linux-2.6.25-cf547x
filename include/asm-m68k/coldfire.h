@@ -1,9 +1,16 @@
 #ifndef _COLDFIRE_H_
 #define _COLDFIRE_H_
 
+#if defined(CONFIG_M54455)
 #define MCF_MBAR	0x0
 #define MCF_RAMBAR1 	0x40000000
 #define MCF_SRAM	0x80000000
+#elif defined(CONFIG_M547X_8X)
+#define MCF_MBAR	0xE0000000
+#define MCF_RAMBAR0	0xE3000000
+#define MCF_RAMBAR1	0xE3001000
+#endif
+
 #define MCF_CLK     	CONFIG_MCFCLK
 #define MCF_BUSCLK	(CONFIG_MCFCLK/2)
 

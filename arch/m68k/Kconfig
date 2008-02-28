@@ -56,7 +56,7 @@ config ARCH_MAY_HAVE_PC_FDC
 	default y
 
 config NO_IOPORT
-	def_bool !M54455
+	def_bool !(M54455 || M547X_8X)
 
 config NO_DMA
 	def_bool SUN3
@@ -319,20 +319,80 @@ config M68060
 config M54455
 	bool "MCF54455 support"
 	depends on COLDFIRE
-	default y
 	help
           This option will add support for the MCF54455 processor with mmu.
 
-config MCFCLK
-	int "M54455EVB System Clock"
-	depends on M54455
-	default 266666666
+config M547X_8X
+	bool "MCF547x/MCF548x support"
+	depends on COLDFIRE
 	help
-	  System clock for EVB.  Usually 266MHz for u-boot and 200MHz for dBUG.
+          This option will add support for the MCF547x/MCF548x processor with mmu.
+
+config M547X
+	bool
+	depends on M547X_8X
+	default n
+
+config M548X
+	bool
+	depends on M547X_8X
+	default n
+
+choice
+	prompt "Model"
+	depends on M547X_8X
+	default M5485CFE
+	config M5475AFE
+		bool "MCF5475AFE"
+		select M547X
+	config M5475BFE
+		bool "MCF5475BFE"
+		select M547X
+	config M5475CFE
+		bool "MCF5475CFE"
+		select M547X
+	config M5475DFE
+		bool "MCF5475DFE"
+		select M547X
+	config M5475EFE
+		bool "MCF5475EFE"
+		select M547X
+	config M5475FFE
+		bool "MCF5475FFE"
+		select M547X
+
+	config M5485AFE
+		bool "MCF5485AFE"
+		select M548X
+	config M5485BFE
+		bool "MCF5485BFE"
+		select M548X
+	config M5485CFE
+		bool "MCF5485CFE"
+		select M548X
+	config M5485DFE
+		bool "MCF5485DFE"
+		select M548X
+	config M5485EFE
+		bool "MCF5485EFE"
+		select M548X
+	config M5485FFE
+		bool "MCF5485FFE"
+		select M548X
+
+endchoice
+
+config MCFCLK
+	int
+	default 266666666 if M54455
+	default 266000000 if M547X
+	default 200000000 if M548X
+	help
+	  Coldfire System clock.
 
 config MCF_USER_HALT
 	bool "Coldfire User Halt Enable"
-	depends on M54455
+	depends on M54455 || M547X_8X
 	default n
 	help
 	  Enables the HALT instruction in User Mode.
@@ -350,13 +410,15 @@ config MMU_CFV4E
 
 config SDRAM_BASE
 	hex
-	depends on M54455
-	default 0x40000000
+	depends on COLDFIRE
+	default 0x40000000 if M54455
+	default 0x00000000 if M547X_8X
 
 config SDRAM_SIZE
 	hex
-	depends on M54455
-	default 0x0FFFFFFF
+	depends on COLDFIRE
+	default 0x0FFFFFFF if M54455
+	default 0x04000000 if M547X_8X
 
 config NOR_FLASH_BASE
 	hex "NOR Flash Base Address"
