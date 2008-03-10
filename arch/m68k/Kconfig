@@ -141,6 +141,15 @@ config CFV4E
 	select MMU_CFV4E if MMU
 	default y
 
+config MCD_DMA
+	bool "ColdFire MCD DMA support"
+	depends on CFV4E
+	default y
+	help
+	  This enables support for the ColdFire 547x/548x family
+	  multichannel DMA support.  Many drivers need it.
+	  If you want it, say Y
+
 config AMIGA
 	bool "Amiga support"
 	depends on !MMU_SUN3

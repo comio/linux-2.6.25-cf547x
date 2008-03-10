@@ -4,3 +4,5 @@ obj-$(CONFIG_INTEL_IOATDMA) += ioatdma.o
 ioatdma-objs := ioat.o ioat_dma.o ioat_dca.o
 obj-$(CONFIG_INTEL_IOP_ADMA) += iop-adma.o
 obj-$(CONFIG_FSL_DMA) += fsldma.o
+obj-$(CONFIG_MCD_DMA) += mcddma.o
+mcddma-objs := MCD_dmaApi.o MCD_tasks.o MCD_tasksInit.o

@@ -228,6 +228,8 @@ config MACB
 
 source "drivers/net/arm/Kconfig"
 
+source "drivers/net/fec/Kconfig"
+
 config AX88796
 	tristate "ASIX AX88796 NE2000 clone support"
 	depends on ARM || MIPS || SUPERH
