@@ -516,13 +516,8 @@ dma_init()
 	MCF_DMA_DIPR = 0xFFFFFFFF;
 
 	MCF_ICR(ISC_DMA) = ILP_DMA;
-#if 0
-// JKM
-	enable_irq( 64 + ISC_DMA );
-#endif
 
-	result =
-	    MCD_initDma((dmaRegs *) (MCF_MBAR + 0x8000),
+	result = MCD_initDma((dmaRegs *) (MCF_MBAR + 0x8000),
 			(void *) SYS_SRAM_DMA_START, MCD_RELOC_TASKS);
 	if (result != MCD_OK) {
 		printk("Cannot perform DMA initialization\n");

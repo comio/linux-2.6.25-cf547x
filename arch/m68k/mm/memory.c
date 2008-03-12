@@ -206,7 +206,9 @@ static inline void pushcl040(unsigned long paddr)
 void cache_clear (unsigned long paddr, int len)
 {
 #ifdef CONFIG_COLDFIRE
-	cf_cache_clear(paddr, len);
+// JKM -- revise to use proper caching
+//	cf_cache_clear(paddr, len);
+	flush_bcache();
 #else
     if (CPU_IS_040_OR_060) {
 	int tmp;
@@ -257,7 +259,9 @@ EXPORT_SYMBOL(cache_clear);
 void cache_push (unsigned long paddr, int len)
 {
 #ifdef CONFIG_COLDFIRE
-	cf_cache_push(paddr, len);
+// JKM -- revise to use proper caching
+//	cf_cache_push(paddr, len);
+	flush_bcache();
 #else
     if (CPU_IS_040_OR_060) {
 	int tmp = PAGE_SIZE;

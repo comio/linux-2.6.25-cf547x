@@ -23,7 +23,6 @@
 #include <asm/coldfire.h>
 #include <asm/cfcache.h>
 #include <asm/cacheflush.h>
-#include <asm/bootinfo.h>
 #include <asm/io.h>
 #include <asm/cfmmu.h>
 #include <asm/setup.h>
@@ -36,17 +35,20 @@
 
 #include <asm/mcfsim.h>
 
-#if 0
+#if defined(CONFIG_M54455)
+#define UBOOT_EXTRA_CLOCKS
+#elif defined(CONFIG_M547X_8X)
+#define UBOOT_PCI
+#endif
+#include <asm/bootinfo.h>
+
+#ifdef CONFIG_M54455
 #include <asm/mcf5445x_intc.h>
 #include <asm/mcf5445x_sdramc.h>
 #include <asm/mcf5445x_fbcs.h>
 #include <asm/mcf5445x_dtim.h>
 #include <asm/mcf5445x_xbs.h>
 #endif
-
-/* JKM -- testing */
-#include <linux/pfn.h>
-/* JKM */
 
 extern int get_irq_list(struct seq_file *p, void *v);
 extern char _text, _end;
@@ -57,6 +59,10 @@ extern unsigned long availmem;
 
 static int irq_enable[NR_IRQS];
 unsigned long num_pages;
+
+/* ethernet mac addresses from uboot */
+unsigned char uboot_enet0[6];
+unsigned char uboot_enet1[6];
 
 void coldfire_sort_memrec(void)
 {
@@ -87,6 +93,9 @@ void coldfire_sort_memrec(void)
 	}
 }
 
+/*
+ * UBoot Handler
+ */
 int __init uboot_commandline(char *bootargs)
 {
 	int len = 0, cmd_line_len;
@@ -101,12 +110,17 @@ int __init uboot_commandline(char *bootargs)
 		return 0;
 
 	/* Add offset to get post-remapped kernel memory location */
-	uboot_info.bd_info = (*(u32 *)(uboot_info_stk)) + offset;
+	uboot_info.bdi = (struct bd_info *)((*(u32 *)(uboot_info_stk)) + offset);
 	uboot_info.initrd_start = (*(u32 *)(uboot_info_stk+4)) + offset;
 	uboot_info.initrd_end = (*(u32 *)(uboot_info_stk+8)) + offset;
 	uboot_info.cmd_line_start = (*(u32 *)(uboot_info_stk+12)) + offset;
 	uboot_info.cmd_line_stop = (*(u32 *)(uboot_info_stk+16)) + offset;
 
+	/* copy over mac addresses */
+	memcpy(uboot_enet0, uboot_info.bdi->bi_enet0addr, 6);
+	memcpy(uboot_enet1, uboot_info.bdi->bi_enet1addr, 6);
+
+	/* copy command line */
 	cmd_line_len = uboot_info.cmd_line_stop - uboot_info.cmd_line_start;
 	if ((cmd_line_len > 0) && (cmd_line_len < CL_SIZE-1))
 		len = (int)strncpy(bootargs, (char *)uboot_info.cmd_line_start,\
@@ -121,7 +135,7 @@ int __init uboot_commandline(char *bootargs)
 #if defined(CONFIG_M54455)
 #define DEFAULT_COMMAND_LINE "root=/dev/mtdblock1 rw rootfstype=jffs2 ip=none mtdparts=physmap-flash.0:5M(kernel)ro,-(jffs2)"
 #elif defined(CONFIG_M547X_8X)
-#define DEFAULT_COMMAND_LINE "debug root=/dev/nfs nfsroot=172.27.155.1:/tftpboot/rigo/rootfs/ ip=172.27.155.85:172.27.155.1"
+#define DEFAULT_COMMAND_LINE "debug root=/dev/nfs rw nfsroot=172.27.155.1:/tftpboot/rigo/rootfs/ ip=172.27.155.85:172.27.155.1"
 #endif
 asmlinkage void __init cf_early_init(void)
 {
@@ -142,7 +156,6 @@ asmlinkage void __init cf_early_init(void)
 	MCF_INTC1_IMRL = 0xFFFFFFFF;
 	MCF_INTC1_IMRH = 0xFFFFFFFF;
 #elif defined(CONFIG_M547X_8X)
-/* JKM -- ?? */
 	MCF_IMRL = 0xFFFFFFFF;
 	MCF_IMRH = 0xFFFFFFFF;
 #endif
@@ -170,7 +183,6 @@ asmlinkage void __init cf_early_init(void)
 			MCF_XBS_PRS_M6(MCF_XBS_PRI_1) |
 			MCF_XBS_PRS_M7(MCF_XBS_PRI_7));
 #endif
-	
 
 	m68k_machtype = MACH_CFMMU;
 	m68k_fputype = FPU_CFV4E;
@@ -181,7 +193,6 @@ asmlinkage void __init cf_early_init(void)
 	m68k_memory[m68k_num_memory].addr = CONFIG_SDRAM_BASE;
 	m68k_memory[m68k_num_memory++].size = CONFIG_SDRAM_SIZE;
 
-#if defined(CONFIG_M54455)
 	if (!uboot_commandline(m68k_command_line)) {
 #if defined(CONFIG_BOOTPARAM)
 		strncpy(m68k_command_line, CONFIG_BOOTPARAM_STRING, CL_SIZE-1);
@@ -189,11 +200,6 @@ asmlinkage void __init cf_early_init(void)
 		strcpy(m68k_command_line, DEFAULT_COMMAND_LINE);
 #endif
 	}
-#else
-/* JKM -- hack until mappings get resolved */
-	strcpy(m68k_command_line, DEFAULT_COMMAND_LINE);
-#endif
-
 
 #if defined(CONFIG_BLK_DEV_INITRD)
 	/* add initrd image */
@@ -372,73 +378,9 @@ void coldfire_reboot(void)
 #endif
 }
 
-/* int coldfire_hwclk(int i, struct rtc_time *t)
-{
-	printk ("Real time clock needs porting.\n");
-	return 0;
-}*/
-
 static void coldfire_get_model(char *model)
 {
 	sprintf(model, "Version 4 ColdFire");
-}
-
-/* JKM -- Why do we need these? */
-void coldfire_enable_irq(unsigned int vec)
-{
-	unsigned long flags;
-
-	vec -= 64;
-
-	if (((int)vec < 0) || (vec > 63)) {
-		printk(KERN_WARNING "enable_irq %d failed\n", vec);
-		return;
-	}
-
-	local_irq_save(flags);
-	irq_enable[vec]++;
-#if defined(CONFIG_M54455)
-	if (vec < 32)
-		MCF_INTC0_IMRL &= ~(1 << vec);
-	else
-		MCF_INTC0_IMRH &= ~(1 << (vec - 32));
-#elif defined(CONFIG_M547X_8X)
-	if (vec < 32)
-		MCF_IMRL &= ~(1 << vec);
-	else
-		MCF_IMRH &= ~(1 << (vec - 32));
-#endif
-	local_irq_restore(flags);
-}
-
-/* JKM -- Why do we need these? */
-void coldfire_disable_irq(unsigned int vec)
-{
-	unsigned long flags;
-
-	vec -= 64;
-
-	if (((int)vec < 0) || (vec > 63)) {
-		printk(KERN_WARNING "disable_irq %d failed\n", vec);
-		return;
-	}
-
-	local_irq_save(flags);
-	if (--irq_enable[vec] == 0) {
-#if defined(CONFIG_M54455)
-		if (vec < 32)
-			MCF_INTC0_IMRL |= (1 << vec);
-		else
-			MCF_INTC0_IMRH |= (1 << (vec - 32));
-#elif defined(CONFIG_M547X_8X)
-		if (vec < 32)
-			MCF_IMRL |= (1 << vec);
-		else
-			MCF_IMRH |= (1 << (vec - 32));
-#endif
-
-	}
-	local_irq_restore(flags);
 }
 
 static void __init

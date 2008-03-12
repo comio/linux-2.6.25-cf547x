@@ -1,13 +1,9 @@
 #ifndef M68K_CF_PGALLOC_H
 #define M68K_CF_PGALLOC_H
 
-/* JKM -- added -- needed? */
-#include <linux/highmem.h>
-
 #include <asm/coldfire.h>
 #include <asm/page.h>
 #include <asm/cf_tlbflush.h>
-/* JKM -- added -- needed? */
 #include <asm/cf_cacheflush.h>
 
 extern inline void pte_free_kernel(pte_t *pte)
@@ -41,6 +37,7 @@ extern inline pmd_t *pmd_alloc_kernel(pgd_t *pgd, unsigned long address)
 
 #define pmd_populate(mm, pmd, page) (pmd_val(*pmd) = \
 	(unsigned long)(page_address(page)))
+
 #define pmd_populate_kernel(mm, pmd, pte) (pmd_val(*pmd) = (unsigned long)(pte))
 
 static inline void __pte_free_tlb(struct mmu_gather *tlb, struct page *page)

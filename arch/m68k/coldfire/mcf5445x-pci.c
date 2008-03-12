@@ -236,6 +236,8 @@ mcf5445x_pci_arb_interrupt(int irq, void *dev)
 int __init
 init_mcf5445x_pci(void)
 {
+	return 0;
+#if 0
 	/*
 	 * Initialize the PCI core
 	 */
@@ -331,6 +333,7 @@ init_mcf5445x_pci(void)
 	raw_pci_ops = &mcf5445x_pci_ops;
 
 	return 0;
+#endif
 }
 
 /*

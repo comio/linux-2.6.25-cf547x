@@ -1,335 +1,92 @@
-/*
- * include/asm-m68k/cf_cacheflush.h - Coldfire Cache
- *
- * Based on include/asm-m68k/cacheflush.h
- *
- * Coldfire pieces by:
- *   Kurt Mahan kmahan@freescale.com
- *
- * Copyright Freescale Semiconductor, Inc. 2007
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- */
 #ifndef M68K_CF_CACHEFLUSH_H
 #define M68K_CF_CACHEFLUSH_H
 
 #include <asm/cfcache.h>
+/*
+ * Cache handling functions
+ */
+
+#define flush_icache()						\
+({								\
+  unsigned long set;						\
+  unsigned long start_set;					\
+  unsigned long end_set;					\
+								\
+  start_set = 0;						\
+  end_set = (unsigned long)LAST_DCACHE_ADDR;			\
+    								\
+  for (set = start_set; set <= end_set; set += (0x10 - 3)) {	\
+    asm volatile("cpushl %%ic,(%0)\n"				\
+                 "\taddq%.l #1,%0\n"				\
+                 "\tcpushl %%ic,(%0)\n"				\
+                 "\taddq%.l #1,%0\n"				\
+                 "\tcpushl %%ic,(%0)\n"				\
+                 "\taddq%.l #1,%0\n"				\
+                 "\tcpushl %%ic,(%0)" : "=a" (set) : "a" (set));		\
+  }								\
+})
+
+#define flush_dcache()						\
+({								\
+  unsigned long set;						\
+  unsigned long start_set;					\
+  unsigned long end_set;					\
+								\
+  start_set = 0;						\
+  end_set = (unsigned long)LAST_DCACHE_ADDR;			\
+    								\
+  for (set = start_set; set <= end_set; set += (0x10 - 3)) {	\
+    asm volatile("cpushl %%dc,(%0)\n"				\
+                 "\taddq%.l #1,%0\n"				\
+                 "\tcpushl %%dc,(%0)\n"				\
+                 "\taddq%.l #1,%0\n"				\
+                 "\tcpushl %%dc,(%0)\n"				\
+                 "\taddq%.l #1,%0\n"				\
+                 "\tcpushl %%dc,(%0)" : "=a" (set) : "a" (set));		\
+  }								\
+})
+
+#define flush_bcache()						\
+({								\
+  unsigned long set;						\
+  unsigned long start_set;					\
+  unsigned long end_set;					\
+								\
+  start_set = 0;						\
+  end_set = (unsigned long)LAST_DCACHE_ADDR;			\
+    								\
+  for (set = start_set; set <= end_set; set += (0x10 - 3)) {	\
+    asm volatile("cpushl %%bc,(%0)\n"				\
+                 "\taddq%.l #1,%0\n"				\
+                 "\tcpushl %%bc,(%0)\n"				\
+                 "\taddq%.l #1,%0\n"				\
+                 "\tcpushl %%bc,(%0)\n"				\
+                 "\taddq%.l #1,%0\n"				\
+                 "\tcpushl %%bc,(%0)" : "=a" (set) : "a" (set));		\
+  }								\
+})
 
 /*
- * Coldfire Cache Model
- *
- * The Coldfire processors use a Harvard architecture cache configured
- * as four-way set associative.  The cache does not implement bus snooping
- * so cache coherency with other masters must be maintained in software.
- *
- * The cache is managed via the CPUSHL instruction in conjunction with
- * bits set in the CACR (cache control register).  Currently the code
- * uses the CPUSHL enhancement which adds the ability to
- * invalidate/clear/push a cacheline by physical address.  This feature
- * is designated in the Hardware Configuration Register [D1-CPES].
- *
- * CACR Bits:
- *	DPI[28]		cpushl invalidate disable for d-cache
- *	IDPI[12]	cpushl invalidate disable for i-cache
- *	SPA[14]		cpushl search by physical address
- *	IVO[20]		cpushl invalidate only
- *
- * Random Terminology:
- *  * invalidate = reset the cache line's valid bit
- *  * push = generate a line-sized store of the data if its contents are marked
- *	     as modifed (the modified flag is cleared after the store)
- *  * clear = push + invalidate
+ * invalidate the cache for the specified memory range.
+ * It starts at the physical address specified for
+ * the given number of bytes.
  */
-
-/**
- * flush_icache - Flush all of the instruction cache
+extern void cache_clear(unsigned long paddr, int len);
+/*
+ * push any dirty cache in the specified memory range.
+ * It starts at the physical address specified for
+ * the given number of bytes.
  */
-static inline void flush_icache(void)
-{
-	asm volatile("nop\n"
-		     "moveq%.l	#0,%%d0\n"
-		     "moveq%.l	#0,%%d1\n"
-		     "move%.l	%%d0,%%a0\n"
-		     "1:\n"
-		     "cpushl	%%ic,(%%a0)\n"
-		     "add%.l	#0x0010,%%a0\n"
-		     "addq%.l	#1,%%d1\n"
-		     "cmpi%.l	%0,%%d1\n"
-		     "bne	1b\n"
-		     "moveq%.l	#0,%%d1\n"
-		     "addq%.l	#1,%%d0\n"
-		     "move%.l	%%d0,%%a0\n"
-		     "cmpi%.l	#4,%%d0\n"
-		     "bne	1b\n"
-		     : : "i" (CACHE_SETS)
-		     : "a0", "d0", "d1");
-}
+extern void cache_push(unsigned long paddr, int len);
 
-/**
- * flush_dcache - Flush all of the data cache
+/*
+ * push and invalidate pages in the specified user virtual
+ * memory range.
  */
-static inline void flush_dcache(void)
-{
-	asm volatile("nop\n"
-		     "moveq%.l	#0,%%d0\n"
-		     "moveq%.l	#0,%%d1\n"
-		     "move%.l	%%d0,%%a0\n"
-		     "1:\n"
-		     "cpushl	%%dc,(%%a0)\n"
-		     "add%.l	#0x0010,%%a0\n"
-		     "addq%.l	#1,%%d1\n"
-		     "cmpi%.l	%0,%%d1\n"
-		     "bne	1b\n"
-		     "moveq%.l	#0,%%d1\n"
-		     "addq%.l	#1,%%d0\n"
-		     "move%.l	%%d0,%%a0\n"
-		     "cmpi%.l	#4,%%d0\n"
-		     "bne	1b\n"
-		     : : "i" (CACHE_SETS)
-		     : "a0", "d0", "d1");
-}
+extern void cache_push_v(unsigned long vaddr, int len);
 
-/**
- * flush_bcache - Flush all of both caches
- */
-static inline void flush_bcache(void)
-{
-	asm volatile("nop\n"
-		     "moveq%.l	#0,%%d0\n"
-		     "moveq%.l	#0,%%d1\n"
-		     "move%.l	%%d0,%%a0\n"
-		     "1:\n"
-		     "cpushl	%%bc,(%%a0)\n"
-		     "add%.l	#0x0010,%%a0\n"
-		     "addq%.l	#1,%%d1\n"
-		     "cmpi%.l	%0,%%d1\n"
-		     "bne	1b\n"
-		     "moveq%.l	#0,%%d1\n"
-		     "addq%.l	#1,%%d0\n"
-		     "move%.l	%%d0,%%a0\n"
-		     "cmpi%.l	#4,%%d0\n"
-		     "bne	1b\n"
-		     : : "i" (CACHE_SETS)
-		     : "a0", "d0", "d1");
-}
-
-/**
- * cf_cache_clear - invalidate cache
- * @paddr: starting physical address
- * @len: number of bytes
- *
- * Invalidate cache lines starting at paddr for len bytes.
- * Those lines are not pushed.
- */
-static inline void cf_cache_clear(unsigned long paddr, int len)
-{
-	/* number of lines */
-	len = (len + (CACHE_LINE_SIZE-1)) / CACHE_LINE_SIZE;
-	if (len == 0)
-		return;
-
-	/* align on set boundary */
-	paddr &= 0xfffffff0;
-
-	asm volatile("nop\n"
-		     "move%.l   %2,%%d0\n"
-		     "or%.l	%3,%%d0\n"
-		     "movec	%%d0,%%cacr\n"
-		     "move%.l	%0,%%a0\n"
-		     "move%.l	%1,%%d0\n"
-		     "1:\n"
-		     "cpushl	%%bc,(%%a0)\n"
-		     "lea	0x10(%%a0),%%a0\n"
-		     "subq%.l	#1,%%d0\n"
-		     "bne%.b	1b\n"
-		     "movec	%2,%%cacr\n"
-		     : : "a" (paddr), "r" (len),
-			 "r" (shadow_cacr),
-			 "i" (CF_CACR_SPA+CF_CACR_IVO)
-		     : "a0", "d0");
-}
-
-/**
- * cf_cache_push - Push dirty cache out with no invalidate
- * @paddr: starting physical address
- * @len: number of bytes
- *
- * Push the any dirty lines starting at paddr for len bytes.
- * Those lines are not invalidated.
- */
-static inline void cf_cache_push(unsigned long paddr, int len)
-{
-	/* number of lines */
-	len = (len + (CACHE_LINE_SIZE-1)) / CACHE_LINE_SIZE;
-	if (len == 0)
-		return;
-
-	/* align on set boundary */
-	paddr &= 0xfffffff0;
-
-	asm volatile("nop\n"
-		     "move%.l   %2,%%d0\n"
-		     "or%.l	%3,%%d0\n"
-		     "movec	%%d0,%%cacr\n"
-		     "move%.l	%0,%%a0\n"
-		     "move%.l	%1,%%d0\n"
-		     "1:\n"
-		     "cpushl	%%bc,(%%a0)\n"
-		     "lea	0x10(%%a0),%%a0\n"
-		     "subq%.l	#1,%%d0\n"
-		     "bne.b	1b\n"
-		     "movec	%2,%%cacr\n"
-		     : : "a" (paddr), "r" (len),
-			 "r" (shadow_cacr),
-			 "i" (CF_CACR_SPA+CF_CACR_DPI+CF_CACR_IDPI)
-		     : "a0", "d0");
-}
-
-/**
- * cf_cache_flush - Push dirty cache out and invalidate
- * @paddr: starting physical address
- * @len: number of bytes
- *
- * Push the any dirty lines starting at paddr for len bytes and
- * invalidate those lines.
- */
-static inline void cf_cache_flush(unsigned long paddr, int len)
-{
-	/* number of lines */
-	len = (len + (CACHE_LINE_SIZE-1)) / CACHE_LINE_SIZE;
-	if (len == 0)
-		return;
-
-	/* align on set boundary */
-	paddr &= 0xfffffff0;
-
-	asm volatile("nop\n"
-		     "move%.l   %2,%%d0\n"
-		     "or%.l	%3,%%d0\n"
-		     "movec	%%d0,%%cacr\n"
-		     "move%.l	%0,%%a0\n"
-		     "move%.l	%1,%%d0\n"
-		     "1:\n"
-		     "cpushl	%%bc,(%%a0)\n"
-		     "lea	0x10(%%a0),%%a0\n"
-		     "subq%.l	#1,%%d0\n"
-		     "bne.b	1b\n"
-		     "movec	%2,%%cacr\n"
-		     : : "a" (paddr), "r" (len),
-			 "r" (shadow_cacr),
-			 "i" (CF_CACR_SPA)
-		     : "a0", "d0");
-}
-
-/**
- * cf_cache_flush_range - Push dirty data/inst cache in range out and invalidate
- * @vstart - starting virtual address
- * @vend: ending virtual address
- *
- * Push the any dirty data/instr lines starting at paddr for len bytes and
- * invalidate those lines.
- */
-static inline void cf_cache_flush_range(unsigned long vstart, unsigned long vend)
-{
-	int len;
-
-	/* align on set boundary */
-	vstart &= 0xfffffff0;
-	vend = PAGE_ALIGN((vend + (CACHE_LINE_SIZE-1))) & 0xfffffff0;
-	len = vend - vstart;
-	if (len == 0)
-		return;
-	vstart = __pa(vstart);
-	vend = vstart + len;
-
-	asm volatile("nop\n"
-		     "move%.l   %2,%%d0\n"
-		     "or%.l	%3,%%d0\n"
-		     "movec	%%d0,%%cacr\n"
-		     "move%.l	%0,%%a0\n"
-		     "move%.l	%1,%%a1\n"
-		     "1:\n"
-		     "cpushl	%%bc,(%%a0)\n"
-		     "lea	0x10(%%a0),%%a0\n"
-		     "cmpa%.l	%%a0,%%a1\n"
-		     "bne.b	1b\n"
-		     "movec	%2,%%cacr\n"
-		     : /* no return */
-		     : "a" (vstart), "a" (vend),
-		       "r" (shadow_cacr),
-		       "i" (CF_CACR_SPA)
-		     : "a0", "a1", "d0");
-}
-
-/**
- * cf_dcache_flush_range - Push dirty data cache in range out and invalidate
- * @vstart - starting virtual address
- * @vend: ending virtual address
- *
- * Push the any dirty data lines starting at paddr for len bytes and
- * invalidate those lines.
- */
-static inline void cf_dcache_flush_range(unsigned long vstart, unsigned long vend)
-{
-	/* align on set boundary */
-	vstart &= 0xfffffff0;
-	vend = (vend + (CACHE_LINE_SIZE-1)) & 0xfffffff0;
-
-	asm volatile("nop\n"
-		     "move%.l   %2,%%d0\n"
-		     "or%.l	%3,%%d0\n"
-		     "movec	%%d0,%%cacr\n"
-		     "move%.l	%0,%%a0\n"
-		     "move%.l	%1,%%a1\n"
-		     "1:\n"
-		     "cpushl	%%dc,(%%a0)\n"
-		     "lea	0x10(%%a0),%%a0\n"
-		     "cmpa%.l	%%a0,%%a1\n"
-		     "bne.b	1b\n"
-		     "movec	%2,%%cacr\n"
-		     : /* no return */
-		     : "a" (__pa(vstart)), "a" (__pa(vend)),
-		       "r" (shadow_cacr),
-		       "i" (CF_CACR_SPA)
-		     : "a0", "a1", "d0");
-}
-
-/**
- * cf_icache_flush_range - Push dirty inst cache in range out and invalidate
- * @vstart - starting virtual address
- * @vend: ending virtual address
- *
- * Push the any dirty instr lines starting at paddr for len bytes and
- * invalidate those lines.  This should just be an invalidate since you
- * shouldn't be able to have dirty instruction cache.
- */
-static inline void cf_icache_flush_range(unsigned long vstart, unsigned long vend)
-{
-	/* align on set boundary */
-	vstart &= 0xfffffff0;
-	vend = (vend + (CACHE_LINE_SIZE-1)) & 0xfffffff0;
-
-	asm volatile("nop\n"
-		     "move%.l   %2,%%d0\n"
-		     "or%.l	%3,%%d0\n"
-		     "movec	%%d0,%%cacr\n"
-		     "move%.l	%0,%%a0\n"
-		     "move%.l	%1,%%a1\n"
-		     "1:\n"
-		     "cpushl	%%ic,(%%a0)\n"
-		     "lea	0x10(%%a0),%%a0\n"
-		     "cmpa%.l	%%a0,%%a1\n"
-		     "bne.b	1b\n"
-		     "movec	%2,%%cacr\n"
-		     : /* no return */
-		     : "a" (__pa(vstart)), "a" (__pa(vend)),
-		       "r" (shadow_cacr),
-		       "i" (CF_CACR_SPA)
-		     : "a0", "a1", "d0");
-}
+/* This is needed whenever the virtual mapping of the current
+   process changes.  */
 
 /**
  * flush_cache_mm - Flush an mm_struct
@@ -342,6 +99,8 @@ static inline void flush_cache_mm(struct mm_struct *mm)
 }
 
 #define flush_cache_dup_mm(mm)	flush_cache_mm(mm)
+
+#define flush_cache_all()		flush_bcache()
 
 /**
  * flush_cache_range - Flush a cache range
@@ -356,7 +115,8 @@ static inline void flush_cache_range(struct vm_area_struct *vma,
 	unsigned long start, unsigned long end)
 {
 	if (vma->vm_mm == current->mm)
-		cf_cache_flush_range(start, end);
+		flush_bcache();
+//		cf_cache_flush_range(start, end);
 }
 
 /**
@@ -372,76 +132,113 @@ static inline void flush_cache_page(struct vm_area_struct *vma,
 	unsigned long vmaddr, unsigned long pfn)
 {
 	if (vma->vm_mm == current->mm)
-		cf_cache_flush_range(vmaddr, vmaddr+PAGE_SIZE);
+		flush_bcache();
+//		cf_cache_flush_range(vmaddr, vmaddr+PAGE_SIZE);
 }
 
-/**
- * __flush_page_to_ram - Push a page out of the cache
- * @vaddr: Virtual address at start of page
- *
- * Push the page at kernel virtual address *vaddr* and clear
- * the icache.
- */
-static inline void __flush_page_to_ram(void *vaddr)
+/* Push the page at kernel virtual address and clear the icache */
+/* RZ: use cpush %bc instead of cpush %dc, cinv %ic */
+#define flush_page_to_ram(page) __flush_page_to_ram((void *) page_address(page))
+extern inline void __flush_page_to_ram(void *address)
 {
-	asm volatile("nop\n"
-		     "move%.l   %2,%%d0\n"
-		     "or%.l	%3,%%d0\n"
-		     "movec	%%d0,%%cacr\n"
-		     "move%.l	%0,%%d0\n"
-		     "and%.l	#0xfffffff0,%%d0\n"
-		     "move%.l	%%d0,%%a0\n"
-		     "move%.l	%1,%%d0\n"
-		     "1:\n"
-		     "cpushl	%%bc,(%%a0)\n"
-		     "lea	0x10(%%a0),%%a0\n"
-		     "subq%.l	#1,%%d0\n"
-		     "bne.b	1b\n"
-		     "movec	%2,%%cacr\n"
-		     : : "a" (__pa(vaddr)), "i" (PAGE_SIZE / CACHE_LINE_SIZE),
-			 "r" (shadow_cacr), "i" (CF_CACR_SPA)
-		     : "a0", "d0");
+  unsigned long set;
+  unsigned long start_set;
+  unsigned long end_set;
+  unsigned long addr = (unsigned long) address;
+
+  addr &= ~(PAGE_SIZE - 1); /* round down to page start address */
+
+  start_set = addr & _ICACHE_SET_MASK;
+  end_set = (addr + PAGE_SIZE-1) & _ICACHE_SET_MASK;
+
+  if (start_set > end_set) {
+    /* from the begining to the lowest address */
+    for (set = 0; set <= end_set; set += (0x10 - 3)) {
+      asm volatile("cpushl %%bc,(%0)\n"
+                   "\taddq%.l #1,%0\n"
+                   "\tcpushl %%bc,(%0)\n"
+                   "\taddq%.l #1,%0\n"
+                   "\tcpushl %%bc,(%0)\n"
+                   "\taddq%.l #1,%0\n"
+                   "\tcpushl %%bc,(%0)" : "=a" (set) : "a" (set));
+    }
+    /* next loop will finish the cache ie pass the hole */
+    end_set = LAST_ICACHE_ADDR;    
+  }
+  for (set = start_set; set <= end_set; set += (0x10 - 3)) {
+    asm volatile("cpushl %%bc,(%0)\n"
+                 "\taddq%.l #1,%0\n"
+                 "\tcpushl %%bc,(%0)\n"
+                 "\taddq%.l #1,%0\n"
+                 "\tcpushl %%bc,(%0)\n"
+                 "\taddq%.l #1,%0\n"
+                 "\tcpushl %%bc,(%0)" : "=a" (set) : "a" (set));
+  }
 }
 
-/*
- * Various defines for the kernel.
- */
+/* Use __flush_page_to_ram() for flush_dcache_page all values are same - MW */
+#define flush_dcache_page(page)			\
+	__flush_page_to_ram((void *) page_address(page))
+#define flush_icache_page(vma,pg)		\
+	__flush_page_to_ram((void *) page_address(pg))
+#define flush_icache_user_range(adr,len)	do { } while (0)
+/* NL */
+#define flush_icache_user_page(vma,page,addr,len)	do { } while (0)
 
-extern void cache_clear(unsigned long paddr, int len);
-extern void cache_push(unsigned long paddr, int len);
-extern void flush_icache_range(unsigned long address, unsigned long endaddr);
+/* Push n pages at kernel virtual address and clear the icache */
+/* RZ: use cpush %bc instead of cpush %dc, cinv %ic */
+extern inline void flush_icache_range (unsigned long address,
+				       unsigned long endaddr)
+{
+  unsigned long set;
+  unsigned long start_set;
+  unsigned long end_set;
 
-#define flush_cache_all()			flush_bcache()
-#define flush_cache_vmap(start, end)		flush_bcache()
-#define flush_cache_vunmap(start, end)		flush_bcache()
+  start_set = address & _ICACHE_SET_MASK;
+  end_set = endaddr & _ICACHE_SET_MASK;
 
-#define flush_dcache_range(vstart, vend)	cf_dcache_flush_range(vstart, vend)
-#define flush_dcache_page(page)			__flush_page_to_ram(page_address(page))
-#define flush_dcache_mmap_lock(mapping)		do { } while (0)
-#define flush_dcache_mmap_unlock(mapping)	do { } while (0)
+  if (start_set > end_set) {
+    /* from the begining to the lowest address */
+    for (set = 0; set <= end_set; set += (0x10 - 3)) {
+      asm volatile("cpushl %%ic,(%0)\n"
+                   "\taddq%.l #1,%0\n"
+                   "\tcpushl %%ic,(%0)\n"
+                   "\taddq%.l #1,%0\n"
+                   "\tcpushl %%ic,(%0)\n"
+                   "\taddq%.l #1,%0\n"
+                   "\tcpushl %%ic,(%0)" : "=a" (set) : "a" (set));
+    }
+    /* next loop will finish the cache ie pass the hole */
+    end_set = LAST_ICACHE_ADDR;    
+  }
+  for (set = start_set; set <= end_set; set += (0x10 - 3)) {
+    asm volatile("cpushl %%ic,(%0)\n"
+                 "\taddq%.l #1,%0\n"
+                 "\tcpushl %%ic,(%0)\n"
+                 "\taddq%.l #1,%0\n"
+                 "\tcpushl %%ic,(%0)\n"
+                 "\taddq%.l #1,%0\n"
+                 "\tcpushl %%ic,(%0)" : "=a" (set) : "a" (set));
+  }
+}
 
-#define flush_icache_page(vma, page)		__flush_page_to_ram(page_address(page))
-
-/**
- * copy_to_user_page - Copy memory to user page
- */
 static inline void copy_to_user_page(struct vm_area_struct *vma,
 				     struct page *page, unsigned long vaddr,
 				     void *dst, void *src, int len)
 {
 	memcpy(dst, src, len);
-	cf_cache_flush(page_to_phys(page), PAGE_SIZE);
+	flush_icache_user_page(vma, page, vaddr, len);
 }
-
-/**
- * copy_from_user_page - Copy memory from user page
- */
 static inline void copy_from_user_page(struct vm_area_struct *vma,
 				       struct page *page, unsigned long vaddr,
 				       void *dst, void *src, int len)
 {
-	cf_cache_flush(page_to_phys(page), PAGE_SIZE);
 	memcpy(dst, src, len);
 }
+
+#define flush_cache_vmap(start, end)		flush_cache_all()
+#define flush_cache_vunmap(start, end)		flush_cache_all()
+#define flush_dcache_mmap_lock(mapping)		do { } while (0)
+#define flush_dcache_mmap_unlock(mapping)	do { } while (0)
 
 #endif /* M68K_CF_CACHEFLUSH_H */

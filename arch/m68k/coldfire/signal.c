@@ -608,7 +608,10 @@ static inline int rt_setup_ucontext(struct ucontext __user *uc,
 
 static inline void push_cache(unsigned long vaddr)
 {
+#if 0 
+// JKM -- need to add into the old cpushl cache stuff
 	cf_cache_push(__pa(vaddr), 8);
+#endif
 }
 
 static inline void __user *

@@ -10,6 +10,8 @@
  *  Kurt Mahan kmahan@freescale.com
  *  Copyright Freescale Semiconductor, Inc. 2007
  *
+ *  Modify irq status in buserr -- (c) Copyright 2008, SYSTEM electronic Gmbh
+ *
  * Based on:
  *
  *  arch/m68knommu/platform/5307/entry.S &
@@ -77,7 +79,15 @@ sw_usp:
 .globl inthandler
 
 ENTRY(buserr)
+#ifdef CONFIG_COLDFIRE_FOO
+	movew	#0x2700,%sr		/* lock interrupts */
+#endif
 	SAVE_ALL_INT
+#ifdef	CONFIG_COLDFIRE_FOO
+	movew	PT_SR(%sp),%d3		/* get original %sr */
+	oril	#0x2000,%d3		/* set supervisor mode in it */
+	movew	%d3,%sr			/* recover irq state */
+#endif
 	GET_CURRENT(%d0)
 	movel   %sp,%sp@-		/* stack frame pointer argument */
 	jsr     buserr_c

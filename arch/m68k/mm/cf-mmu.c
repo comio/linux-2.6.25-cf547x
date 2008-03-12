@@ -35,6 +35,12 @@
 #include <asm/coldfire.h>
 #include <asm/tlbflush.h>
 
+#if PAGE_OFFSET == CONFIG_SDRAM_BASE
+#define	KERNRAM(x) ((x >= PAGE_OFFSET) && (x < (PAGE_OFFSET + CONFIG_SDRAM_SIZE)))
+#else
+#define	KERNRAM(x) (x >= PAGE_OFFSET)
+#endif
+
 mm_context_t next_mmu_context;
 unsigned long context_map[LAST_CONTEXT / BITS_PER_LONG + 1];
 
@@ -53,10 +59,16 @@ extern char __init_begin, __init_end;
 
 void free_initmem(void)
 {
+#if 0
 	unsigned long addr;
 	unsigned long start = (unsigned long)&__init_begin;
 	unsigned long end = (unsigned long)&__init_end;
 
+/* 
+ * JKM -- revisit -- the latest round of vmlinux.lds changes has caused
+ * a little grief with how init areas are handled.  With the new toolchain
+ * release I'll fix this.
+ */
 	printk(KERN_INFO "free_initmem: __init_begin = 0x%lx  __init_end = 0x%lx\n", start, end);
 
 	addr = (unsigned long)&__init_begin;
@@ -67,6 +79,7 @@ void free_initmem(void)
 		free_page(addr);
 		totalram_pages++;
 	}
+#endif
 }
 
 /* Coldfire paging_init derived from sun3 */
@@ -149,8 +162,8 @@ int cf_tlb_miss(struct pt_regs *regs, int write, int dtlb, int extension_word)
 	mmuar = ( dtlb ) ? regs->mmuar
 			 : regs->pc + (extension_word * sizeof(long));
 
-        mm = (!user_mode(regs) && (mmuar >= PAGE_OFFSET)) ? &init_mm
-							  : current->mm;
+        mm = (!user_mode(regs) && KERNRAM(mmuar)) ? &init_mm : current->mm;
+
         if (!mm) {
 	    local_irq_restore(flags);
 	    return (-1);
@@ -167,9 +180,9 @@ int cf_tlb_miss(struct pt_regs *regs, int write, int dtlb, int extension_word)
 	    local_irq_restore(flags);
 	    return (-1);
 	}	
-    	
-	pte = (mmuar >= PAGE_OFFSET) ? pte_offset_kernel(pmd, mmuar)
-	                             : pte_offset_map(pmd, mmuar);
+    
+	pte = (KERNRAM(mmuar)) ? pte_offset_kernel(pmd, mmuar)
+	                       : pte_offset_map(pmd, mmuar);
     	if (pte_none(*pte) || !pte_present(*pte)) {
 	    local_irq_restore(flags);
 	    return (-1);		
@@ -185,7 +198,7 @@ int cf_tlb_miss(struct pt_regs *regs, int write, int dtlb, int extension_word)
 	
         set_pte(pte, pte_mkyoung(*pte));
         asid = mm->context & 0xff;
-        if (!pte_dirty(*pte) && mmuar<=PAGE_OFFSET)
+        if (!pte_dirty(*pte) && !KERNRAM(mmuar))
     	    set_pte(pte, pte_wrprotect(*pte));
 
         *MMUTR = (mmuar & PAGE_MASK) | (asid << CF_ASID_MMU_SHIFT)
@@ -201,7 +214,8 @@ int cf_tlb_miss(struct pt_regs *regs, int write, int dtlb, int extension_word)
 	else
 	    *MMUOR = MMUOR_ITLB | MMUOR_ACC | MMUOR_UAA;
 
-	asm ("nop");
+	asm("nop");
+
 	/*printk("cf_tlb_miss: va=%lx, pa=%lx\n", (mmuar & PAGE_MASK), 
 		  (pte_val(*pte)  & PAGE_MASK));*/
 	local_irq_restore(flags);

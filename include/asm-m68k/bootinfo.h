@@ -19,11 +19,59 @@
 **   Redesign of the boot information structure; renamed to bootinfo.h again
 ** 27/11/96 Geert Uytterhoeven:
 **   Backwards compatibility with bootinfo interface version 1.0
+** 12/03/08 Kurt Mahan
+**   Copy the bd_info structure from uboot1.3.2/include/asm-m68k/u-boot.h
+**   into this file.  The original author is Wolfgang Denk, 
+**   DENX Software Engineering, wd@denx.de.
 */
 
 #ifndef _M68K_BOOTINFO_H
 #define _M68K_BOOTINFO_H
 
+#ifndef __ASSEMBLY__
+/*
+ * UBoot Support
+ *
+ * bd_info structure from uboot1.3.2/include/asm-m68k/u-boot.h
+ */
+struct bd_info {
+	unsigned long bi_memstart;	/* start of DRAM memory */
+	unsigned long bi_memsize;	/* size  of DRAM memory in bytes */
+	unsigned long bi_flashstart;	/* start of FLASH memory */
+	unsigned long bi_flashsize;	/* size  of FLASH memory */
+	unsigned long bi_flashoffset;	/* reserved area for startup monitor */
+	unsigned long bi_sramstart;	/* start of SRAM memory */
+	unsigned long bi_sramsize;	/* size  of SRAM memory */
+	unsigned long bi_mbar_base;	/* base of internal registers */
+	unsigned long bi_bootflags;	/* boot / reboot flag (for LynxOS) */
+	unsigned long bi_boot_params;	/* where this board expects params */
+	unsigned long bi_ip_addr;	/* IP Address */
+	unsigned char bi_enet0addr[6];	/* Ethernet 0 mac address */
+	unsigned short bi_ethspeed;	/* Ethernet speed in Mbps */
+	unsigned long bi_intfreq;	/* Internal Freq, in MHz */
+	unsigned long bi_busfreq;	/* Bus Freq, in MHz */
+#ifdef UBOOT_PCI
+	unsigned long bi_pcifreq;	/* pci Freq in MHz */
+#endif
+#ifdef UBOOT_EXTRA_CLOCK
+	unsigned long bi_inpfreq;	/* input Freq in MHz */
+	unsigned long bi_vcofreq;	/* vco Freq in MHz */
+	unsigned long bi_flbfreq;	/* Flexbus Freq in MHz */
+#endif
+	unsigned long bi_baudrate;	/* Console Baudrate */
+	unsigned char bi_enet1addr[6];	/* eth1 mac address */
+	unsigned char bi_enet2addr[6];	/* eth2 mac address */
+	unsigned char bi_enet3addr[6];	/* eth3 mac address */
+};
+
+struct uboot_record {
+	struct bd_info *bdi;
+    	unsigned long initrd_start;
+    	unsigned long initrd_end;
+    	unsigned long cmd_line_start;
+    	unsigned long cmd_line_stop;
+};
+#endif /* __ASSEMBLY__ */
 
     /*
      *  Bootinfo definitions
@@ -49,17 +97,6 @@ struct bi_record {
 #endif /* __ASSEMBLY__ */
 
 
-#ifndef __ASSEMBLY__
-
-struct uboot_record {
-    unsigned long bd_info;
-    unsigned long initrd_start;
-    unsigned long initrd_end;
-    unsigned long cmd_line_start;
-    unsigned long cmd_line_stop;
-};
-
-#endif /* __ASSEMBLY__ */
 
 
     /*

@@ -5,6 +5,7 @@
  *    Matt Waddel Matt.Waddel@freescale.com
  *    Kurt Mahan kmahan@freescale.com
  *  Copyright Freescale Semiconductor, Inc. 2007, 2008
+ *  Phys kernel mapping Copyright Daniel Krueger, SYSTEC electornic GmbH 2008
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -52,7 +53,7 @@
 #define __FINIT		.previous
 #endif
 
-/* JKM -- REVISE DOCS FOR RIGO */
+/* JKM -- REVISE DOCS FOR RIGO and PHYS MAPPING */
 /*
  * Setup ACR mappings to provide the following memory map:
  *   Data
@@ -62,10 +63,17 @@
  *     None currently (mapped via TLBs)
  */
 
+#if CONFIG_SDRAM_BASE != PAGE_BASE
 #if defined(CONFIG_M54455)
+#if 0
 #define ACR0_DEFAULT	#0xA00FA048   /* ACR0 default value */
+#endif
+#define ACR0_DEFAULT	#0x400FA028   /* ACR0 default value */
 #define ACR1_DEFAULT	#0xF00FA040   /* ACR1 default value */
+#if 0
 #define ACR2_DEFAULT	#0x00000000   /* ACR2 default value */
+#endif
+#define ACR2_DEFAULT	#0x400FA028   /* ACR2 default value */
 #define ACR3_DEFAULT	#0x00000000   /* ACR3 default value */
 /* ACR mapping for FPGA (maps 0) */
 #define ACR0_FPGA	#0x000FA048   /* ACR0 enable FPGA */
@@ -74,6 +82,16 @@
 #define ACR1_DEFAULT	#0x00000000   /* ACR1 default value */
 #define ACR2_DEFAULT	#0x00000000   /* ACR2 default value */
 #define ACR3_DEFAULT	#0x00000000   /* ACR3 default value */
+#endif
+
+#else
+#if defined(CONFIG_M54455)
+#elif defined(CONFIG_M547X_8X)
+#define ACR0_DEFAULT	#0xE000C040   /* ACR0 default value */
+#define ACR1_DEFAULT	#0x000FA008   /* ACR1 default value */
+#define ACR2_DEFAULT	#0x00000000   /* ACR2 default value */
+#define ACR3_DEFAULT	#0x000FA008   /* ACR3 default value */
+#endif
 #endif
 
 
@@ -153,6 +171,7 @@ func_define	putn,1
 #endif
 .endm
 
+#if CONFIG_SDRAM_BASE != PAGE_OFFSET
 /*
 	mmu_map  -  creates a new TLB entry
 
@@ -222,6 +241,7 @@ func_define	putn,1
 	movew	\temp_data_reg, (MMUOR)
 1:	
 .endm	/* mmu_unmap */
+#endif /* CONFIG_SDRAM_BASE != PAGE_OFFSET */
 
 /* .text */
 .section ".text.head","ax"
@@ -235,7 +255,11 @@ ENTRY(_stext)
 
 	.long	BOOTINFOV_MAGIC
 	.long	0
+#if CONFIG_SDRAM_BASE != PAGE_OFFSET
 1:	jmp	__start-(0xc0000000-CONFIG_SDRAM_BASE)
+#else
+1:	jmp	__start
+#endif
 
 .equ	kernel_pg_dir,_stext
 .equ	.,_stext+0x1000
@@ -244,24 +268,13 @@ ENTRY(_start)
 	jra	__start
 __INIT
 ENTRY(__start)
-
-/* JKM -- make sure Rigo handles UBOOT */
 /* Save the location of u-boot info - cmd line, bd_info, etc. */
 	movel	%a7,%a4		/* Don't use %a4 before cf_early_init */
-/* JKM -- fix to use CONFIG_SDRAM_BASE) */
-#if defined(CONFIG_M54455)
-	addl	#0x80000004,%a4	/* 0x80000004= 1 stack push + high mem offset */
-#elif defined(CONFIG_M547X_8X)
-	addl	#0xc0000004,%a4	/* 0x80000004= 1 stack push + high mem offset */
-#endif
+	addl	#0x00000004,%a4	/* offset past top */
+	addl	#(PAGE_OFFSET-CONFIG_SDRAM_BASE),%a4	/* high mem offset */
 
-/* JKM -- fix this to work off of CONFIG_SDRAM_BASE */
 /* Setup initial stack pointer */
-#if defined(CONFIG_M54455)
-	movel	#0x40001000,%sp	
-#elif defined(CONFIG_M547X_8X)
-	movel	#0x00001000,%sp	
-#endif
+	movel	#CONFIG_SDRAM_BASE+0x1000,%sp
 
 /* Setup usp */
 	subl	%a0,%a0
@@ -297,16 +310,21 @@ ENTRY(__start)
 /* setup ACRs */
 	movel	ACR0_DEFAULT, %d0  		/* ACR0 (DATA) setup */
 	movec   %d0, %acr0
+	nop
 	movel	ACR1_DEFAULT, %d0  		/* ACR1 (DATA) setup */
 	movec   %d0, %acr1
+	nop
 	movel	ACR2_DEFAULT, %d0  		/* ACR2 (CODE) setup */
 	movec   %d0, %acr2
+	nop
 	movel	ACR3_DEFAULT, %d0  		/* ACR3 (CODE) setup */
 	movec   %d0, %acr3
+	nop
 
 	/* If you change the memory size to another value make a matching 
 	   change in paging_init(cf-mmu.c) to zones_size[]. */
 
+#if CONFIG_SDRAM_BASE != PAGE_OFFSET
 #if defined(CONFIG_M54455)
 	/* Map 256MB as code */
 	mmu_map	(PAGE_OFFSET+0*0x1000000),  (PHYS_OFFSET+0*0x1000000), \
@@ -511,6 +529,7 @@ ENTRY(__start)
 		MMUTR_SG, MMUDR_SZ1M, MMUDR_DCB, MMUDR_SP, MMUDR_R, \
 		MMUDR_W, 0, 0, %d0
 #endif
+#endif /* CONFIG_SDRAM_BASE != PAGE_OFFSET */
 
 	/* Turn on MMU */
 	movel	#(MMUCR_EN),%a0
@@ -531,6 +550,7 @@ ENTRY(__running_high)
 	movel	%a1,%a0@
 
 	/* Unmap unity mappings */
+#if CONFIG_SDRAM_BASE != PAGE_OFFSET
 #if defined(CONFIG_M54455)
 	mmu_unmap (PHYS_OFFSET+0*0x1000000), MMUOR_ITLB, %d0
 	mmu_unmap (PHYS_OFFSET+0*0x1000000), 0, %d0
@@ -544,6 +564,7 @@ ENTRY(__running_high)
 	mmu_unmap (PHYS_OFFSET+2*0x1000000), 0, %d0
 	mmu_unmap (PHYS_OFFSET+3*0x1000000), 0, %d0
 #endif
+#endif /* CONFIG_SDRAM_BASE != PAGE_OFFSET */
 
 /* Setup initial stack pointer */
 	lea	init_task,%a2 
@@ -574,6 +595,7 @@ func_return	set_context
  * Map in 0x00000000 -> 0x0fffffff and then do the write.
  */
 set_fpga:
+#if 0
 	movew	%sr,%d1
 	movew	#0x2700,%sr
 	movel	ACR0_FPGA, %d0
@@ -585,6 +607,7 @@ set_fpga:
 	movec   %d0, %acr0
 	nop
 	movew	%d1,%sr
+#endif
 	rts
 #endif
 

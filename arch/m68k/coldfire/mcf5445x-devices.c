@@ -127,7 +127,9 @@ static inline void mcf5445x_init_pata(void)
 static int __init mcf5445x_init_devices(void)
 {
 	printk(KERN_INFO "MCF5445x INIT_DEVICES\n");
+#if 0
 	mcf5445x_init_pata();
+#endif
 
 	return 0;
 }

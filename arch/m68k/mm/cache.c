@@ -81,7 +81,9 @@ static unsigned long virt_to_phys_slow(unsigned long vaddr)
 void flush_icache_range(unsigned long address, unsigned long endaddr)
 {
 #ifdef CONFIG_COLDFIRE
-	cf_icache_flush_range(address, endaddr);
+// JKM -- hack until new cpushl stuff is in
+//	cf_icache_flush_range(address, endaddr);
+	flush_icache();
 #else /* !CONFIG_COLDFIRE */
 
 	if (CPU_IS_040_OR_060) {

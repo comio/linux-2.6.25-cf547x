@@ -99,6 +99,9 @@ unsigned char fec_mac_addr_fec0[6] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x50 };	// 
 unsigned char fec_mac_addr_fec1[6] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x51 };	// Default address of FEC1
 #endif
 
+extern unsigned char uboot_enet0[];
+extern unsigned char uboot_enet1[];
+
 #ifndef MODULE
 int fec_str_to_mac( char *str_mac, unsigned char* addr);
 int __init fec_mac_setup0 (char *s);
@@ -175,6 +178,12 @@ printk(KERN_INFO "FEI: index=%d\n", index);
 printk(KERN_INFO "FEI: txdesc=0x%p  rxdesc=0x%p\n", fp->fecpriv_txdesc, fp->fecpriv_rxdesc);
 
 		/* mac addr */
+		if (uboot_enet0[0] || uboot_enet0[1] || uboot_enet0[2] ||
+		    uboot_enet0[3] || uboot_enet0[4] || uboot_enet0[5]) {
+			/* use uboot enet 0 addr */
+			memcpy(fec_mac_addr_fec0, uboot_enet0, 6);
+		}
+
 		fp->fecpriv_mac_addr = fec_mac_addr_fec0;
 	}
 	else {
@@ -211,6 +220,11 @@ printk(KERN_INFO "FEI: txdesc=0x%p  rxdesc=0x%p\n", fp->fecpriv_txdesc, fp->fecp
 		fp->fecpriv_rxdesc = (void*)FEC_RX_DESC_FEC1;
 
 		/* mac addr */
+		if (uboot_enet1[0] || uboot_enet1[1] || uboot_enet1[2] ||
+		    uboot_enet1[3] || uboot_enet1[4] || uboot_enet1[5]) {
+			/* use uboot enet 1 addr */
+			memcpy(fec_mac_addr_fec1, uboot_enet1, 6);
+		}
 		fp->fecpriv_mac_addr = fec_mac_addr_fec1;
 #endif
 	}
@@ -762,7 +776,6 @@ int fec_tx(struct sk_buff *skb, struct net_device *dev)
 	void *data, *data_aligned;
 	int offset;
 
-printk(KERN_INFO "fec_tx\n");
 	data = kmalloc(skb->len + 15, GFP_DMA | GFP_ATOMIC);
 
 	if (!data)
@@ -820,7 +833,6 @@ void fec_tx_timeout(struct net_device *dev)
 	struct fec_priv *fp = netdev_priv(dev);
 	unsigned long base_addr = (unsigned long) dev->base_addr;
 
-printk(KERN_INFO "fec_tx_timeout\n");
 	spin_lock_irq(&fp->fecpriv_lock);
 	MCD_killDma(fp->fecpriv_fec_tx_channel);
 	for (i = 0; i < FEC_TX_BUF_NUMBER; i++)
@@ -941,7 +953,6 @@ void fec_interrupt_fec_tx_handler(struct net_device *dev)
 {
 	struct fec_priv *fp = netdev_priv(dev);
 
-printk(KERN_INFO "fectxint\n");
 	//Release the socket buffer
 	if(fp->fecpriv_txbuf[fp->fecpriv_current_tx])
 	{
@@ -977,7 +988,6 @@ void fec_interrupt_fec_rx_handler(struct net_device *dev)
 	struct fec_priv *fp = netdev_priv(dev);
 	struct sk_buff *skb;
 
-printk(KERN_INFO "fecrxint\n");
 	fp->fecpriv_rxflag = 1;
 /*
 	// Some buffers can be missed
@@ -1070,7 +1080,6 @@ irqreturn_t fec_interrupt_handler(int irq, void *dev_id)
 	unsigned long base_addr = (unsigned long) dev->base_addr;
 	unsigned long events;
 
-printk(KERN_INFO "fecerrint\n");
 	// Read and clear the events
 	events = FEC_EIR(base_addr) & FEC_EIMR(base_addr);
 
@@ -1157,7 +1166,6 @@ void fec_interrupt_fec_reinit(unsigned long data)
 	struct fec_priv *fp = netdev_priv(dev);
 	unsigned long base_addr = (unsigned long) dev->base_addr;
 
-printk(KERN_INFO "fecreinit\n");
 	// Initialize reception descriptors and start DMA for the reception
 	for (i = 0; i < FEC_RX_BUF_NUMBER; i++)
 	{

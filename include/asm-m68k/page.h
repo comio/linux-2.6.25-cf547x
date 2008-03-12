@@ -123,13 +123,21 @@ extern unsigned long m68k_memoffset;
 #if defined(CONFIG_COLDFIRE)
 static inline unsigned long ___pa(void *vaddr)
 {
+#if CONFIG_SDRAM_BASE != PAGE_OFFSET
 	return (((unsigned long)vaddr & 0x0fffffff) + CONFIG_SDRAM_BASE);
+#else
+	return (unsigned long)vaddr;
+#endif
 }
 #define __pa(vaddr)	___pa((void *)(vaddr))
 
 static inline void *__va(unsigned long paddr)
 {
+#if CONFIG_SDRAM_BASE != PAGE_OFFSET
 	return (void *)((paddr & 0x0fffffff) + PAGE_OFFSET);
+#else
+	return (void *)paddr;
+#endif
 }
 
 #else

@@ -87,6 +87,12 @@
 #define CACHE_SETS 0x0200		/* 512 sets */
 #define CACHE_WAYS 0x0004		/* 4 way */
 
+/* in for the old cpushl caching code */
+#define _DCACHE_SET_MASK ((DCACHE_SIZE/64-1)<<CACHE_WAYS)
+#define _ICACHE_SET_MASK ((ICACHE_SIZE/64-1)<<CACHE_WAYS)
+#define LAST_DCACHE_ADDR _DCACHE_SET_MASK
+#define LAST_ICACHE_ADDR _ICACHE_SET_MASK
+
 #define CACHE_DISABLE_MODE	(CF_CACR_DCINVA+	\
 				 CF_CACR_BCINVA+	\
 				 CF_CACR_ICINVA)

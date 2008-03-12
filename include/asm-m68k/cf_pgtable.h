@@ -341,7 +341,7 @@ static inline pte_t pgoff_to_pte(unsigned pgoff)
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)	(__pte((x).val))
 
-#define pmd_page(pmd)		virt_to_page(__pmd_page(pmd))
+#define pmd_page(pmd)		(pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT))
 
 #define pte_offset_map(pmdp, address) ((pte_t *)__pmd_page(*pmdp) +	\
 				       __pte_offset(address))
