@@ -53,7 +53,7 @@
 #define __FINIT		.previous
 #endif
 
-/* JKM -- REVISE DOCS FOR RIGO and PHYS MAPPING */
+/* JKM -- REVISE DOCS FOR M547x_8x and PHYS MAPPING */
 /*
  * Setup ACR mappings to provide the following memory map:
  *   Data
