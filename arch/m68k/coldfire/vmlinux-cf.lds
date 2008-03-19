@@ -51,9 +51,6 @@ SECTIONS
 	CONSTRUCTORS
   } :data
 
-  .bss : AT(ADDR(.bss) - LOAD_OFFSET) {		/* BSS */
-	*(.bss)
-  }
 
   . = ALIGN(16);
   .data.cacheline_aligned : AT(ADDR(.data.cacheline_aligned) - LOAD_OFFSET ) {
@@ -61,6 +58,8 @@ SECTIONS
   } :data
 
   _edata = .;			/* End of data section */
+
+  NOTES				/* support ld --build-id */
 
   . = ALIGN(8192);		/* Initrd */
   .init.text : AT(ADDR(.init.text) - LOAD_OFFSET) {
@@ -110,6 +109,12 @@ SECTIONS
   .data.init_task : AT(ADDR(.data.init_task) - LOAD_OFFSET) {
 	*(.data.init_task)	/* The initial task and kernel stack */
   }
+
+  _sbss = .;
+  .bss : AT(ADDR(.bss) - LOAD_OFFSET) {		/* BSS */
+	*(.bss)
+  }
+  _ebss = .;
 
   _end = . ;
 
