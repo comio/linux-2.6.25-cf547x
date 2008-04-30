@@ -25,6 +25,7 @@
 #include <asm/mcf5445x_dtim.h>
 #elif defined(CONFIG_M547X_8X)
 #include <asm/m5485sim.h>
+#include <asm/m5485gpio.h>
 #endif
 
 /*

@@ -1,29 +1,39 @@
-/****************************************************************************/
-
 /*
- *	spi_coldfire.c - Master QSPI/DSPI controller for the ColdFire processors
+ * spi_coldfire.c - Master QSPI/DSPI controller for the ColdFire processors
+ *
  *
  *	(C) Copyright 2005, Intec Automation,
  *			    Mike Lavender (mike@steroidmicros)
  *
- *	(C) Copyright 2007, Freescale Inc,
- *			    Yaroslav Vinogradov (yaroslav.vinogradov@freescale.com)
+ *	(C) Copyright 2007-2008, Freescale Inc,
+ *			Yaroslav Vinogradov
+ *			Andrey Butok
+ *			Kurt Mahan
  *
-
-     This program is free software; you can redistribute it and/or modify
-     it under the terms of the GNU General Public License as published by
-     the Free Software Foundation; either version 2 of the License, or
-     (at your option) any later version.
-
-     This program is distributed in the hope that it will be useful,
-     but WITHOUT ANY WARRANTY; without even the implied warranty of
-     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-     GNU General Public License for more details.
-
-     You should have received a copy of the GNU General Public License
-     along with this program; if not, write to the Free Software
-     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.		     */
-/* ------------------------------------------------------------------------- */
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ ***************************************************************************
+ * Changes:
+ *   v0.003	12 February 2008	Andrey Butok, Freescale Semiconductor
+ *   		Added suport of MCF5227x DSPI module.
+ *   v0.002	2007	Yaroslav Vinogradov, Freescale Semiconductor
+ *   		Added suport of MCF5445x DSPI module.
+ *   v0.001	2005		Mike Lavender, Intec Automation,
+ *   		Intial version. Coldfire QSPI master driver.
+ *
+ */
 
 
 /****************************************************************************/
@@ -46,41 +56,52 @@
 #include <asm/mcfsim.h>
 #include <asm/mcfqspi.h>
 #include <asm/coldfire.h>
-#include <asm/virtconvert.h>
 
 #if defined(CONFIG_M54455)
+	#include <asm/virtconvert.h>
+
 	#define SPI_DSPI
 	#if defined(CONFIG_SPI_COLDFIRE_DSPI_EDMA)
 		#define SPI_DSPI_EDMA
 		#ifdef CONFIG_MMU
 			#define SPI_USE_MMU
 		#endif
+		#include <asm/mcf5445x_edma.h>
+	#endif
+
+	#include <asm/mcf5445x_dspi.h>
+#endif
+
+#if defined(CONFIG_M547X_8X)
+	#define SPI_DSPI
+
+	#include <asm/virtconvert.h>
+	#include <asm/m5485dspi.h>
+#endif
+
+#ifdef CONFIG_M5227x
+	#define SPI_DSPI
+
+	#if defined(CONFIG_SPI_COLDFIRE_DSPI_EDMA)
+		#define SPI_DSPI_EDMA
 	#endif
 #endif
 
-#ifdef SPI_DSPI
-#include <asm/mcf5445x_dspi.h>
-
-
-#endif
 
 #if defined(SPI_DSPI_EDMA)
 
 /* edma buffer size in transfer units (32bits) */
 #define EDMA_BUFFER_SIZE	(PAGE_SIZE/4)
-#define EDMA_BUFSIZE_KMALLOC (EDMA_BUFFER_SIZE*4)
+#define EDMA_BUFSIZE_KMALLOC	(EDMA_BUFFER_SIZE*4)
 
-#define DSPI_DMA_RX_TCD	12
-#define DSPI_DMA_TX_TCD 13
+#define DSPI_DMA_RX_TCD		MCF_EDMA_CHAN_DSPI_RX
+#define DSPI_DMA_TX_TCD 	MCF_EDMA_CHAN_DSPI_TX
 
-
-#include <asm/coldfire_edma.h>
-#include <asm/mcf5445x_edma.h>
+#include <asm/mcf_edma.h>
 #endif
 
-
 MODULE_AUTHOR("Mike Lavender");
-MODULE_DESCRIPTION("ColdFire QSPI Contoller");
+MODULE_DESCRIPTION("ColdFire SPI Contoller");
 MODULE_LICENSE("GPL");
 
 #define DRIVER_NAME "Coldfire QSPI/DSPI"
@@ -92,7 +113,6 @@ MODULE_LICENSE("GPL");
  */
 
 #define QSPI_RAM_SIZE		0x10    /* 16 word table */
-
 #define QSPI_TRANSMIT_RAM 	0x00
 #define QSPI_RECEIVE_RAM  	0x10
 #define QSPI_COMMAND_RAM  	0x20
@@ -296,13 +316,10 @@ struct driver_data {
 	u32 *dspi_rser;		/* DSPI RSER register */
 	u32 *dspi_sr;		/* DSPI status register */
 	u8	dspi_ctas;		/* DSPI CTAS value*/
-	
 #if defined(SPI_DSPI_EDMA)
 	void*	edma_tx_buf;
 	void*	edma_rx_buf;
 #endif
-	
-		
 #else
  	u16 *qmr;          /* QSPI mode register      */
  	u16 *qdlyr;        /* QSPI delay register     */
@@ -312,7 +329,11 @@ struct driver_data {
  	u16 *qdr;          /* QSPI data register      */
  	u16 *qcr;	   /* QSPI command register   */
 #endif
+#if defined(CONFIG_M532x) || defined(CONFIG_M537x)
+ 	u16 *par;	   /* Pin assignment register */
+#else
  	u8  *par;	   /* Pin assignment register */
+#endif
  	u8  *int_icr;	   /* Interrupt level and priority register */
  	u32 *int_mr;       /* Interrupt mask register */
  	void (*cs_control)(u8 cs, u8 command);
@@ -326,8 +347,6 @@ struct driver_data {
 /*
  * SPI local functions
  */
-
-//#define SPI_COLDFIRE_DEBUG
 
 static void *next_transfer(struct driver_data *drv_data)
 {
@@ -387,11 +406,9 @@ static int write(struct driver_data *drv_data)
  	int tx_word;
 
 #if defined(SPI_DSPI)
-
 #if defined(SPI_DSPI_EDMA)
 	u32* edma_wr;
 #endif
-
  	u16 d16;
  	u8  d8;
  	u32 dspi_pushr;
@@ -400,9 +417,9 @@ static int write(struct driver_data *drv_data)
 
 	tx_word = is_word_transfer(drv_data);
 
-	// If we are in word mode, but only have a single byte to transfer
-	// then switch to byte mode temporarily.  Will switch back at the
-	// end of the transfer.
+	/* If we are in word mode, but only have a single byte to transfer
+	 * then switch to byte mode temporarily.  Will switch back at the
+	 * end of the transfer. */
  	if (tx_word && ((drv_data->tx_end - drv_data->tx) == 1)) {
  		drv_data->flags |= TRAN_STATE_WORD_ODD_NUM;
  		set_8bit_transfer_mode(drv_data);
@@ -411,11 +428,9 @@ static int write(struct driver_data *drv_data)
 
 
 #if defined(SPI_DSPI)
-
 #if defined(SPI_DSPI_EDMA)
 	edma_wr = (u32*)(drv_data->edma_tx_buf);
 #endif
-
 
 #if defined(SPI_DSPI_EDMA)
 	while ((drv_data->tx < drv_data->tx_end) && (tx_count < EDMA_BUFFER_SIZE)) {
@@ -432,19 +447,16 @@ static int write(struct driver_data *drv_data)
 			}
 
 			dspi_pushr = MCF_DSPI_DTFR_TXDATA(d16)
-						  | DSPI_CS(drv_data->cs)
-						 | MCF_DSPI_DTFR_CTAS(drv_data->dspi_ctas)
-						 //| MCF_DSPI_DTFR_CONT
-						 ;
-
+					| DSPI_CS(drv_data->cs)
+					| MCF_DSPI_DTFR_CTAS(drv_data->dspi_ctas);
 			drv_data->tx += 2;
 
 #if defined(SPI_DSPI_EDMA)
 			if (drv_data->tx == drv_data->tx_end  || tx_count==EDMA_BUFFER_SIZE-1) {
-#else			
+#else
 			if (drv_data->tx == drv_data->tx_end  || tx_count==DSPI_FIFO_SIZE-1) {
-#endif				
-				// last transfer in queue
+#endif
+				/* last transfer in the queue */
 				dspi_pushr |= MCF_DSPI_DTFR_EOQ;
 				if (drv_data->cs_change) {
 					dspi_pushr &= ~MCF_DSPI_DTFR_CONT;
@@ -453,14 +465,13 @@ static int write(struct driver_data *drv_data)
 
 			if (first) {
 				first = 0;
-				dspi_pushr |= MCF_DSPI_DTFR_CTCNT; // clear counter
+				dspi_pushr |= MCF_DSPI_DTFR_CTCNT; /* clear counter */
 			}
 #if defined(SPI_DSPI_EDMA)
 			*edma_wr = dspi_pushr;
-			edma_wr++;			
+			edma_wr++;
 #else
 			*drv_data->dspi_dtfr = dspi_pushr;
-			//MCF_DSPI_DTFR = dspi_pushr;
 #endif
 
 
@@ -473,14 +484,13 @@ static int write(struct driver_data *drv_data)
 
 			dspi_pushr = MCF_DSPI_DTFR_TXDATA(d8)
 						 | DSPI_CS(drv_data->cs)
-						 /* | MCF_DSPI_DTFR_PCS5 | */
 						 | MCF_DSPI_DTFR_CTAS(drv_data->dspi_ctas)
 						 | MCF_DSPI_DTFR_CONT;
 
 			drv_data->tx++;
 
 			if (drv_data->tx == drv_data->tx_end  || tx_count==DSPI_FIFO_SIZE-1) {
-				// last transfer in queue
+				/* last transfer in the queue */
 				dspi_pushr |= MCF_DSPI_DTFR_EOQ;
 				if (drv_data->cs_change) {
 					dspi_pushr &= ~MCF_DSPI_DTFR_CONT;
@@ -489,16 +499,15 @@ static int write(struct driver_data *drv_data)
 
 			if (first) {
 				first = 0;
-				dspi_pushr |= MCF_DSPI_DTFR_CTCNT; // clear counter
+				dspi_pushr |= MCF_DSPI_DTFR_CTCNT; /* clear counter */
 			}
 
 #if defined(SPI_DSPI_EDMA)
 			*edma_wr = dspi_pushr;
-			edma_wr++;			
-#else			
+			edma_wr++;
+#else
 			*drv_data->dspi_dtfr = dspi_pushr;
-			//MCF_DSPI_DTFR = dspi_pushr;
-#endif			
+#endif
 
 		}
 		tx_count++;
@@ -508,8 +517,8 @@ static int write(struct driver_data *drv_data)
 
 	if (tx_count>0) {
 
-		// TODO: initiate eDMA transfer
-		set_edma_params(DSPI_DMA_TX_TCD,
+		/* TBD: initiate eDMA transfer */
+		mcf_edma_set_tcd_params(DSPI_DMA_TX_TCD,
 #ifdef SPI_USE_MMU
 					virt_to_phys(drv_data->edma_tx_buf),
 #else
@@ -517,18 +526,18 @@ static int write(struct driver_data *drv_data)
 #endif
 					(u32)drv_data->dspi_dtfr,
 					MCF_EDMA_TCD_ATTR_SSIZE_32BIT | MCF_EDMA_TCD_ATTR_DSIZE_32BIT,
-					4,  // soff
-					4,  // nbytes
-					0,  // slast
-					tx_count, // citer
-					tx_count, // biter
-					0, // doff
-					0, // dlastsga
-					0, // major_int
-					1  // disable_req
+					4, /* soff */
+					4, /* nbytes */
+					0, /* slast */
+					tx_count, /* citer */
+					tx_count, /* biter */
+					0, /* doff */
+					0, /* dlastsga */
+					0, /* major_int */
+					1  /* disable_req */
 					);
 
-		set_edma_params(DSPI_DMA_RX_TCD,
+		mcf_edma_set_tcd_params(DSPI_DMA_RX_TCD,
 					(u32)drv_data->dspi_drfr,
 #ifdef SPI_USE_MMU
 					virt_to_phys(drv_data->edma_rx_buf),
@@ -536,20 +545,20 @@ static int write(struct driver_data *drv_data)
 					drv_data->edma_rx_buf,
 #endif
 					MCF_EDMA_TCD_ATTR_SSIZE_32BIT | MCF_EDMA_TCD_ATTR_DSIZE_32BIT,
-					0,  // soff
-					4,  // nbytes
-					0,  // slast
-					tx_count, // citer
-					tx_count, // biter
-					4, // doff
-					0,  // dlastsga
-                    0,   // major_int
-					1	// disable_req
+					0, /* soff */
+					4, /* nbytes */
+					0, /* slast */
+					tx_count, /* citer */
+					tx_count, /* biter */
+					4, /* doff */
+					0, /* dlastsga */
+					0, /* major_int */
+					1  /* disable_req */
 					);
 
 
-		start_edma_transfer(DSPI_DMA_TX_TCD); // transmit SPI data
-		start_edma_transfer(DSPI_DMA_RX_TCD); // receive SPI data
+		start_edma_transfer(DSPI_DMA_TX_TCD); /* transmit SPI data */
+		start_edma_transfer(DSPI_DMA_RX_TCD); /* receive SPI data */
 	}
 #endif
 
@@ -583,9 +592,9 @@ static int write(struct driver_data *drv_data)
 			  | QCR_CONT
 			  | (~((0x01 << drv_data->cs) << 8) & 0x0F00);
 
-		if ( 	   (cmd_count == tx_count - 1)
-			&& (drv_data->tx == drv_data->tx_end)
-			&& (drv_data->cs_change) ) {
+		if ( (cmd_count == tx_count - 1)
+		     && (drv_data->tx == drv_data->tx_end)
+		     && (drv_data->cs_change) ) {
 			qcr &= ~QCR_CONT;
 		}
 		*drv_data->qcr = qcr;
@@ -613,7 +622,6 @@ static int read(struct driver_data *drv_data)
 	rx_word = is_word_transfer(drv_data);
 
 #if defined(SPI_DSPI)
-
 #if defined(SPI_DSPI_EDMA)
 	rx_edma = (u32*) drv_data->edma_tx_buf;
 	while ((drv_data->rx < drv_data->rx_end) && (rx_count < EDMA_BUFFER_SIZE)) {
@@ -646,10 +654,7 @@ static int read(struct driver_data *drv_data)
 		}
 		rx_count++;
 	}
-
-
 #else
-
 	*drv_data->qar = QSPI_RECEIVE_RAM;
 	while ((drv_data->rx < drv_data->rx_end) && (rx_count < QSPI_RAM_SIZE)) {
 		if (rx_word) {
@@ -680,19 +685,18 @@ static inline void qspi_setup_chip(struct driver_data *drv_data)
 
 	*drv_data->mcr = chip->mcr_val;
 
-	// TODO: remove later
+	/* TBD: remove later */
+/* JKM -- validate */
 	chip->ctar_val = 0x78560118;
 
 	*drv_data->ctar = chip->ctar_val;
 	*drv_data->dspi_rser =  0
-							| MCF_DSPI_DRSER_EOQFE
+				| MCF_DSPI_DRSER_EOQFE
 #if defined(SPI_DSPI_EDMA)
-							| MCF_DSPI_DRSER_TFFFE
-							| MCF_DSPI_DRSER_TFFFS
+				| MCF_DSPI_DRSER_TFFFE
+				| MCF_DSPI_DRSER_TFFFS
 #endif
-							;
-
-
+				;
 #else
 	*drv_data->qmr = chip->qmr_val;
 	*drv_data->qdlyr = chip->qdlyr_val;
@@ -770,7 +774,6 @@ static irqreturn_t qspi_interrupt(int irq, void *dev_id)
 			 * transfer tasklet
 			 */
 			if (drv_data->flags & TRAN_STATE_WORD_ODD_NUM) {
-				//*drv_data->qmr &= ~QMR_BITS;
 				set_16bit_transfer_mode(drv_data);
 			}
 
@@ -857,10 +860,8 @@ static void pump_transfers(unsigned long data)
 	if (message->state == START_STATE) {
 		qspi_setup_chip(drv_data);
 
-		if (drv_data->cs_control) {
-			//printk( "m s\n" );
-        		drv_data->cs_control(message->spi->chip_select, QSPI_CS_ASSERT);
-		}
+		if (drv_data->cs_control)
+			drv_data->cs_control(message->spi->chip_select, QSPI_CS_ASSERT);
 	}
 
 	/* Delay if requested at end of transfer*/
@@ -902,12 +903,12 @@ static void pump_transfers(unsigned long data)
 }
 
 
-static void pump_messages(struct work_struct * work)
+static void pump_messages(struct work_struct *work)
 {
 	struct driver_data *drv_data;
 	unsigned long flags;
 
-	drv_data = container_of(work,  struct driver_data, pump_messages);
+	drv_data = container_of(work, struct driver_data, pump_messages);
 
 	/* Lock queue and check for queue work */
 	spin_lock_irqsave(&drv_data->lock, flags);
@@ -1002,7 +1003,7 @@ static int setup(struct spi_device *spi)
 	chip->mcr.cont_scke = 0;
 	chip->mcr.dconf = 0;
 	chip->mcr.frz = 0;
-	chip->mcr.mtfe = 1;
+	chip->mcr.mtfe = 0;
 	chip->mcr.pcsse = 0;
 	chip->mcr.rooe = 0;
 	chip->mcr.pcsis = 0xFF;
@@ -1019,7 +1020,7 @@ static int setup(struct spi_device *spi)
 	if ((spi->bits_per_word >= 4) && (spi->bits_per_word <= 16)) {
 		chip->ctar.fmsz = spi->bits_per_word-1;
 	} else {
-		printk(KERN_ERR "coldfire-qspi: invalid wordsize\n");
+		printk(KERN_ERR "coldfire-spi: invalid wordsize\n");
 		kfree(chip);
 		return -ENODEV;
 	}
@@ -1056,9 +1057,9 @@ static int setup(struct spi_device *spi)
 
 #else
 
-	chip->qwr.csiv = 1;    // Chip selects are active low
-	chip->qmr.master = 1;  // Must set to master mode
-	chip->qmr.dohie = 1;   // Data output high impediance enabled
+	chip->qwr.csiv = 1;    /* Chip selects are active low */
+	chip->qmr.master = 1;  /* Must set to master mode */
+	chip->qmr.dohie = 1;   /* Data output high impediance enabled */
 	chip->void_write_data = chip_info->void_write_data;
 
 	chip->qdlyr.qcd = chip_info->del_cs_to_clk;
@@ -1075,8 +1076,8 @@ static int setup(struct spi_device *spi)
 
 	chip->qmr.baud = baud_divisor;
 
-	//printk( "QSPI: spi->max_speed_hz %d\n", spi->max_speed_hz );
-	//printk( "QSPI: Baud set to %d\n", chip->qmr.baud );
+	/*printk( "SPI: spi->max_speed_hz %d\n", spi->max_speed_hz );*/
+	/*printk( "SPI: Baud set to %d\n", chip->qmr.baud );*/
 
 	if (spi->mode & SPI_CPHA)
 		chip->qmr.cpha = 1;
@@ -1089,7 +1090,7 @@ static int setup(struct spi_device *spi)
 	} else if ((spi->bits_per_word >= 8) && (spi->bits_per_word <= 15)) {
 		chip->qmr.bits = spi->bits_per_word;
 	} else {
-		printk(KERN_ERR "coldfire-qspi: invalid wordsize\n");
+		printk(KERN_ERR "coldfire-spi: invalid wordsize\n");
 		kfree(chip);
 		return -ENODEV;
 	}
@@ -1112,7 +1113,7 @@ static int init_queue(struct driver_data *drv_data)
 	tasklet_init(&drv_data->pump_transfers,
 			pump_transfers,	(unsigned long)drv_data);
 
-	INIT_WORK(&drv_data->pump_messages, pump_messages/*, drv_data*/);
+	INIT_WORK(&drv_data->pump_messages, pump_messages);
 
 	drv_data->workqueue = create_singlethread_workqueue(
 					drv_data->master->dev.parent->bus_id);
@@ -1185,7 +1186,7 @@ static int destroy_queue(struct driver_data *drv_data)
 }
 
 
-static void cleanup(const struct spi_device *spi)
+static void cleanup(struct spi_device *spi)
 {
 	struct chip_data *chip = spi_get_ctldata((struct spi_device *)spi);
 
@@ -1213,11 +1214,7 @@ static int coldfire_spi_probe(struct platform_device *pdev)
 	int status = 0;
 	int i;
 
-#if defined(SPI_DSPI_EDMA)
-	init_edma();
-#endif
-
- 	platform_info = (struct coldfire_spi_master *)pdev->dev.platform_data;
+	platform_info = (struct coldfire_spi_master *)pdev->dev.platform_data;
 
   	master = spi_alloc_master(dev, sizeof(struct driver_data));
   	if (!master)
@@ -1241,7 +1238,7 @@ static int coldfire_spi_probe(struct platform_device *pdev)
  			drv_data->cs_control(i, QSPI_CS_INIT | QSPI_CS_DROP);
 
 	/* Setup register addresses */
- 	memory_resource = platform_get_resource_byname(pdev, IORESOURCE_MEM, "qspi-module");
+ 	memory_resource = platform_get_resource_byname(pdev, IORESOURCE_MEM, "spi-module");
  	if (!memory_resource) {
  		dev_dbg(dev, "can not find platform module memory\n");
  		goto out_error_master_alloc;
@@ -1259,13 +1256,13 @@ static int coldfire_spi_probe(struct platform_device *pdev)
 	 	dev_dbg(dev, "cannot allocate eDMA RX memory\n");
 	 	goto out_error_master_alloc;
  	}
-#endif 	
+#endif
  	
 #if defined(SPI_DSPI)
 
-	drv_data->mcr 		= (void *)(memory_resource->start + 0x00000000);
-	drv_data->ctar 		= (void *)(memory_resource->start + 0x0000000C);
-	drv_data->dspi_sr 	= (void *)(memory_resource->start + 0x0000002C);
+	drv_data->mcr	    = (void *)(memory_resource->start + 0x00000000);
+	drv_data->ctar	    = (void *)(memory_resource->start + 0x0000000C);
+	drv_data->dspi_sr   = (void *)(memory_resource->start + 0x0000002C);
 	drv_data->dspi_rser = (void *)(memory_resource->start + 0x00000030);
 	drv_data->dspi_dtfr = (void *)(memory_resource->start + 0x00000034);
 	drv_data->dspi_drfr = (void *)(memory_resource->start + 0x00000038);
@@ -1283,7 +1280,7 @@ static int coldfire_spi_probe(struct platform_device *pdev)
 #endif
 
 	/* Setup register addresses */
- 	memory_resource = platform_get_resource_byname(pdev, IORESOURCE_MEM, "qspi-par");
+ 	memory_resource = platform_get_resource_byname(pdev, IORESOURCE_MEM, "spi-par");
  	if (!memory_resource) {
  		dev_dbg(dev, "can not find platform par memory\n");
  		goto out_error_master_alloc;
@@ -1292,7 +1289,7 @@ static int coldfire_spi_probe(struct platform_device *pdev)
  	drv_data->par = (void *)memory_resource->start;
 
 	/* Setup register addresses */
- 	memory_resource = platform_get_resource_byname(pdev, IORESOURCE_MEM, "qspi-int-level");
+ 	memory_resource = platform_get_resource_byname(pdev, IORESOURCE_MEM, "spi-int-level");
  	if (!memory_resource) {
  		dev_dbg(dev, "can not find platform par memory\n");
  		goto out_error_master_alloc;
@@ -1301,7 +1298,7 @@ static int coldfire_spi_probe(struct platform_device *pdev)
  	drv_data->int_icr = (void *)memory_resource->start;
 
 	/* Setup register addresses */
- 	memory_resource = platform_get_resource_byname(pdev, IORESOURCE_MEM, "qspi-int-mask");
+ 	memory_resource = platform_get_resource_byname(pdev, IORESOURCE_MEM, "spi-int-mask");
  	if (!memory_resource) {
  		dev_dbg(dev, "can not find platform par memory\n");
  		goto out_error_master_alloc;
@@ -1309,32 +1306,52 @@ static int coldfire_spi_probe(struct platform_device *pdev)
 
  	drv_data->int_mr = (void *)memory_resource->start;
 
-	irq = platform_info->irq_vector;
+	if (platform_info->irq_list) {
+		/* multiple IRQs */
+		int *irqlist = platform_info->irq_list;
+		while ((irq = *irqlist++)) {
+			int off = *irqlist++;
+			int lvl = *irqlist++;
+			int msk = *irqlist++;
+			status = request_irq(irq, qspi_interrupt, IRQF_DISABLED,
+					     dev->bus_id, drv_data);
+			if (status < 0) {
+				dev_err(&pdev->dev, 
+					"unable to attach ColdFire DSPI interrupt\n");
+				goto out_error_master_alloc;
+			}
 
-	status = request_irq(platform_info->irq_vector, qspi_interrupt, IRQF_DISABLED, dev->bus_id, drv_data);
-	if (status < 0) {
-		dev_err(&pdev->dev, "unable to attach ColdFire QSPI interrupt\n");
-		goto out_error_master_alloc;
+			if (lvl)
+				*(drv_data->int_icr + off) = lvl;
+
+			if (msk)
+				*drv_data->int_mr &= ~msk;
+		}
+	}
+	else {
+		irq = platform_info->irq_vector;
+
+		status = request_irq(platform_info->irq_vector, qspi_interrupt,
+				     IRQF_DISABLED, dev->bus_id, drv_data);
+		if (status < 0) {
+			dev_err(&pdev->dev, "unable to attach ColdFire QSPI interrupt\n");
+			goto out_error_master_alloc;
+		}
+
+		*drv_data->int_icr = platform_info->irq_lp;
+		*drv_data->int_mr &= ~platform_info->irq_mask;
 	}
 
 	/* Now that we have all the addresses etc.  Let's set it up */
-	// TODO:
-	//*drv_data->par = platform_info->par_val;
+	if (platform_info->par_val)
+		*drv_data->par = platform_info->par_val;
 
-	MCF_GPIO_PAR_DSPI = 0
-		| MCF_GPIO_PAR_DSPI_PCS5_PCS5
-		| MCF_GPIO_PAR_DSPI_PCS2_PCS2
-		| MCF_GPIO_PAR_DSPI_PCS1_PCS1
-		| MCF_GPIO_PAR_DSPI_PCS0_PCS0
-		| MCF_GPIO_PAR_DSPI_SIN_SIN
-		| MCF_GPIO_PAR_DSPI_SOUT_SOUT
-		| MCF_GPIO_PAR_DSPI_SCK_SCK;
-
-	*drv_data->int_icr = platform_info->irq_lp;
-	*drv_data->int_mr &= ~platform_info->irq_mask;
+#ifdef CONFIG_M5227x
+	MCF_GPIO_PAR_IRQ = 0x04; /* Mistake in RM documentation */
+#endif
 
 #ifdef SPI_DSPI
-	drv_data->dspi_ctas = 0; // TODO: change later
+	drv_data->dspi_ctas = 0; /* TBD: change later */
 #endif
 
 	/* Initial and start queue */
@@ -1359,40 +1376,37 @@ static int coldfire_spi_probe(struct platform_device *pdev)
 	}
 
 #if defined(SPI_DSPI_EDMA)
-	if (request_edma_channel(DSPI_DMA_TX_TCD,
-							edma_tx_handler,
-							NULL,
-							pdev,
-							NULL, /* spinlock */
-							DRIVER_NAME
-							)!=0)
-	{
+	if (mcf_edma_request_channel(DSPI_DMA_TX_TCD,
+				     edma_tx_handler,
+				     NULL,
+				     pdev,
+				     NULL, /* spinlock */
+				     DRIVER_NAME
+				     )!=0) {
 		dev_err(&pdev->dev, "problem requesting edma transmit channel\n");
 		status = -EINVAL;
-        goto out_error_queue_alloc;
+		goto out_error_queue_alloc;
 	}
 
-	if (request_edma_channel(DSPI_DMA_RX_TCD,
-							edma_rx_handler,
-							NULL,
-							pdev,
-							NULL, /* spinlock */
-							DRIVER_NAME
-							)!=0)
-	{
+	if (mcf_edma_request_channel(DSPI_DMA_RX_TCD,
+				     edma_rx_handler,
+				     NULL,
+				     pdev,
+				     NULL, /* spinlock */
+				     DRIVER_NAME
+				     )!=0) {
 		dev_err(&pdev->dev, "problem requesting edma receive channel\n");
 		status = -EINVAL;
-        goto out_edma_transmit;
+		goto out_edma_transmit;
 	}
 #endif
 
-	printk( "SPI: Coldfire master initialized\n" );
-	//dev_info(&pdev->dev, "driver initialized\n");
+	printk(KERN_INFO "SPI: Coldfire master initialized\n" );
 	return status;
 
 #if defined(SPI_DSPI_EDMA)
 out_edma_transmit:
-	free_edma_channel(DSPI_DMA_TX_TCD, pdev);
+	mcf_edma_free_channel(DSPI_DMA_TX_TCD, pdev);
 #endif
 
 out_error_queue_alloc:
@@ -1417,8 +1431,8 @@ static int coldfire_spi_remove(struct platform_device *pdev)
 		return 0;
 
 #if defined(SPI_DSPI_EDMA)
-	free_edma_channel(DSPI_DMA_TX_TCD, pdev);
-	free_edma_channel(DSPI_DMA_RX_TCD, pdev);
+	mcf_edma_free_channel(DSPI_DMA_TX_TCD, pdev);
+	mcf_edma_free_channel(DSPI_DMA_RX_TCD, pdev);
 #endif	
 
 	/* Remove the queue */
@@ -1426,27 +1440,8 @@ static int coldfire_spi_remove(struct platform_device *pdev)
 	if (status != 0)
 		return status;
 
-	/* Disable the SSP at the peripheral and SOC level */
-	/*write_SSCR0(0, drv_data->ioaddr);
-	pxa_set_cken(drv_data->master_info->clock_enable, 0);*/
-
-	/* Release DMA */
-	/*if (drv_data->master_info->enable_dma) {
-		if (drv_data->ioaddr == SSP1_VIRT) {
-			DRCMRRXSSDR = 0;
-			DRCMRTXSSDR = 0;
-		} else if (drv_data->ioaddr == SSP2_VIRT) {
-			DRCMRRXSS2DR = 0;
-			DRCMRTXSS2DR = 0;
-		} else if (drv_data->ioaddr == SSP3_VIRT) {
-			DRCMRRXSS3DR = 0;
-			DRCMRTXSS3DR = 0;
-		}
-		pxa_free_dma(drv_data->tx_channel);
-		pxa_free_dma(drv_data->rx_channel);
-	}*/
-
 	/* Release IRQ */
+/* JKM -- check for list and remove list */
 	irq = platform_get_irq(pdev, 0);
 	if (irq >= 0)
 		free_irq(irq, drv_data);
@@ -1496,8 +1491,6 @@ static int coldfire_spi_suspend(struct platform_device *pdev, pm_message_t state
 	status = stop_queue(drv_data);
 	if (status != 0)
 		return status;
-	/*write_SSCR0(0, drv_data->ioaddr);
-	pxa_set_cken(drv_data->master_info->clock_enable, 0);*/
 
 	return 0;
 }
@@ -1506,9 +1499,6 @@ static int coldfire_spi_resume(struct platform_device *pdev)
 {
 	struct driver_data *drv_data = platform_get_drvdata(pdev);
 	int status = 0;
-
-	/* Enable the SSP clock */
-	/*pxa_set_cken(drv_data->master_info->clock_enable, 1);*/
 
 	/* Start the queue running */
 	status = start_queue(drv_data);

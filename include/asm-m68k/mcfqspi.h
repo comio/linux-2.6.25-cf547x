@@ -36,6 +36,7 @@ struct coldfire_spi_master {
 	u32 irq_mask;
 	u8  irq_lp;
 	u8  par_val;
+	u32 *irq_list;
 	void (*cs_control)(u8 cs, u8 command);
 };
 

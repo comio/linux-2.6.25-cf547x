@@ -10,4 +10,5 @@ endif
 
 obj-$(CONFIG_PCI)	+= pci.o mcf5445x-pci.o iomap.o
 obj-$(CONFIG_M54455)	+= mcf5445x-devices.o
+obj-$(CONFIG_M547X_8X)	+= m547x_8x-devices.o
 obj-$(CONFIG_MCD_DMA)	+= m547x_8x-dma.o
