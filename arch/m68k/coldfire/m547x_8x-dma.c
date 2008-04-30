@@ -1,3 +1,28 @@
+/*
+ * arch/m68k/coldfire/m547x_8x-dma.c
+ *
+ * Coldfire M547x/M548x DMA
+ *
+ * Copyright (c) 2008 Freescale Semiconductor, Inc.
+ *	Kurt Mahan <kmahan@freescale.com>
+ *
+ * This code is based on patches from the Freescale M547x_8x BSP
+ * release mcf547x_8x-20070107-ltib.iso
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
@@ -10,11 +35,7 @@
 #include <asm/m5485sram.h>
 #include <asm/mcfsim.h>
 
-
-
-void dma_interrupt_handler(int irq, void *dev_id, struct pt_regs *regs);
-
-/* 
+/*
  * This global keeps track of which initiators have been
  * used of the available assignments.  Initiators 0-15 are
  * hardwired.  Initiators 16-31 are multiplexed and controlled
@@ -48,24 +69,18 @@ unsigned int connected_channel[16] = {
 	0, 0, 0, 0, 0, 0, 0, 0
 };
 
-/********************************************************************/
-/*
+/**
+ * dma_set_initiator - enable initiator
+ * @initiator: initiator identifier
+ *
+ * Returns 0 of successful, non-zero otherwise
+ *
  * Attempt to enable the provided Initiator in the Initiator
- * Mux Control Register
- *
- * Parameters:
- *  initiator   Initiator identifier
- *
- * Return Value:
- *  1   if unable to make the assignment
- *  0   successful
+ * Mux Control Register.
  */
-int
-dma_set_initiator(int initiator)
+int dma_set_initiator(int initiator)
 {
-	switch (initiator) {	/*
-				 * These initiators are always active 
-				 */
+	switch (initiator) {
 	case DMA_ALWAYS:
 	case DMA_DSPI_RX:
 	case DMA_DSPI_TX:
@@ -82,6 +97,9 @@ dma_set_initiator(int initiator)
 	case DMA_PSC1_TX:
 	case DMA_I2C_RX:
 	case DMA_I2C_TX:
+		/*
+		 * These initiators are always active
+		 */
 		break;
 
 	case DMA_FEC0_RX:
@@ -273,42 +291,32 @@ dma_set_initiator(int initiator)
 	return 0;
 }
 
-/********************************************************************/
-/*
- * Return the initiator number for the given requestor
+/**
+ * dma_get_initiator - get the initiator for the given requestor
+ * @requestor: initiator identifier
  *
- * Parameters:
- *  requestor   Initiator/Requestor identifier
- *
- * Return Value:
- *  The initiator number (0-31) if initiator has been assigned
- *  0 (always initiator) otherwise
+ * Returns initiator number (0-31) if assigned or just 0
  */
-unsigned int
-dma_get_initiator(int requestor)
+unsigned int dma_get_initiator(int requestor)
 {
 	u32 i;
 
-	for (i = 0; i < sizeof (used_reqs); ++i) {
+	for (i = 0; i < sizeof(used_reqs); ++i) {
 		if (used_reqs[i] == requestor)
 			return i;
 	}
 	return 0;
 }
 
-/********************************************************************/
-/*
- * Remove the given initiator from the active list
- *
- * Parameters:
- *  requestor   Initiator/Requestor identifier
+/**
+ * dma_remove_initiator - remove the given initiator from active list
+ * @requestor: requestor to remove
  */
-void
-dma_remove_initiator(int requestor)
+void dma_remove_initiator(int requestor)
 {
 	u32 i;
 
-	for (i = 0; i < sizeof (used_reqs); ++i) {
+	for (i = 0; i < sizeof(used_reqs); ++i) {
 		if (used_reqs[i] == requestor) {
 			used_reqs[i] = -1;
 			break;
@@ -316,18 +324,13 @@ dma_remove_initiator(int requestor)
 	}
 }
 
-/********************************************************************/
-/*
- * Attempt to find an available channel for FEC and mark is as used
+/**
+ * dma_set_channel_fec: find available channel for fec and mark
+ * @requestor: initiator/requestor identifier
  *
- * Parameters:
- *  requestor   Initiator/Requestor identifier
- *
- * Return Value:
- *  First available channel (from 0 to 5) or -1 if they are all occupied
+ * Returns first avaialble channel (0-5) or -1 if all occupied
  */
-int
-dma_set_channel_fec(int requestor)
+int dma_set_channel_fec(int requestor)
 {
 	u32 i, t;
 
@@ -337,36 +340,30 @@ dma_set_channel_fec(int requestor)
 	t = 2;
 #endif
 
-
-
-	for (i = 0; i < t ; ++i)
+	for (i = 0; i < t ; ++i) {
 		if (used_channel[i] == -1) {
 			used_channel[i] = requestor;
 			return i;
 		}
+	}
 	/* All channels taken */
 	return -1;
 }
 
-/********************************************************************/
-/*
- * Attempt to find an available channel and mark is as used
+/**
+ * dma_set_channel - find an available channel and mark as used
+ * @requestor: initiator/requestor identifier
  *
- * Parameters:
- *  requestor   Initiator/Requestor identifier
- *
- * Return Value:
- *  First available channel (from 6 to 15) or -1 if they are all occupied
+ * Returns first available channel (6-15) or -1 if all occupied
  */
-int
-dma_set_channel(int requestor)
+int dma_set_channel(int requestor)
 {
 	u32 i;
 #ifdef CONFIG_NET_FEC2
 	i = 4;
 #else
 	i = 2;
-#endif				
+#endif
 
 	for (; i < 16; ++i)
 		if (used_channel[i] == -1) {
@@ -378,74 +375,63 @@ dma_set_channel(int requestor)
 	return -1;
 }
 
-/********************************************************************/
-/*
- * Return the channel being initiated by the given requestor
+/**
+ * dma_get_channel - get the channel being initiated by the requestor
+ * @requestor: initiator/requestor identifier
  *
- * Parameters:
- *  requestor   Initiator/Requestor identifier
+ * Returns Initiator for requestor or -1 if not found
  */
-int
-dma_get_channel(int requestor)
+int dma_get_channel(int requestor)
 {
 	u32 i;
 
-	for (i = 0; i < sizeof (used_channel); ++i) {
+	for (i = 0; i < sizeof(used_channel); ++i) {
 		if (used_channel[i] == requestor)
 			return i;
 	}
 	return -1;
 }
 
-/********************************************************************/
-/*
- * Connects a channel with reference on your data 
+/**
+ * dma_connect - connect a channel with reference on data
+ * @channel: channel number
+ * @address: reference address of data
  *
- * Parameters:
- *  channel   channel number
- *  reference addres of your data
-  */
-int
-dma_connect(int channel, int address)
-{
-	if ((channel < 16) && (channel >= 0))
-		connected_channel[channel] = address;
-	else
-		return -1;
-	return 0;
-}
-
-/********************************************************************/
-/*
- * Disconnects a channel with reference on your data 
- *
- * Parameters:
- *  channel   channel number
-*/
-int
-dma_disconnect(int channel)
-{
-	if ((channel < 16) && (channel >= 0))
-		connected_channel[channel] = 0;
-	else
-		return -1;
-	return 0;
-}
-
-/********************************************************************/
-/*
- * Remove the channel being initiated by the given requestor from 
- * the active list
- *
- * Parameters:
- *  requestor   Initiator/Requestor identifier
+ * Returns 0 if success or -1 if invalid channel
  */
-void
-dma_remove_channel(int requestor)
+int dma_connect(int channel, int address)
+{
+	if ((channel < 16) && (channel >= 0)) {
+		connected_channel[channel] = address;
+		return 0;
+	}
+	return -1;
+}
+
+/**
+ * dma_disconnect - disconnect a channel
+ * @channel: channel number
+ *
+ * Returns 0 if success or -1 if invalid channel
+ */
+int dma_disconnect(int channel)
+{
+	if ((channel < 16) && (channel >= 0)) {
+		connected_channel[channel] = 0;
+		return 0;
+	}
+	return -1;
+}
+
+/**
+ * dma_remove_channel - remove channel from the active list
+ * @requestor: initiator/requestor identifier
+ */
+void dma_remove_channel(int requestor)
 {
 	u32 i;
 
-	for (i = 0; i < sizeof (used_channel); ++i) {
+	for (i = 0; i < sizeof(used_channel); ++i) {
 		if (used_channel[i] == requestor) {
 			used_channel[i] = -1;
 			break;
@@ -453,62 +439,62 @@ dma_remove_channel(int requestor)
 	}
 }
 
-/********************************************************************/
-/* 
- * This is the catch-all interrupt handler for the mult-channel DMA 
+/**
+ * dma_interrupt_handler - dma interrupt handler
+ * @irq: interrupt number
+ * @dev_id: data
+ *
+ * Returns IRQ_HANDLED
  */
-volatile u8 dma_iflag[16];
-u32 tx = 0;
-
-void
-dma_interrupt_handler(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t dma_interrupt_handler(int irq, void *dev_id)
 {
-	u32 i, interrupts/*, mask, temp*/;
+	u32 i, interrupts;
 
 	/*
-	 * Determine which interrupt(s) triggered by AND'ing the 
-	 * pending interrupts with those that aren't masked.            
+	 * Determine which interrupt(s) triggered by AND'ing the
+	 * pending interrupts with those that aren't masked.
 	 */
-/*	mask = MCF_DMA_DIMR;
-	MCF_DMA_DIMR = 0xffffffff;
-*/
 	interrupts = MCF_DMA_DIPR;
 	MCF_DMA_DIPR |= interrupts;
-//	temp = interrupts;
 
-	//MCF_DMA_DIPR = interrupts;
-	for (i = 0; i < 16; ++i, interrupts >>= 1)
+	for (i = 0; i < 16; ++i, interrupts >>= 1) {
 		if (interrupts & 0x1)
 			if (connected_channel[i] != 0)
 				((void (*)(void)) (connected_channel[i])) ();
+	}
 
-/*	MCF_DMA_DIPR |= temp;
-	MCF_DMA_DIMR = mask;*/
+	return IRQ_HANDLED;
 }
 
-void
-dma_remove_channel_by_number(int channel)
+/**
+ * dma_remove_channel_by_number - clear dma channel
+ * @channel: channel number to clear
+ */
+void dma_remove_channel_by_number(int channel)
 {
-	if (channel < sizeof (used_channel) && channel >= 0)
+	if ((channel < sizeof(used_channel)) && (channel >= 0))
 		used_channel[channel] = -1;
 }
 
-int __devinit
-dma_init()
+/**
+ * dma_init - initialize the dma subsystem
+ *
+ * Returns 0 if success non-zero if failure
+ *
+ * Handles the DMA initialization during device setup.
+ */
+int __devinit dma_init()
 {
 	int result;
 	char *dma_version_str;
 
 	MCD_getVersion(&dma_version_str);
-	printk("Initialize %s\n", dma_version_str);
+	printk(KERN_INFO "m547x_8x DMA: Initialize %s\n", dma_version_str);
 
-	if (request_irq
-	    (64 + ISC_DMA, 
-	     dma_interrupt_handler, 
-	     IRQF_DISABLED, 
-	     "MCD-DMA", 
-	     NULL)) {
-		printk("Cannot allocate the DMA IRQ(48)\n");
+	/* attempt to setup dma interrupt handler */
+	if (request_irq(64 + ISC_DMA, dma_interrupt_handler, IRQF_DISABLED,
+			"MCD-DMA", NULL)) {
+		printk(KERN_ERR "MCD-DMA: Cannot allocate the DMA IRQ(48)\n");
 		return 1;
 	}
 
@@ -520,13 +506,11 @@ dma_init()
 	result = MCD_initDma((dmaRegs *) (MCF_MBAR + 0x8000),
 			(void *) SYS_SRAM_DMA_START, MCD_RELOC_TASKS);
 	if (result != MCD_OK) {
-		printk("Cannot perform DMA initialization\n");
+		printk(KERN_ERR "MCD-DMA: Cannot perform DMA initialization\n");
 		free_irq(64 + ISC_DMA, NULL);
 		return 1;
 	}
 
 	return 0;
 }
-
 device_initcall(dma_init);
-

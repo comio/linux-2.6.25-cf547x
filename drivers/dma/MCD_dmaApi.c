@@ -1,46 +1,26 @@
-/*********************************************************************
- *
- * Copyright (C) 2004  Motorola, Inc.
- *  MOTOROLA, INC. All Rights Reserved.
- *  You are hereby granted a copyright license to use
- *  the SOFTWARE so long as this entire notice is
- *  retained without alteration in any modified and/or redistributed
- *  versions, and that such modified versions are clearly identified
- *  as such. No licenses are granted by implication, estoppel or
- *  otherwise under any patents or trademarks of Motorola, Inc. This
- *  software is provided on an "AS IS" basis and without warranty.
- *
- *  To the maximum extent permitted by applicable law, MOTOROLA
- *  DISCLAIMS ALL WARRANTIES WHETHER EXPRESS OR IMPLIED, INCLUDING
- *  IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR
- *  PURPOSE AND ANY WARRANTY AGAINST INFRINGEMENT WITH REGARD TO THE
- *  SOFTWARE (INCLUDING ANY MODIFIED VERSIONS THEREOF) AND ANY
- *  ACCOMPANYING WRITTEN MATERIALS.
- *
- *  To the maximum extent permitted by applicable law, IN NO EVENT
- *  SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER (INCLUDING
- *  WITHOUT LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS, BUSINESS
- *  INTERRUPTION, LOSS OF BUSINESS INFORMATION, OR OTHER PECUNIARY
- *  LOSS) ARISING OF THE USE OR INABILITY TO USE THE SOFTWARE.
- *
- *  Motorola assumes no responsibility for the maintenance and support
- *  of this software
- ********************************************************************/
-
 /*
- * File:        MCD_dmaApi.c
- * Purpose:     Main C file for multi-channel DMA API.
+ * drivers/dma/MCD_dmaApi.c
  *
- * Notes:
+ * Copyright (C) 2004-2008 Freescale Semiconductor, Inc.
+ *     Kurt Mahan <kmahan@freescale.com>
  *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
  *
- * Modifications:
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+ * MA 02111-1307 USA
  */
-#include <asm/types.h>
-#include <asm/MCD_dma.h>
-#include <asm/virtconvert.h>
+
+#include "MCD_dma.h"
 #include "MCD_tasksInit.h"
 #include "MCD_progCheck.h"
 
@@ -148,7 +128,6 @@ MCD_bufDesc *MCD_relocBuffDesc;
 
 /*
  * Structure to remember which variant is on which channel
- * TBD- need this?
  */
 typedef struct MCD_remVariants_struct MCD_remVariant;
 struct MCD_remVariants_struct
@@ -164,6 +143,7 @@ struct MCD_remVariants_struct
  * Structure to remember the startDma parameters for each channel
  */
 MCD_remVariant MCD_remVariants;
+
 /********************************************************************/
 /*
  * Function: MCD_initDma
@@ -185,15 +165,14 @@ int MCD_initDma (dmaRegs *dmaBarAddr, void *taskTableDest, u32 flags)
     int i;
     TaskTableEntry *entryPtr;
 
-    /* setup the local pointer to register set */
+    /* Setup the local pointer to register set */
     MCD_dmaBar = dmaBarAddr;
 
-    /* do we need to move/create a task table */
+    /* Do we need to move/create a task table */
     if ((flags & MCD_RELOC_TASKS) != 0)
     {
         int fixedSize;
         u32 *fixedPtr;
-        /*int *tablePtr = taskTableDest;TBD*/
         int varTabsOffset, funcDescTabsOffset, contextSavesOffset;
         int taskDescTabsOffset;
         int taskTableSize, varTabsSize, funcDescTabsSize, contextSavesSize;
@@ -201,7 +180,7 @@ int MCD_initDma (dmaRegs *dmaBarAddr, void *taskTableDest, u32 flags)
 
         int i;
 
-        /* check if physical address is aligned on 512 byte boundary */
+        /* Check if physical address is aligned on 512 byte boundary */
         if (((u32)taskTableDest & 0x000001ff) != 0)
             return(MCD_TABLE_UNALIGNED);
 
@@ -215,13 +194,12 @@ int MCD_initDma (dmaRegs *dmaBarAddr, void *taskTableDest, u32 flags)
          * - copy over model task table with the the actual task descriptor
          *   tables
          */
-
         taskTableSize = NCHANNELS * sizeof(TaskTableEntry);
-        /* align variable tables to size */
+        /* Align variable tables to size */
         varTabsOffset = taskTableSize + (u32)taskTableDest;
         if ((varTabsOffset & (VAR_TAB_SIZE - 1)) != 0)
             varTabsOffset = (varTabsOffset + VAR_TAB_SIZE) & (~VAR_TAB_SIZE);
-        /* align function descriptor tables */
+        /* Align function descriptor tables */
         varTabsSize = NCHANNELS * VAR_TAB_SIZE;
         funcDescTabsOffset = varTabsOffset + varTabsSize;
 
@@ -235,13 +213,13 @@ int MCD_initDma (dmaRegs *dmaBarAddr, void *taskTableDest, u32 flags)
         fixedSize = taskTableSize + varTabsSize + funcDescTabsSize +
                     contextSavesSize;
 
-        /* zero the thing out */
+        /* Zero the thing out */
         fixedPtr = (u32 *)taskTableDest;
         for (i = 0;i<(fixedSize/4);i++)
             fixedPtr[i] = 0;
 
         entryPtr = (TaskTableEntry*)MCD_taskTable;
-        /* set up fixed pointers */
+        /* Set up fixed pointers */
         for (i = 0; i < NCHANNELS; i++)
         {
             entryPtr[i].varTab = (u32)varTabsOffset; /* update ptr to local value */
@@ -253,25 +231,25 @@ int MCD_initDma (dmaRegs *dmaBarAddr, void *taskTableDest, u32 flags)
 #endif
             contextSavesOffset += CONTEXT_SAVE_SIZE;
         }
-        /* copy over the function descriptor table */
+        /* Copy over the function descriptor table */
         for ( i = 0; i < FUNCDESC_TAB_NUM; i++)
         {
             MCD_memcpy((void*)(entryPtr[i].FDTandFlags & ~MCD_TT_FLAGS_MASK),
                        (void*)MCD_funcDescTab0, FUNCDESC_TAB_SIZE);
         }
 
-        /* copy model task table to where the context saves stuff leaves off*/
+        /* Copy model task table to where the context save stuff leaves off */
         MCD_modelTaskTable = (TaskTableEntry*)contextSavesOffset;
 
         MCD_memcpy ((void*)MCD_modelTaskTable, (void*)MCD_modelTaskTableSrc,
                     NUMOFVARIANTS * sizeof(TaskTableEntry));
 
-        entryPtr = MCD_modelTaskTable; /* point to local version of
-                                                            model task table */
+        /* Point to local version of model task table */
+        entryPtr = MCD_modelTaskTable;
         taskDescTabsOffset = (u32)MCD_modelTaskTable +
                             (NUMOFVARIANTS * sizeof(TaskTableEntry));
 
-        /* copy actual task code and update TDT ptrs in local model task table */
+        /* Copy actual task code and update TDT ptrs in local model task table */
         for (i = 0; i < NUMOFVARIANTS; i++)
         {
             taskDescTabSize = entryPtr[i].TDTend - entryPtr[i].TDTstart + 4;
@@ -280,25 +258,29 @@ int MCD_initDma (dmaRegs *dmaBarAddr, void *taskTableDest, u32 flags)
             taskDescTabsOffset += taskDescTabSize;
             entryPtr[i].TDTend = (u32)taskDescTabsOffset - 4;
         }
-#ifdef MCD_INCLUDE_EU /* Tack single DMA BDs onto end of code so API controls
-                         where they are since DMA might write to them */        
+#ifdef MCD_INCLUDE_EU 
+        /* 
+         * Tack single DMA BDs onto end of code so API controls where
+         * they are since DMA might write to them 
+         */
         MCD_relocBuffDesc = (MCD_bufDesc*)(entryPtr[NUMOFVARIANTS - 1].TDTend + 4);
-#else /* DMA does not touch them so they can be wherever and we don't need to 
-         waste SRAM on them */
+#else 
+        /* 
+         * DMA does not touch them so they can be wherever and we don't need to
+         * waste SRAM on them 
+         */
         MCD_relocBuffDesc = MCD_singleBufDescs;
 #endif
     }
     else
     {
-        /* point the would-be relocated task tables and the
-        buffer descriptors to the ones the linker generated */
-
+        /* 
+         * Point the would-be relocated task tables and the buffer descriptors
+         * to the ones the linker generated
+         */
         if (((u32)MCD_realTaskTableSrc & 0x000001ff) != 0)
             return(MCD_TABLE_UNALIGNED);
 
-        /* need to add code to make sure that every thing else is aligned properly TBD*/
-        /* this is problematic if we init more than once or after running tasks,
-            need to add variable to see if we have aleady init'd */
         entryPtr = MCD_realTaskTableSrc;
         for (i = 0; i < NCHANNELS; i++)
         {
@@ -312,9 +294,7 @@ int MCD_initDma (dmaRegs *dmaBarAddr, void *taskTableDest, u32 flags)
         MCD_relocBuffDesc = MCD_singleBufDescs;
     }
 
-
-    /* Make all channels as totally inactive, and remember them as such: */
-
+    /* Make all channels inactive, and remember them as such: */
     MCD_dmaBar->taskbar = (u32) MCD_taskTable;
     for (i = 0;  i < NCHANNELS;  i++)
     {
@@ -323,13 +303,12 @@ int MCD_initDma (dmaRegs *dmaBarAddr, void *taskTableDest, u32 flags)
     }
 
    /* Set up pausing mechanism to inactive state: */
-    MCD_dmaBar->debugComp1 = 0;  /* no particular values yet for either comparator registers */
+    MCD_dmaBar->debugComp1 = 0;
     MCD_dmaBar->debugComp2 = 0;
     MCD_dmaBar->debugControl = DBG_CTL_DISABLE;
     MCD_dmaBar->debugStatus = DBG_KILL_ALL_STAT;
 
-    /* enable or disable commbus prefetch, really need an ifdef or
-       something to keep from trying to set this in the 8220 */
+    /* Enable or disable commbus prefetch */
     if ((flags & MCD_COMM_PREFETCH_EN) != 0)
         MCD_dmaBar->ptdControl &= ~PTD_CTL_COMM_PREFETCH;
     else
@@ -354,8 +333,7 @@ int MCD_dmaStatus (int channel)
 
     tcrValue = MCD_dmaBar->taskControl[channel];
     if ((tcrValue & TASK_CTL_EN) == 0)
-    {  /* nothing running */
-        /* if last reported with task enabled */
+    {   /* Nothing running if last reported with task enabled */
         if (   MCD_chStatus[channel] == MCD_RUNNING
             || MCD_chStatus[channel] == MCD_IDLE)
             MCD_chStatus[channel] = MCD_DONE;
@@ -367,13 +345,12 @@ int MCD_dmaStatus (int channel)
             || MCD_chStatus[channel] == MCD_IDLE)
         {
             MCD_dmaBar->ptdDebug = PTD_DBG_TSK_VLD_INIT;
-            /* This register is selected to know which initiator is
-            actually asserted. */
+            /* Determine which initiator is asserted. */
             if ((MCD_dmaBar->ptdDebug >> channel ) & 0x1 )
                 MCD_chStatus[channel] = MCD_RUNNING;
             else
                 MCD_chStatus[channel] = MCD_IDLE;
-        /* do not change the status if it is already paused. */
+            /* Do not change the status if it is already paused */
         }
     }
     return MCD_chStatus[channel];
@@ -414,67 +391,86 @@ int MCD_startDma (
 
     if((channel < 0) || (channel >= NCHANNELS))
         return(MCD_CHANNEL_INVALID);
-        
-    /* tbd - need to determine the proper response to a bad funcDesc when not 
-       including EU functions, for now, assign a benign funcDesc, but maybe
-       should return an error */
+
 #ifndef MCD_INCLUDE_EU
     funcDesc = MCD_FUNC_NOEU1;
 #endif
-        
+
 #ifdef MCD_DEBUG
 printf("startDma:Setting up params\n");
 #endif
-   /* Set us up for task-wise priority.  We don't technically need to do this on every start, but
-      since the register involved is in the same longword as other registers that users are in control
-      of, setting it more than once is probably preferable.  That since the documentation doesn't seem
-      to be completely consistent about the nature of the PTD control register. */
+
+   /* Enable task-wise priority */
     MCD_dmaBar->ptdControl |= (u16) 0x8000;
-#if 1 /* Not sure what we need to keep here rtm TBD */
+
     /* Calculate additional parameters to the regular DMA calls. */
     srcRsdIncr = srcIncr < 0 ? -1 : (srcIncr > 0 ? 1 : 0);
     destRsdIncr = destIncr < 0 ? -1 : (destIncr > 0 ? 1 : 0);
-
     xferSizeIncr = (xferSize & 0xffff) | 0x20000000;
 
-    /* Remember for each channel which variant is running. */
+    /* Remember which variant is running for each channel */
     MCD_remVariants.remSrcRsdIncr[channel] = srcRsdIncr;
     MCD_remVariants.remDestRsdIncr[channel] = destRsdIncr;
     MCD_remVariants.remDestIncr[channel] = destIncr;
     MCD_remVariants.remSrcIncr[channel] = srcIncr;
     MCD_remVariants.remXferSize[channel] = xferSize;
-#endif
 
-    cSave = (int*)(MCD_taskTable[channel].contextSaveSpace) + CSAVE_OFFSET + CURRBD;
+    cSave = (int*)(MCD_taskTable[channel].contextSaveSpace) 
+            + CSAVE_OFFSET 
+            + CURRBD;
 
-#ifdef MCD_INCLUDE_EU /* may move this to EU specific calls */
+#ifdef MCD_INCLUDE_EU
     realFuncArray = (u32 *) (MCD_taskTable[channel].FDTandFlags & 0xffffff00);
-    /* Modify the LURC's normal and byte-residue-loop functions according to parameter. */
-    realFuncArray[(LURC*16)] = xferSize == 4 ?
-                                 funcDesc : xferSize == 2 ?
-                                     funcDesc & 0xfffff00f : funcDesc & 0xffff000f;
-    realFuncArray[(LURC*16+1)] = (funcDesc & MCD_BYTE_SWAP_KILLER) | MCD_NO_BYTE_SWAP_ATALL;
+
+    /* 
+     * Modify the LURC's normal and byte-residue-loop functions 
+     * according to parameter. 
+     */
+    switch (xferSize)
+    {
+        case 4:
+            realFuncArray[(LURC*16)] = funcDesc;
+            break;
+        case 2:
+            realFuncArray[(LURC*16)] = funcDesc & 0xfffff00f;
+            break;
+        case 1:
+        default:
+            realFuncArray[(LURC*16)] = funcDesc & 0xffff000f;
+            break;
+    }
+
+    realFuncArray[(LURC*16+1)] = 0
+        | (funcDesc & MCD_BYTE_SWAP_KILLER) 
+        | MCD_NO_BYTE_SWAP_ATALL;
 #endif
-   /* Write the initiator field in the TCR, and also set the initiator-hold
-      bit.  Note that,due to a hardware quirk, this could collide with an
-      MDE access to the initiator-register file, so we have to verify that the write
-      reads back correctly. */
 
-    MCD_dmaBar->taskControl[channel] =
-        (initiator << 8) | TASK_CTL_HIPRITSKEN | TASK_CTL_HLDINITNUM;
+   /* Write the initiator field in the TCR and set the initiator-hold bit*/
+    MCD_dmaBar->taskControl[channel] = 0
+        | (initiator << 8)
+        | TASK_CTL_HIPRITSKEN
+        | TASK_CTL_HLDINITNUM;
 
+    /* 
+     * Current versions of the MPC8220 MCD have a hardware quirk that could
+     * cause the write to the TCR to collide with an MDE access to the 
+     * initiator-register file, so we have to verify that the write occurred
+     * correctly by reading back the value.  On MCF547x/8x devices and any
+     * future revisions of the MPC8220, this loop will not be entered.
+     */
     while(((MCD_dmaBar->taskControl[channel] & 0x1fff) !=
           ((initiator << 8) | TASK_CTL_HIPRITSKEN | TASK_CTL_HLDINITNUM)) &&
             (tcrCount < 1000))
     {
         tcrCount++;
-        /*MCD_dmaBar->ptd_tcr[channel] = (initiator << 8) | 0x0020;*/
-        MCD_dmaBar->taskControl[channel] =
-            (initiator << 8) | TASK_CTL_HIPRITSKEN | TASK_CTL_HLDINITNUM;
+        MCD_dmaBar->taskControl[channel] = 0
+            | (initiator << 8)
+            | TASK_CTL_HIPRITSKEN
+            | TASK_CTL_HLDINITNUM;
     }
 
     MCD_dmaBar->priority[channel] = (u8)priority & PRIORITY_PRI_MASK;
-    /* should be albe to handle this stuff with only one write to ts reg - tbd */
+
     if (channel < 8 && channel >= 0)
     {
         MCD_dmaBar->taskSize0 &= ~(0xf << (7-channel)*4);
@@ -488,7 +484,7 @@ printf("startDma:Setting up params\n");
         MCD_dmaBar->taskSize1 |= (xferSize & 3) << ((15 - channel)*4);
     }
 
-    /* setup task table flags/options which mostly control the line buffers */
+    /* Setup task table flags/options */
     MCD_taskTable[channel].FDTandFlags &= ~MCD_TT_FLAGS_MASK;
     MCD_taskTable[channel].FDTandFlags |= (MCD_TT_FLAGS_MASK & flags);
 
@@ -508,79 +504,86 @@ printf("startDma:Setting up params\n");
     }
     else if(flags & MCD_SINGLE_DMA)
     {
-        /* this buffer descriptor is used for storing off initial parameters for later
-           progress query calculation and for the DMA to write the resulting checksum
-           The DMA does not use this to determine how to operate, that info is passed
-           with the init routine*/
+        /* 
+         * This buffer descriptor is used for storing off initial parameters 
+         * for later progress query calculation and for the DMA to write the 
+         * resulting checksum. The DMA does not use this to determine how to 
+         * operate, that info is passed with the init routine
+         */
         MCD_relocBuffDesc[channel].srcAddr = srcAddr;
         MCD_relocBuffDesc[channel].destAddr = destAddr;
-        MCD_relocBuffDesc[channel].lastDestAddr = destAddr;  /* definitely not its final value */
+        MCD_relocBuffDesc[channel].lastDestAddr = destAddr;
         MCD_relocBuffDesc[channel].dmaSize = dmaSize;
         MCD_relocBuffDesc[channel].flags = 0;       /* not used */
         MCD_relocBuffDesc[channel].csumResult = 0;  /* not used */
         MCD_relocBuffDesc[channel].next = 0;        /* not used */
 
         /* Initialize the progress-querying stuff to show no progress:*/
-        ((volatile int *)MCD_taskTable[channel].contextSaveSpace)[SRCPTR + CSAVE_OFFSET] = (int)srcAddr;
-        ((volatile int *)MCD_taskTable[channel].contextSaveSpace)[DESTPTR + CSAVE_OFFSET] = (int)destAddr;
-        ((volatile int *)MCD_taskTable[channel].contextSaveSpace)[DCOUNT + CSAVE_OFFSET] = 0;
-        ((volatile int *)MCD_taskTable[channel].contextSaveSpace)[CURRBD + CSAVE_OFFSET] =
-                                             (u32) &(MCD_relocBuffDesc[channel]);
-        /* tbd - need to keep the user from trying to call the EU routine
-           when MCD_INCLUDE_EU is not defined */
+        ((volatile int *)MCD_taskTable[channel].contextSaveSpace)[SRCPTR + CSAVE_OFFSET] 
+            = (int)srcAddr;
+        ((volatile int *)MCD_taskTable[channel].contextSaveSpace)[DESTPTR + CSAVE_OFFSET] 
+            = (int)destAddr;
+        ((volatile int *)MCD_taskTable[channel].contextSaveSpace)[DCOUNT + CSAVE_OFFSET] 
+            = 0;
+        ((volatile int *)MCD_taskTable[channel].contextSaveSpace)[CURRBD + CSAVE_OFFSET] 
+            = (u32) &(MCD_relocBuffDesc[channel]);
+
         if( funcDesc == MCD_FUNC_NOEU1 || funcDesc == MCD_FUNC_NOEU2)
         {
-           /* TDTStart and TDTEnd */
-           MCD_taskTable[channel].TDTstart = MCD_modelTaskTable[TASK_SINGLENOEU].TDTstart;
-           MCD_taskTable[channel].TDTend = MCD_modelTaskTable[TASK_SINGLENOEU].TDTend;
-           MCD_startDmaSingleNoEu(srcAddr, srcIncr, destAddr, destIncr, dmaSize, dmaSize,
-                                xferSizeIncr, flags, (int *)&(MCD_relocBuffDesc[channel]), cSave,
-                                MCD_taskTable, channel);
+            /* TDTStart and TDTEnd */
+            MCD_taskTable[channel].TDTstart = MCD_modelTaskTable[TASK_SINGLENOEU].TDTstart;
+            MCD_taskTable[channel].TDTend = MCD_modelTaskTable[TASK_SINGLENOEU].TDTend;
+            MCD_startDmaSingleNoEu(srcAddr, srcIncr, destAddr, destIncr, dmaSize,
+                                xferSizeIncr, flags, (int *)&(MCD_relocBuffDesc[channel]), 
+                                cSave, MCD_taskTable, channel);
         }
         else
         {
-           /* TDTStart and TDTEnd */
-           MCD_taskTable[channel].TDTstart = MCD_modelTaskTable[TASK_SINGLEEU].TDTstart;
-           MCD_taskTable[channel].TDTend = MCD_modelTaskTable[TASK_SINGLEEU].TDTend;
-           MCD_startDmaSingleEu(srcAddr, srcIncr, destAddr, destIncr, dmaSize, dmaSize,
-                              xferSizeIncr, flags, (int *)&(MCD_relocBuffDesc[channel]), cSave,
-                              MCD_taskTable, channel);
+            /* TDTStart and TDTEnd */
+            MCD_taskTable[channel].TDTstart = MCD_modelTaskTable[TASK_SINGLEEU].TDTstart;
+            MCD_taskTable[channel].TDTend = MCD_modelTaskTable[TASK_SINGLEEU].TDTend;
+            MCD_startDmaSingleEu(srcAddr, srcIncr, destAddr, destIncr, dmaSize,
+                                xferSizeIncr, flags, (int *)&(MCD_relocBuffDesc[channel]), 
+                                cSave, MCD_taskTable, channel);
         }
     }
-    else
-    { /* chained DMAS */
+    else /* Chained DMA */
+    {
         /* Initialize the progress-querying stuff to show no progress:*/
 #if 1 /* (!defined(MCD_NEED_ADDR_TRANS)) */
         ((volatile int *)MCD_taskTable[channel].contextSaveSpace)[SRCPTR + CSAVE_OFFSET]
-          = (int)((MCD_bufDesc*) phys_to_virt(srcAddr))->srcAddr;
+            = (int)((MCD_bufDesc*) srcAddr)->srcAddr;
         ((volatile int *)MCD_taskTable[channel].contextSaveSpace)[DESTPTR + CSAVE_OFFSET]
-          = (int)((MCD_bufDesc*) phys_to_virt(srcAddr))->destAddr;
+            = (int)((MCD_bufDesc*) srcAddr)->destAddr;
 #else /* if using address translation, need the virtual addr of the first buffdesc */
         ((volatile int *)MCD_taskTable[channel].contextSaveSpace)[SRCPTR + CSAVE_OFFSET]
           = (int)((MCD_bufDesc*) srcAddrVirt)->srcAddr;
         ((volatile int *)MCD_taskTable[channel].contextSaveSpace)[DESTPTR + CSAVE_OFFSET]
           = (int)((MCD_bufDesc*) srcAddrVirt)->destAddr;
 #endif
-        ((volatile int *)MCD_taskTable[channel].contextSaveSpace)[DCOUNT + CSAVE_OFFSET] = 0;
-        ((volatile int *)MCD_taskTable[channel].contextSaveSpace)[CURRBD + CSAVE_OFFSET] = (u32) srcAddr;
+        ((volatile int *)MCD_taskTable[channel].contextSaveSpace)[DCOUNT + CSAVE_OFFSET] 
+          = 0;
+        ((volatile int *)MCD_taskTable[channel].contextSaveSpace)[CURRBD + CSAVE_OFFSET] 
+          = (u32) srcAddr;
 
         if( funcDesc == MCD_FUNC_NOEU1 || funcDesc == MCD_FUNC_NOEU2)
         {
-          /*TDTStart and TDTEnd*/
-          MCD_taskTable[channel].TDTstart = MCD_modelTaskTable[TASK_CHAINNOEU].TDTstart;
-          MCD_taskTable[channel].TDTend = MCD_modelTaskTable[TASK_CHAINNOEU].TDTend;
-          MCD_startDmaChainNoEu((int *)srcAddr, srcIncr, destIncr, xferSize,
+            /* TDTStart and TDTEnd */
+            MCD_taskTable[channel].TDTstart = MCD_modelTaskTable[TASK_CHAINNOEU].TDTstart;
+            MCD_taskTable[channel].TDTend = MCD_modelTaskTable[TASK_CHAINNOEU].TDTend;
+            MCD_startDmaChainNoEu((int *)srcAddr, srcIncr, destIncr, xferSize,
                                     xferSizeIncr, cSave, MCD_taskTable, channel);
         }
         else
         {
-          /*TDTStart and TDTEnd*/
-          MCD_taskTable[channel].TDTstart = MCD_modelTaskTable[TASK_CHAINEU].TDTstart;
-          MCD_taskTable[channel].TDTend = MCD_modelTaskTable[TASK_CHAINEU].TDTend;
-          MCD_startDmaChainEu((int *)srcAddr, srcIncr, destIncr, xferSize,
+            /* TDTStart and TDTEnd */
+            MCD_taskTable[channel].TDTstart = MCD_modelTaskTable[TASK_CHAINEU].TDTstart;
+            MCD_taskTable[channel].TDTend = MCD_modelTaskTable[TASK_CHAINEU].TDTend;
+            MCD_startDmaChainEu((int *)srcAddr, srcIncr, destIncr, xferSize,
                                  xferSizeIncr, cSave, MCD_taskTable, channel);
         }
     }
+
     MCD_chStatus[channel] = MCD_IDLE;
     return(MCD_OK);
 }
@@ -597,7 +600,7 @@ printf("startDma:Setting up params\n");
  * Notes:
  *  MCD_XferProgrQuery() upon completing or after aborting a DMA, or
  *  while the DMA is in progress, this function returns the first
- *  DMA-destination address not (or not yet) used in the DMA. When 
+ *  DMA-destination address not (or not yet) used in the DMA. When
  *  encountering a non-ready buffer descriptor, the information for
  *  the last completed descriptor is returned.
  *
@@ -642,11 +645,13 @@ int MCD_XferProgrQuery (int channel, MCD_XferProg *progRep)
     prevRep.dmaSize = ((volatile int*) MCD_taskTable[channel].contextSaveSpace)[DCOUNT + CSAVE_OFFSET];
     prevRep.currBufDesc =
           (MCD_bufDesc*) ((volatile int*) MCD_taskTable[channel].contextSaveSpace)[CURRBD + CSAVE_OFFSET];
+
     /* Repeatedly reread those values until they match previous values: */
     do {
-        /* Waste a little bit of time to ensure stability: */
+        /* Take a little bit of time to ensure stability: */
         for (i = 0;  i < STABTIME;  i++)
-            i += i >> 2;  /* make sure this loop does something so that it doesn't get optimized out */
+            i += i >> 2;  /* make sure this loop does something so that it 
+                             doesn't get optimized out */
         /* Check them again: */
         progRep->lastSrcAddr =
             (s8 *) ((volatile int*) MCD_taskTable[channel].contextSaveSpace)[SRCPTR + CSAVE_OFFSET];
@@ -655,31 +660,33 @@ int MCD_XferProgrQuery (int channel, MCD_XferProg *progRep)
         progRep->dmaSize = ((volatile int*) MCD_taskTable[channel].contextSaveSpace)[DCOUNT + CSAVE_OFFSET];
         progRep->currBufDesc =
             (MCD_bufDesc*) ((volatile int*) MCD_taskTable[channel].contextSaveSpace)[CURRBD + CSAVE_OFFSET];
-       /* See if they match: */
-       if (   prevRep.lastSrcAddr != progRep->lastSrcAddr
-           || prevRep.lastDestAddr != progRep->lastDestAddr
-           || prevRep.dmaSize != progRep->dmaSize
-           || prevRep.currBufDesc != progRep->currBufDesc)
-       {
-          /* If they don't match, remember previous values and try again:*/
-          prevRep.lastSrcAddr = progRep->lastSrcAddr;
-          prevRep.lastDestAddr = progRep->lastDestAddr;
-          prevRep.dmaSize = progRep->dmaSize;
-          prevRep.currBufDesc = progRep->currBufDesc;
-          again = MCD_TRUE;
-       }
-       else
+
+        /* See if they match: */
+        if (   prevRep.lastSrcAddr  != progRep->lastSrcAddr
+            || prevRep.lastDestAddr != progRep->lastDestAddr
+            || prevRep.dmaSize      != progRep->dmaSize
+            || prevRep.currBufDesc  != progRep->currBufDesc)
+        {
+            /* If they don't match, remember previous values and try again:*/
+            prevRep.lastSrcAddr = progRep->lastSrcAddr;
+            prevRep.lastDestAddr = progRep->lastDestAddr;
+            prevRep.dmaSize = progRep->dmaSize;
+            prevRep.currBufDesc = progRep->currBufDesc;
+            again = MCD_TRUE;
+        }
+        else
           again = MCD_FALSE;
     } while (again == MCD_TRUE);
 
 
-    /* Update the dCount, srcAddr and destAddr */
-    /* To calculate dmaCount, we consider destination address. C
-       overs M1,P1,Z for destination */
-    switch(MCD_remVariants.remDestRsdIncr[channel]) {
+    /* Update dmaSize and lastDestAddr */
+    switch(MCD_remVariants.remDestRsdIncr[channel]) 
+    {
         case MINUS1:
-           subModVal = ((int)progRep->lastDestAddr) & ((MCD_remVariants.remXferSize[channel]) - 1);
-           addModVal = ((int)progRep->currBufDesc->destAddr) & ((MCD_remVariants.remXferSize[channel]) - 1);
+           subModVal = ((int)progRep->lastDestAddr) 
+                        & ((MCD_remVariants.remXferSize[channel]) - 1);
+           addModVal = ((int)progRep->currBufDesc->destAddr) 
+                        & ((MCD_remVariants.remXferSize[channel]) - 1);
            LWAlignedInitDestAddr = (progRep->currBufDesc->destAddr) - addModVal;
            LWAlignedCurrDestAddr = (progRep->lastDestAddr) - subModVal;
            destDiffBytes = LWAlignedInitDestAddr - LWAlignedCurrDestAddr;
@@ -692,25 +699,28 @@ int MCD_XferProgrQuery (int channel, MCD_XferProg *progRep)
            progRep->lastDestAddr = progRep->currBufDesc->destAddr;
            break;
         case PLUS1:
-           /* This value has to be subtracted from the final calculated dCount. */
-           subModVal = ((int)progRep->currBufDesc->destAddr) & ((MCD_remVariants.remXferSize[channel]) - 1);
+           /* This value has to be subtracted from the final calculated dmaSize. */
+            subModVal = ((int)progRep->currBufDesc->destAddr) 
+                        & ((MCD_remVariants.remXferSize[channel]) - 1);
            /* These bytes are already in lastDestAddr. */
-            addModVal = ((int)progRep->lastDestAddr) & ((MCD_remVariants.remXferSize[channel]) - 1);
+            addModVal = ((int)progRep->lastDestAddr) 
+                        & ((MCD_remVariants.remXferSize[channel]) - 1);
             LWAlignedInitDestAddr = (progRep->currBufDesc->destAddr) - subModVal;
             LWAlignedCurrDestAddr = (progRep->lastDestAddr) - addModVal;
             destDiffBytes = (progRep->lastDestAddr - LWAlignedInitDestAddr);
             numIterations = ( LWAlignedCurrDestAddr - LWAlignedInitDestAddr)/MCD_remVariants.remDestIncr[channel];
             bytesNotXfered =  numIterations *
-                ( MCD_remVariants.remDestIncr[channel]
-                  - MCD_remVariants.remXferSize[channel]);
-           progRep->dmaSize = destDiffBytes - bytesNotXfered - subModVal;
-           break;
+                              (MCD_remVariants.remDestIncr[channel]
+                             - MCD_remVariants.remXferSize[channel]);
+            progRep->dmaSize = destDiffBytes - bytesNotXfered - subModVal;
+            break;
         default:
-           break;
+            break;
     }
 
     /* This covers M1,P1,Z for source */
-    switch(MCD_remVariants.remSrcRsdIncr[channel]) {
+    switch(MCD_remVariants.remSrcRsdIncr[channel]) 
+    {
         case MINUS1:
             progRep->lastSrcAddr =
                 progRep->currBufDesc->srcAddr +
@@ -720,13 +730,14 @@ int MCD_XferProgrQuery (int channel, MCD_XferProg *progRep)
         case ZERO:
             progRep->lastSrcAddr = progRep->currBufDesc->srcAddr;
             break;
-       case PLUS1:
+        case PLUS1:
             progRep->lastSrcAddr =
                 progRep->currBufDesc->srcAddr +
                  ( MCD_remVariants.remSrcIncr[channel] *
                    (progRep->dmaSize/MCD_remVariants.remXferSize[channel]));
-          break;
-       default: break;
+            break;
+        default: 
+            break;
     }
 
     return(MCD_OK);
@@ -744,8 +755,10 @@ static void MCD_resmActions (int channel)
 {
    MCD_dmaBar->debugControl = DBG_CTL_DISABLE;
    MCD_dmaBar->debugStatus = MCD_dmaBar->debugStatus;
-   MCD_dmaBar->ptdDebug = PTD_DBG_TSK_VLD_INIT; /* This register is selected to know
-                                        which initiator is actually asserted. */
+
+   /* Determine which initiators are asserted */
+   MCD_dmaBar->ptdDebug = PTD_DBG_TSK_VLD_INIT; 
+
    if((MCD_dmaBar->ptdDebug >> channel ) & 0x1)
        MCD_chStatus[channel] = MCD_RUNNING;
    else
@@ -767,27 +780,20 @@ static void MCD_resmActions (int channel)
  */
 int MCD_killDma (int channel)
 {
-   /* MCD_XferProg progRep; */
-
     if((channel < 0) || (channel >= NCHANNELS))
         return(MCD_CHANNEL_INVALID);
 
     MCD_dmaBar->taskControl[channel] = 0x0;
-    MCD_resumeDma (channel);
-    /*
-     * This must be after the write to the TCR so that the task doesn't
-     * start up again momentarily, and before the status assignment so
-     * as to override whatever MCD_resumeDma() may do to the channel
-     * status.
-     */
+    
+    /* Clean up after a paused task */
+    if (MCD_chStatus[channel] == MCD_PAUSED)
+    {
+        MCD_dmaBar->debugControl = DBG_CTL_DISABLE;
+        MCD_dmaBar->debugStatus = MCD_dmaBar->debugStatus;        
+    }
+     
     MCD_chStatus[channel] = MCD_HALTED;
 
-    /*
-     * Update the current buffer descriptor's lastDestAddr field
-     *
-     * MCD_XferProgrQuery (channel, &progRep);
-     * progRep.currBufDesc->lastDestAddr = progRep.lastDestAddr;
-     */
     return(MCD_OK);
 }
 /************************ End of MCD_killDma() **********************/
@@ -843,7 +849,7 @@ int MCD_continDma (int channel)
  * this means that bits 14 and 0 must enable debug functions before
  * bits 1 and 2, respectively, have any effect.
  *
- * NOTE: It's extremely important to not pause more than one DMA channel 
+ * NOTE: It's extremely important to not pause more than one DMA channel
  *  at a time.
  ********************************************************************/
 
@@ -856,8 +862,6 @@ int MCD_continDma (int channel)
  */
 int MCD_pauseDma (int channel)
 {
-    /* MCD_XferProg progRep; */
-
     if((channel < 0) || (channel >= NCHANNELS))
         return(MCD_CHANNEL_INVALID);
 
@@ -866,13 +870,6 @@ int MCD_pauseDma (int channel)
         MCD_dmaBar->debugComp1 = channel;
         MCD_dmaBar->debugControl = DBG_CTL_ENABLE | (1 << (channel + 16));
         MCD_chStatus[channel] = MCD_PAUSED;
-
-        /*
-         * Update the current buffer descriptor's lastDestAddr field
-         *
-         * MCD_XferProgrQuery (channel, &progRep);
-         * progRep.currBufDesc->lastDestAddr = progRep.lastDestAddr;
-         */
     }
     return(MCD_OK);
 }
@@ -929,9 +926,9 @@ int MCD_csumQuery (int channel, u32 *csum)
 int MCD_getCodeSize(void)
 {
 #ifdef MCD_INCLUDE_EU
-    return(0x2b5c);
+    return(0x2b64);
 #else
-    return(0x173c);
+    return(0x1744);
 #endif
 }
 /********************** End of MCD_getCodeSize() ********************/
@@ -943,9 +940,9 @@ int MCD_getCodeSize(void)
  *                    which points to the version string
  * Returns:     Version number and version string (by reference)
  */
-char MCD_versionString[] = "Multi-channel DMA API Alpha v0.3 (2004-04-26)";
-#define MCD_REV_MAJOR   0x00
-#define MCD_REV_MINOR   0x03
+char MCD_versionString[] = "Multi-channel DMA API v1.0";
+#define MCD_REV_MAJOR   0x01
+#define MCD_REV_MINOR   0x00
 
 int MCD_getVersion(char **longVersion)
 {

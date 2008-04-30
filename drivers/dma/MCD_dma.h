@@ -1,44 +1,26 @@
-/*********************************************************************
- *
- * Copyright (C) 2004  Motorola, Inc.
- *  MOTOROLA, INC. All Rights Reserved.
- *  You are hereby granted a copyright license to use
- *  the SOFTWARE so long as this entire notice is
- *  retained without alteration in any modified and/or redistributed
- *  versions, and that such modified versions are clearly identified
- *  as such. No licenses are granted by implication, estoppel or
- *  otherwise under any patents or trademarks of Motorola, Inc. This
- *  software is provided on an "AS IS" basis and without warranty.
- *
- *  To the maximum extent permitted by applicable law, MOTOROLA
- *  DISCLAIMS ALL WARRANTIES WHETHER EXPRESS OR IMPLIED, INCLUDING
- *  IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR
- *  PURPOSE AND ANY WARRANTY AGAINST INFRINGEMENT WITH REGARD TO THE
- *  SOFTWARE (INCLUDING ANY MODIFIED VERSIONS THEREOF) AND ANY
- *  ACCOMPANYING WRITTEN MATERIALS.
- *
- *  To the maximum extent permitted by applicable law, IN NO EVENT
- *  SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER (INCLUDING
- *  WITHOUT LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS, BUSINESS
- *  INTERRUPTION, LOSS OF BUSINESS INFORMATION, OR OTHER PECUNIARY
- *  LOSS) ARISING OF THE USE OR INABILITY TO USE THE SOFTWARE.
- *
- *  Motorola assumes no responsibility for the maintenance and support
- *  of this software
- ********************************************************************/
-
 /*
- * File:        MCD_dma.h
- * Purpose:     Main header file for multi-channel DMA API.
+ * drivers/dma/MCD_dma.h
  *
- * Notes:
+ * Copyright (C) 2004-2008 Freescale Semiconductor, Inc.
+ *     Kurt Mahan <kmahan@freescale.com>
  *
- * Modifications:
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+ * MA 02111-1307 USA
  */
 #ifndef _MCD_API_H
 #define _MCD_API_H
-
-#include <asm/types.h>
 
 /*
  * Turn Execution Unit tasks ON (#define) or OFF (#undef)
@@ -79,26 +61,13 @@
 /*
  * Portability typedefs
  */
- /*
-#ifndef s32
 typedef int s32;
-#endif
-#ifndef u32
 typedef unsigned int u32;
-#endif
-#ifndef s16
 typedef short s16;
-#endif
-#ifndef u16
 typedef unsigned short u16;
-#endif
-#ifndef s8
 typedef char s8;
-#endif
-#ifndef u8
 typedef unsigned char u8;
-#endif
-*/
+
 /*
  * These structures represent the internal registers of the
  * multi-channel DMA
@@ -233,6 +202,7 @@ typedef volatile struct dmaRegs_s dmaRegs;
 #define MCD_TT_FLAGS_RL   0x00000001 /* Read line */
 #define MCD_TT_FLAGS_CW   0x00000002 /* Combine Writes */
 #define MCD_TT_FLAGS_SP   0x00000004 /* Speculative prefetch(XLB) MCF547x/548x ONLY  */
+#define MCD_TT_FLAGS_PI   0x00000040 /* Precise Increment */
 #define MCD_TT_FLAGS_MASK 0x000000ff
 #define MCD_TT_FLAGS_DEF  (MCD_TT_FLAGS_RL | MCD_TT_FLAGS_CW)
 
