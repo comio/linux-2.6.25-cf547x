@@ -5,8 +5,23 @@
 #include <linux/kernel.h>
 #include <asm/segment.h>
 #include <asm/entry.h>
+#include <asm/cfcache.h>
 
 #ifdef __KERNEL__
+
+#ifdef CONFIG_COLDFIRE
+#define FLUSH_BC        (0x00040000)
+
+#define finish_arch_switch(prev) do {		\
+	unsigned long tmpreg;			\
+	asm volatile ( "move.l %2,%0\n"		\
+		       "orl %1,%0\n"		\
+		       "movec %0,%%cacr"	\
+		       : "=&d" (tmpreg)		\
+		       : "id" (FLUSH_BC), "m" (shadow_cacr));	\
+	} while(0)
+
+#endif
 
 /*
  * switch_to(n) should switch tasks to task ptr, first checking that
