@@ -4,6 +4,18 @@
 
 menu "I2C Hardware Bus support"
 
+config I2C_MCF548x
+	tristate "I2C MCF547x/548x interfaces"
+	depends on I2C
+	help
+	  This allows you to use the I2C adapters found on the Freescale
+	  MCF547x/548x microcontrollers.
+	  Say Y if you own an I2C adapter belonging to this class and then say
+	  Y to the specific driver for you adapter below.
+
+	  This support is also available as a module.  If so, the module
+	  will be called i2c-algo-mcf.
+
 config I2C_ALI1535
 	tristate "ALI 1535"
 	depends on PCI
