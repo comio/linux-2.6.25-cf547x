@@ -6,7 +6,7 @@
 #include <asm/cf_tlbflush.h>
 #include <asm/cf_cacheflush.h>
 
-extern inline void pte_free_kernel(pte_t *pte)
+extern inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 {
 	free_page((unsigned long) pte);
 }
@@ -40,6 +40,8 @@ extern inline pmd_t *pmd_alloc_kernel(pgd_t *pgd, unsigned long address)
 
 #define pmd_populate_kernel(mm, pmd, pte) (pmd_val(*pmd) = (unsigned long)(pte))
 
+#define pmd_pgtable(pmd) pmd_page(pmd)
+
 static inline void __pte_free_tlb(struct mmu_gather *tlb, struct page *page)
 {
 	__free_page(page);
@@ -68,7 +70,7 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm,
 	return page;
 }
 
-extern inline void pte_free(struct page *page)
+extern inline void pte_free(struct mm_struct *mm, struct page *page)
 {
 	__free_page(page);
 }
@@ -77,9 +79,9 @@ extern inline void pte_free(struct page *page)
  * In our implementation, each pgd entry contains 1 pmd that is never allocated
  * or freed.  pgd_present is always 1, so this should never be called. -NL
  */
-#define pmd_free(pmd) BUG()
+#define pmd_free(mm, pmd) BUG()
 
-extern inline void pgd_free(pgd_t *pgd)
+extern inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
 	free_page((unsigned long) pgd);
 }
