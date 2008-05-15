@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.25
-# Thu Jul 10 16:12:53 2008
+# Wed Jul  9 16:09:19 2008
 #
 CONFIG_M68K=y
 CONFIG_MMU=y
@@ -123,6 +123,7 @@ CONFIG_CFV4E=y
 CONFIG_MCD_DMA=y
 # CONFIG_AMIGA is not set
 # CONFIG_ATARI is not set
+CONFIG_PCI=y
 # CONFIG_MAC is not set
 # CONFIG_APOLLO is not set
 # CONFIG_VME is not set
@@ -139,21 +140,21 @@ CONFIG_MCD_DMA=y
 # CONFIG_M68060 is not set
 # CONFIG_M5445X is not set
 CONFIG_M547X_8X=y
-# CONFIG_M547X is not set
-CONFIG_M548X=y
+CONFIG_M547X=y
+# CONFIG_M548X is not set
 # CONFIG_M5475AFE is not set
 # CONFIG_M5475BFE is not set
-# CONFIG_M5475CFE is not set
+CONFIG_M5475CFE=y
 # CONFIG_M5475DFE is not set
 # CONFIG_M5475EFE is not set
 # CONFIG_M5475FFE is not set
 # CONFIG_M5485AFE is not set
 # CONFIG_M5485BFE is not set
-CONFIG_M5485CFE=y
+# CONFIG_M5485CFE is not set
 # CONFIG_M5485DFE is not set
 # CONFIG_M5485EFE is not set
 # CONFIG_M5485FFE is not set
-CONFIG_MCFCLK=200000000
+CONFIG_MCFCLK=266000000
 # CONFIG_MCF_USER_HALT is not set
 CONFIG_MMU_CFV4E=y
 CONFIG_SDRAM_BASE=0x00000000
@@ -188,6 +189,8 @@ CONFIG_BINFMT_ELF=y
 CONFIG_PROC_HARDWARE=y
 CONFIG_ZONE_DMA=y
 # CONFIG_ARCH_SUPPORTS_MSI is not set
+CONFIG_PCI_LEGACY=y
+# CONFIG_PCI_DEBUG is not set
 
 #
 # Power management options
@@ -270,7 +273,17 @@ CONFIG_DEFAULT_TCP_CONG="cubic"
 #
 # CONFIG_NET_PKTGEN is not set
 # CONFIG_HAMRADIO is not set
-# CONFIG_CAN is not set
+CONFIG_CAN=y
+CONFIG_CAN_RAW=y
+# CONFIG_CAN_BCM is not set
+
+#
+# CAN Device Drivers
+#
+# CONFIG_CAN_VCAN is not set
+CONFIG_CAN_FLEXCAN=y
+CONFIG_CAN_MCF547X_8X=y
+# CONFIG_CAN_DEBUG_DEVICES is not set
 # CONFIG_IRDA is not set
 # CONFIG_BT is not set
 # CONFIG_AF_RXRPC is not set
@@ -300,13 +313,88 @@ CONFIG_FW_LOADER=y
 # CONFIG_DEBUG_DEVRES is not set
 # CONFIG_SYS_HYPERVISOR is not set
 # CONFIG_CONNECTOR is not set
-# CONFIG_MTD is not set
+CONFIG_MTD=y
+# CONFIG_MTD_DEBUG is not set
+# CONFIG_MTD_CONCAT is not set
+CONFIG_MTD_PARTITIONS=y
+# CONFIG_MTD_REDBOOT_PARTS is not set
+CONFIG_MTD_CMDLINE_PARTS=y
+
+#
+# User Modules And Translation Layers
+#
+# CONFIG_MTD_CHAR is not set
+CONFIG_MTD_BLKDEVS=y
+CONFIG_MTD_BLOCK=y
+# CONFIG_FTL is not set
+# CONFIG_NFTL is not set
+# CONFIG_INFTL is not set
+# CONFIG_RFD_FTL is not set
+# CONFIG_SSFDC is not set
+# CONFIG_MTD_OOPS is not set
+
+#
+# RAM/ROM/Flash chip drivers
+#
+# CONFIG_MTD_CFI is not set
+# CONFIG_MTD_JEDECPROBE is not set
+CONFIG_MTD_MAP_BANK_WIDTH_1=y
+CONFIG_MTD_MAP_BANK_WIDTH_2=y
+CONFIG_MTD_MAP_BANK_WIDTH_4=y
+# CONFIG_MTD_MAP_BANK_WIDTH_8 is not set
+# CONFIG_MTD_MAP_BANK_WIDTH_16 is not set
+# CONFIG_MTD_MAP_BANK_WIDTH_32 is not set
+CONFIG_MTD_CFI_I1=y
+CONFIG_MTD_CFI_I2=y
+# CONFIG_MTD_CFI_I4 is not set
+# CONFIG_MTD_CFI_I8 is not set
+CONFIG_MTD_RAM=y
+CONFIG_MTD_ROM=y
+# CONFIG_MTD_ABSENT is not set
+
+#
+# Mapping drivers for chip access
+#
+# CONFIG_MTD_COMPLEX_MAPPINGS is not set
+# CONFIG_MTD_PHYSMAP is not set
+# CONFIG_MTD_INTEL_VR_NOR is not set
+# CONFIG_MTD_PLATRAM is not set
+
+#
+# Self-contained MTD device drivers
+#
+# CONFIG_MTD_PMC551 is not set
+# CONFIG_MTD_DATAFLASH is not set
+# CONFIG_MTD_M25P80 is not set
+# CONFIG_MTD_SLRAM is not set
+# CONFIG_MTD_PHRAM is not set
+# CONFIG_MTD_MTDRAM is not set
+# CONFIG_MTD_BLOCK2MTD is not set
+
+#
+# Disk-On-Chip Device Drivers
+#
+# CONFIG_MTD_DOC2000 is not set
+# CONFIG_MTD_DOC2001 is not set
+# CONFIG_MTD_DOC2001PLUS is not set
+# CONFIG_MTD_NAND is not set
+# CONFIG_MTD_ONENAND is not set
+
+#
+# UBI - Unsorted block images
+#
+# CONFIG_MTD_UBI is not set
 # CONFIG_PARPORT is not set
 CONFIG_BLK_DEV=y
+# CONFIG_BLK_CPQ_DA is not set
+# CONFIG_BLK_CPQ_CISS_DA is not set
+# CONFIG_BLK_DEV_DAC960 is not set
+# CONFIG_BLK_DEV_UMEM is not set
 # CONFIG_BLK_DEV_COW_COMMON is not set
 CONFIG_BLK_DEV_LOOP=y
 # CONFIG_BLK_DEV_CRYPTOLOOP is not set
 # CONFIG_BLK_DEV_NBD is not set
+# CONFIG_BLK_DEV_SX8 is not set
 CONFIG_BLK_DEV_RAM=y
 CONFIG_BLK_DEV_RAM_COUNT=16
 CONFIG_BLK_DEV_RAM_SIZE=64000
@@ -316,7 +404,10 @@ CONFIG_BLK_DEV_RAM_SIZE=64000
 CONFIG_MISC_DEVICES=y
 CONFIG_COLDFIRE_SEC=y
 CONFIG_SEC_DEVICE=y
+# CONFIG_PHANTOM is not set
 # CONFIG_EEPROM_93CX6 is not set
+# CONFIG_SGI_IOC4 is not set
+# CONFIG_TIFM_CORE is not set
 # CONFIG_ENCLOSURE_SERVICES is not set
 CONFIG_HAVE_IDE=y
 # CONFIG_IDE is not set
@@ -361,6 +452,14 @@ CONFIG_SCSI_WAIT_SCAN=m
 # CONFIG_SCSI_LOWLEVEL is not set
 # CONFIG_ATA is not set
 # CONFIG_MD is not set
+# CONFIG_FUSION is not set
+
+#
+# IEEE 1394 (FireWire) support
+#
+# CONFIG_FIREWIRE is not set
+# CONFIG_IEEE1394 is not set
+# CONFIG_I2O is not set
 CONFIG_NETDEVICES=y
 # CONFIG_NETDEVICES_MULTIQUEUE is not set
 # CONFIG_DUMMY is not set
@@ -369,20 +468,29 @@ CONFIG_NETDEVICES=y
 # CONFIG_EQUALIZER is not set
 # CONFIG_TUN is not set
 # CONFIG_VETH is not set
+# CONFIG_ARCNET is not set
 # CONFIG_PHYLIB is not set
 CONFIG_NET_ETHERNET=y
 CONFIG_MII=y
 CONFIG_FEC_548x=y
 CONFIG_FEC_548x_AUTO_NEGOTIATION=y
 # CONFIG_FEC_548x_ENABLE_FEC2 is not set
+# CONFIG_HAPPYMEAL is not set
+# CONFIG_SUNGEM is not set
+# CONFIG_CASSINI is not set
+# CONFIG_NET_VENDOR_3COM is not set
 # CONFIG_ENC28J60 is not set
+# CONFIG_NET_TULIP is not set
+# CONFIG_HP100 is not set
 # CONFIG_IBM_NEW_EMAC_ZMII is not set
 # CONFIG_IBM_NEW_EMAC_RGMII is not set
 # CONFIG_IBM_NEW_EMAC_TAH is not set
 # CONFIG_IBM_NEW_EMAC_EMAC4 is not set
+# CONFIG_NET_PCI is not set
 # CONFIG_B44 is not set
 # CONFIG_NETDEV_1000 is not set
 # CONFIG_NETDEV_10000 is not set
+# CONFIG_TR is not set
 
 #
 # Wireless LAN
@@ -390,8 +498,11 @@ CONFIG_FEC_548x_AUTO_NEGOTIATION=y
 # CONFIG_WLAN_PRE80211 is not set
 # CONFIG_WLAN_80211 is not set
 # CONFIG_WAN is not set
+# CONFIG_FDDI is not set
+# CONFIG_HIPPI is not set
 # CONFIG_PPP is not set
 # CONFIG_SLIP is not set
+# CONFIG_NET_FC is not set
 # CONFIG_NETCONSOLE is not set
 # CONFIG_NETPOLL is not set
 # CONFIG_NET_POLL_CONTROLLER is not set
@@ -437,6 +548,7 @@ CONFIG_INPUT_KEYBOARD=y
 #
 CONFIG_SERIO=y
 CONFIG_SERIO_SERPORT=y
+# CONFIG_SERIO_PCIPS2 is not set
 # CONFIG_SERIO_RAW is not set
 # CONFIG_GAMEPORT is not set
 
@@ -448,6 +560,7 @@ CONFIG_VT_CONSOLE=y
 CONFIG_HW_CONSOLE=y
 # CONFIG_VT_HW_CONSOLE_BINDING is not set
 # CONFIG_SERIAL_NONSTANDARD is not set
+# CONFIG_NOZOMI is not set
 
 #
 # Serial drivers
@@ -458,53 +571,19 @@ CONFIG_HW_CONSOLE=y
 # Non-8250 serial port support
 #
 CONFIG_SERIAL_COLDFIRE=y
-# CONFIG_SERIAL_COLDFIRE_IRDA is not set
+CONFIG_SERIAL_COLDFIRE_IRDA=y
 # CONFIG_SERIAL_MCF is not set
+# CONFIG_SERIAL_JSM is not set
 CONFIG_UNIX98_PTYS=y
 # CONFIG_LEGACY_PTYS is not set
 # CONFIG_IPMI_HANDLER is not set
 # CONFIG_HW_RANDOM is not set
 # CONFIG_GEN_RTC is not set
 # CONFIG_R3964 is not set
+# CONFIG_APPLICOM is not set
 # CONFIG_RAW_DRIVER is not set
 # CONFIG_TCG_TPM is not set
-CONFIG_I2C=y
-CONFIG_I2C_BOARDINFO=y
-# CONFIG_I2C_CHARDEV is not set
-
-#
-# I2C Algorithms
-#
-# CONFIG_I2C_ALGOBIT is not set
-# CONFIG_I2C_ALGOPCF is not set
-# CONFIG_I2C_ALGOPCA is not set
-
-#
-# I2C Hardware Bus support
-#
-CONFIG_I2C_MCF548x=y
-# CONFIG_I2C_MCF is not set
-# CONFIG_I2C_OCORES is not set
-# CONFIG_I2C_PARPORT_LIGHT is not set
-# CONFIG_I2C_SIMTEC is not set
-# CONFIG_I2C_TAOS_EVM is not set
-# CONFIG_I2C_STUB is not set
-
-#
-# Miscellaneous I2C Chip support
-#
-# CONFIG_DS1682 is not set
-# CONFIG_SENSORS_EEPROM is not set
-# CONFIG_SENSORS_PCF8574 is not set
-# CONFIG_PCF8575 is not set
-# CONFIG_SENSORS_PCF8591 is not set
-# CONFIG_TPS65010 is not set
-# CONFIG_SENSORS_MAX6875 is not set
-# CONFIG_SENSORS_TSL2550 is not set
-# CONFIG_I2C_DEBUG_CORE is not set
-# CONFIG_I2C_DEBUG_ALGO is not set
-# CONFIG_I2C_DEBUG_BUS is not set
-# CONFIG_I2C_DEBUG_CHIP is not set
+# CONFIG_I2C is not set
 
 #
 # SPI support
@@ -531,7 +610,20 @@ CONFIG_SPI_COLDFIRE=y
 # CONFIG_POWER_SUPPLY is not set
 # CONFIG_HWMON is not set
 # CONFIG_THERMAL is not set
-# CONFIG_WATCHDOG is not set
+CONFIG_WATCHDOG=y
+# CONFIG_WATCHDOG_NOWAYOUT is not set
+
+#
+# Watchdog Device Drivers
+#
+# CONFIG_SOFT_WATCHDOG is not set
+CONFIG_COLDFIRE_WATCHDOG=m
+
+#
+# PCI-based Watchdog Cards
+#
+# CONFIG_PCIPCWATCHDOG is not set
+# CONFIG_WDTPCI is not set
 
 #
 # Sonics Silicon Backplane
@@ -554,6 +646,7 @@ CONFIG_DAB=y
 #
 # Graphics support
 #
+# CONFIG_DRM is not set
 # CONFIG_VGASTATE is not set
 CONFIG_VIDEO_OUTPUT_CONTROL=m
 # CONFIG_FB is not set
@@ -581,6 +674,7 @@ CONFIG_HID_DEBUG=y
 # CONFIG_MMC is not set
 # CONFIG_MEMSTICK is not set
 # CONFIG_NEW_LEDS is not set
+# CONFIG_INFINIBAND is not set
 # CONFIG_RTC_CLASS is not set
 
 #
@@ -659,6 +753,7 @@ CONFIG_TMPFS=y
 # CONFIG_BEFS_FS is not set
 # CONFIG_BFS_FS is not set
 # CONFIG_EFS_FS is not set
+# CONFIG_JFFS2_FS is not set
 # CONFIG_CRAMFS is not set
 # CONFIG_VXFS_FS is not set
 CONFIG_MINIX_FS=y

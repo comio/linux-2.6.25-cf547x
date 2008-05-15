@@ -963,7 +963,7 @@ CONFIG_FORCED_INLINING=y
 # CONFIG_RCU_TORTURE_TEST is not set
 # CONFIG_FAULT_INJECTION is not set
 CONFIG_BOOTPARAM=y
-CONFIG_BOOTPARAM_STRING="root=/dev/nfs rw nfsroot=172.27.163.2:/tftpboot/ltib ip=172.27.163.3:172.27.163.2:172.27.255.254:255.255.0.0::eth0:off mtdparts=phys_mapped_flash:16m(User)"
+CONFIG_BOOTPARAM_STRING="root=/dev/nfs rw nfsroot=172.27.155.1:/tftpboot/redstripe ip=172.27.155.55:172.27.155.1:172.27.255.254:255.255.0.0::eth0:off mtdparts=phys_mapped_flash:16m(User)"
 
 #
 # CodeTEST Setup
