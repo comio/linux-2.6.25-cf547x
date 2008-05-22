@@ -252,4 +252,9 @@ static inline __attribute_const__ int __virt_to_node_shift(void)
 
 #include <asm-generic/page.h>
 
+#ifdef CONFIG_VSYSCALL
+/* vDSO support */
+#define __HAVE_ARCH_GATE_AREA
+#endif
+
 #endif /* _M68K_PAGE_H */

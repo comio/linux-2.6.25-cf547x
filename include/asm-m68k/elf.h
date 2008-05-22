@@ -136,4 +136,35 @@ typedef struct user_m68kfp_struct elf_fpregset_t;
 
 #define SET_PERSONALITY(ex, ibcs2) set_personality((ibcs2)?PER_SVR4:PER_LINUX)
 
+/*
+ * VDSO
+ */
+#ifdef CONFIG_VSYSCALL
+extern unsigned int vdso_enabled;
+
+#define	VDSO_BASE		((unsigned long)current->mm->context.vdso)
+#define	VDSO_SYM(x)		(VDSO_BASE + (unsigned long)(x))
+
+#define	VSYSCALL_AUX_ENT					\
+	if (vdso_enabled)					\
+		NEW_AUX_ENT(AT_SYSINFO_EHDR, VDSO_BASE);
+
+/* additional pages */
+#define ARCH_HAS_SETUP_ADDITIONAL_PAGES	1
+
+struct linux_binprm;
+extern int arch_setup_additional_pages(struct linux_binprm *bprm,
+				       int executable_stack);
+
+#else
+/* no VSYSCALL_AUX_ENT */
+#define	VSYSCALL_AUX_ENT
+#endif
+
+#define ARCH_DLINFO						\
+do {								\
+	/* vsyscall entry */					\
+	VSYSCALL_AUX_ENT;					\
+} while (0);
+
 #endif
