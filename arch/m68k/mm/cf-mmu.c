@@ -35,11 +35,9 @@
 #include <asm/coldfire.h>
 #include <asm/tlbflush.h>
 
-#if PAGE_OFFSET == CONFIG_SDRAM_BASE
-#define	KERNRAM(x) ((x >= PAGE_OFFSET) && (x < (PAGE_OFFSET + CONFIG_SDRAM_SIZE)))
-#else
-#define	KERNRAM(x) (x >= PAGE_OFFSET)
-#endif
+#define KMAPAREA(x)	((x >= KMAP_START) && ( x < KMAP_END))
+
+#undef DEBUG
 
 mm_context_t next_mmu_context;
 unsigned long context_map[LAST_CONTEXT / BITS_PER_LONG + 1];
@@ -162,7 +160,7 @@ int cf_tlb_miss(struct pt_regs *regs, int write, int dtlb, int extension_word)
 	mmuar = ( dtlb ) ? regs->mmuar
 			 : regs->pc + (extension_word * sizeof(long));
 
-        mm = (!user_mode(regs) && KERNRAM(mmuar)) ? &init_mm : current->mm;
+        mm = (!user_mode(regs) && KMAPAREA(mmuar)) ? &init_mm : current->mm;
 
         if (!mm) {
 	    local_irq_restore(flags);
@@ -181,7 +179,7 @@ int cf_tlb_miss(struct pt_regs *regs, int write, int dtlb, int extension_word)
 	    return (-1);
 	}	
     
-	pte = (KERNRAM(mmuar)) ? pte_offset_kernel(pmd, mmuar)
+	pte = (KMAPAREA(mmuar)) ? pte_offset_kernel(pmd, mmuar)
 	                       : pte_offset_map(pmd, mmuar);
     	if (pte_none(*pte) || !pte_present(*pte)) {
 	    local_irq_restore(flags);
@@ -198,7 +196,7 @@ int cf_tlb_miss(struct pt_regs *regs, int write, int dtlb, int extension_word)
 	
         set_pte(pte, pte_mkyoung(*pte));
         asid = mm->context & 0xff;
-        if (!pte_dirty(*pte) && !KERNRAM(mmuar))
+        if (!pte_dirty(*pte) && !KMAPAREA(mmuar))
     	    set_pte(pte, pte_wrprotect(*pte));
 
         *MMUTR = (mmuar & PAGE_MASK) | (asid << CF_ASID_MMU_SHIFT)
@@ -216,8 +214,10 @@ int cf_tlb_miss(struct pt_regs *regs, int write, int dtlb, int extension_word)
 
 	asm("nop");
 
-	/*printk("cf_tlb_miss: va=%lx, pa=%lx\n", (mmuar & PAGE_MASK), 
-		  (pte_val(*pte)  & PAGE_MASK));*/
+#ifdef DEBUG
+	printk("cf_tlb_miss: va=%lx, pa=%lx\n", (mmuar & PAGE_MASK), 
+		  (pte_val(*pte)  & PAGE_MASK));
+#endif
 	local_irq_restore(flags);
         return (0);
 }

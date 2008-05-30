@@ -73,8 +73,8 @@
 #define KMAP_START     0x0DC00000
 #define KMAP_END       0x0E000000
 #elif defined(CONFIG_COLDFIRE)
-#define KMAP_START	0xe0000000
-#define KMAP_END	0xf0000000
+#define KMAP_START	0xd0000000
+#define KMAP_END	0xe0000000
 #else
 #define	KMAP_START	0xd0000000
 #define	KMAP_END	0xf0000000

@@ -87,7 +87,7 @@
 #else
 #if defined(CONFIG_M54455)
 #elif defined(CONFIG_M547X_8X)
-#define ACR0_DEFAULT	#0xE000C040   /* ACR0 default value */
+#define ACR0_DEFAULT	#0xF00FC040   /* ACR0 default value */
 #define ACR1_DEFAULT	#0x000FA008   /* ACR1 default value */
 #define ACR2_DEFAULT	#0x00000000   /* ACR2 default value */
 #define ACR3_DEFAULT	#0x000FA008   /* ACR3 default value */

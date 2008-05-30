@@ -135,10 +135,22 @@ void __iomem *__ioremap(unsigned long physaddr, unsigned long size, int cachefla
 
 #ifdef CONFIG_M54455
 	if (physaddr >= 0xf0000000) {
-		/* short circuit mappings for xf0000000 */
-#ifdef DEBUG
-		printk(KERN_INFO "ioremap: short circuiting 0x%lx mapping\n", physaddr);
+		/*
+	 	 * On the M5445x processors an ACR is setup to map
+		 * the 0xF0000000 range into kernel memory as
+		 * non-cacheable.
+		 */
+		return (void __iomem *)physaddr;
+	}
 #endif
+
+#ifdef CONFIG_M547X_8X
+	if (physaddr >= 0xf0000000) {
+		/*
+	 	 * On the M547x/M548x processors an ACR is setup to map
+		 * the 0xF0000000 range into kernel memory as
+		 * non-cacheable.
+		 */
 		return (void __iomem *)physaddr;
 	}
 #endif
