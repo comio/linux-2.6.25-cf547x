@@ -1,9 +1,9 @@
 #ifndef _COLDFIRE_H_
 #define _COLDFIRE_H_
 
-#if defined(CONFIG_M54455)
+#if defined(CONFIG_M5445X)
 #define MCF_MBAR	0x0
-#define MCF_RAMBAR1 	0x40000000
+#define MCF_RAMBAR1 	0x80000000
 #define MCF_SRAM	0x80000000
 #elif defined(CONFIG_M547X_8X)
 #define MCF_MBAR	0xF0000000

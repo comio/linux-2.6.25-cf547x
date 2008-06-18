@@ -47,7 +47,7 @@ static int irq_depth[SYS_IRQS];
 /*
  * IRQ Controller
  */
-#if defined(CONFIG_M54455)
+#if defined(CONFIG_M5445X)
 void m5445x_irq_enable(unsigned int irq);
 void m5445x_irq_disable(unsigned int irq);
 static struct irq_controller m5445x_irq_controller = {
@@ -87,7 +87,7 @@ void __init init_IRQ(void)
 {
 	int i;
 
-#if defined(CONFIG_M54455)
+#if defined(CONFIG_M5445X)
 	for (i = 0; i < SYS_IRQS; i++)
 		irq_controller[i] = &m5445x_irq_controller;
 #elif defined(CONFIG_M547X_8X)
@@ -337,7 +337,7 @@ asmlinkage void handle_badint(struct pt_regs *regs)
 }
 EXPORT_SYMBOL(handle_badint);
 
-#ifdef CONFIG_M54455
+#ifdef CONFIG_M5445X
 /*
  * M5445X Implementation
  */

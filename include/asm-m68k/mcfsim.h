@@ -12,7 +12,7 @@
 #include <asm/coldfire.h>
 #endif
 
-#if defined(CONFIG_M54455)
+#if defined(CONFIG_M5445X)
 #include <asm/mcf5445x_intc.h>
 #include <asm/mcf5445x_gpio.h>
 #include <asm/mcf5445x_i2c.h>

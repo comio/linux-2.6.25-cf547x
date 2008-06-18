@@ -59,7 +59,7 @@ endif
 endif
 endif
 
-ifdef CONFIG_M54455
+ifdef CONFIG_M5445X
 KBUILD_CFLAGS += -march=isac -mcpu=54455 -msoft-float -g
 KBUILD_AFLAGS += -march=isac -mcpu=54455 -msoft-float  
 endif

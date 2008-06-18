@@ -63,8 +63,8 @@
  *     None currently (mapped via TLBs)
  */
 
-#if CONFIG_SDRAM_BASE != PAGE_BASE
-#if defined(CONFIG_M54455)
+#if CONFIG_SDRAM_BASE != PAGE_OFFSET
+#if defined(CONFIG_M5445X)
 #if 0
 #define ACR0_DEFAULT	#0xA00FA048   /* ACR0 default value */
 #endif
@@ -85,7 +85,11 @@
 #endif
 
 #else
-#if defined(CONFIG_M54455)
+#if defined(CONFIG_M5445X)
+#define ACR0_DEFAULT	#0xF00FC040   /* ACR0 default value */
+#define ACR1_DEFAULT	#0x400FA008   /* ACR1 default value */
+#define ACR2_DEFAULT	#0x00000000   /* ACR2 default value */
+#define ACR3_DEFAULT	#0x400FA008   /* ACR3 default value */
 #elif defined(CONFIG_M547X_8X)
 #define ACR0_DEFAULT	#0xF00FC040   /* ACR0 default value */
 #define ACR1_DEFAULT	#0x000FA008   /* ACR1 default value */
@@ -280,7 +284,7 @@ ENTRY(__start)
 	subl	%a0,%a0
 	movel	%a0,%usp
 
-#if defined(CONFIG_M54455)
+#if defined(CONFIG_M5445X)
 	movel  #(MCF_RAMBAR1 + 0x221), %d0
 	movec   %d0, %rambar1
 #elif defined(CONFIG_M547X_8X)
@@ -331,12 +335,11 @@ _loop_bss:
 	cmpl	%a0,%a1
 	bne	_loop_bss
 #endif
-
 	/* If you change the memory size to another value make a matching 
 	   change in paging_init(cf-mmu.c) to zones_size[]. */
 
 #if CONFIG_SDRAM_BASE != PAGE_OFFSET
-#if defined(CONFIG_M54455)
+#if defined(CONFIG_M5445X)
 	/* Map 256MB as code */
 	mmu_map	(PAGE_OFFSET+0*0x1000000),  (PHYS_OFFSET+0*0x1000000), \
 		MMUOR_ITLB, 0, MMUTR_SG, MMUDR_SZ16M, MMUDR_IC,  MMUDR_SP, \
@@ -502,7 +505,7 @@ _loop_bss:
 	 * enabled and we are executing in high memory.
 	 */
 
-#if defined(CONFIG_M54455)
+#if defined(CONFIG_M5445X)
 	/* Map first 16 MB as code */
 	mmu_map	(PHYS_OFFSET+0*0x1000000), (PHYS_OFFSET+0*0x1000000), \
 		MMUOR_ITLB, 0, MMUTR_SG, MMUDR_SZ16M, MMUDR_INC,  MMUDR_SP, 0, \
@@ -562,7 +565,7 @@ ENTRY(__running_high)
 
 	/* Unmap unity mappings */
 #if CONFIG_SDRAM_BASE != PAGE_OFFSET
-#if defined(CONFIG_M54455)
+#if defined(CONFIG_M5445X)
 	mmu_unmap (PHYS_OFFSET+0*0x1000000), MMUOR_ITLB, %d0
 	mmu_unmap (PHYS_OFFSET+0*0x1000000), 0, %d0
 #elif defined(CONFIG_M547X_8X)
@@ -599,9 +602,9 @@ func_start	set_context,%d0,(1*4)
 	movec	%d0,%asid
 func_return	set_context
 
-#ifdef CONFIG_M54455
+#ifdef CONFIG_M5445X
 /*
- * set_fpga(addr,val) on the M54455EVB
+ * set_fpga(addr,val) on the M5445X
  *
  * Map in 0x00000000 -> 0x0fffffff and then do the write.
  */

@@ -25,7 +25,7 @@
 
 #include <asm/coldfire.h>
 #include <asm/coldfire_edma.h>
-#ifdef CONFIG_M54455
+#ifdef CONFIG_M5445X
 #include <asm/mcf5445x_ssi.h>
 #include <asm/mcf5445x_ccm.h>
 #include <asm/mcf5445x_gpio.h>

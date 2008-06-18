@@ -20,10 +20,10 @@
 #include <linux/cdev.h>
 #include <linux/seq_file.h>
 #include <linux/proc_fs.h>
-#ifdef CONFIG_M54455
+#ifdef CONFIG_M5445X
 #include <asm/mcf5445x_edma.h>
 #include <asm/mcf5445x_intc.h>
-#endif /* CONFIG_M54455 */
+#endif /* CONFIG_M5445X */
 #include <asm/coldfire_edma.h>
 
 /*

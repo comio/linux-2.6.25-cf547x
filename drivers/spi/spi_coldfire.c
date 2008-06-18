@@ -57,7 +57,7 @@
 #include <asm/mcfqspi.h>
 #include <asm/coldfire.h>
 
-#if defined(CONFIG_M54455)
+#if defined(CONFIG_M5445X)
 	#include <asm/virtconvert.h>
 
 	#define SPI_DSPI

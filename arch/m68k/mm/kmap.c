@@ -133,7 +133,7 @@ void __iomem *__ioremap(unsigned long physaddr, unsigned long size, int cachefla
 	}
 #endif
 
-#ifdef CONFIG_M54455
+#ifdef CONFIG_M5445X
 	if (physaddr >= 0xf0000000) {
 		/*
 	 	 * On the M5445x processors an ACR is setup to map

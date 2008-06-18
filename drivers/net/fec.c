@@ -52,7 +52,7 @@
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || \
     defined(CONFIG_M5272) || defined(CONFIG_M528x) || \
     defined(CONFIG_M520x) || defined(CONFIG_M532x) || \
-    defined(CONFIG_M54455)
+    defined(CONFIG_M5445X)
 
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
@@ -84,7 +84,7 @@ static unsigned int fec_hw[] = {
 	(MCF_MBAR+0x30000),
 #elif defined(CONFIG_M532x)
 	(MCF_MBAR+0xfc030000),
-#elif defined(CONFIG_M54455)
+#elif defined(CONFIG_M5445X)
 	(MCF_MBAR+0xfc030000),
 #if defined(CONFIG_FEC2)
 	(MCF_MBAR+0xfc034000),
@@ -179,7 +179,7 @@ typedef struct {
  * account when setting it.
  */
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
-    defined(CONFIG_M520x) || defined(CONFIG_M532x) || defined(CONFIG_M54455)
+    defined(CONFIG_M520x) || defined(CONFIG_M532x) || defined(CONFIG_M5445X)
 #define	OPT_FRAME_SIZE	(PKT_MAXBUF_SIZE << 16)
 #else
 #define	OPT_FRAME_SIZE	0
@@ -1831,9 +1831,9 @@ static void __inline__ fec_uncache(unsigned long addr)
 
 /* ------------------------------------------------------------------------- */
 
-#elif defined(CONFIG_M54455)
+#elif defined(CONFIG_M5445X)
 /*
- * Code specific for M54455
+ * Code specific for M5445X
  */
 
 static void __inline__ fec_request_intrs(struct net_device *dev)

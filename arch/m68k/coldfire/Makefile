@@ -9,7 +9,7 @@ ifneq ($(strip $(CONFIG_USB) $(CONFIG_USB_GADGET_MCF5445X)),)
 endif
 
 obj-$(CONFIG_PCI)	+= pci.o mcf5445x-pci.o iomap.o
-obj-$(CONFIG_M54455)	+= mcf5445x-devices.o
+obj-$(CONFIG_M5445X)	+= mcf5445x-devices.o
 obj-$(CONFIG_M547X_8X)	+= m547x_8x-devices.o
 obj-$(CONFIG_M547X_8X)	+= mcf548x-devices.o
 obj-$(CONFIG_MCD_DMA)	+= m547x_8x-dma.o

@@ -519,7 +519,7 @@ int get_hardware_list(char *buffer)
 
 void check_bugs(void)
 {
-#if !defined(CONFIG_M68KFPU_EMU) && !defined(CONFIG_M54455)
+#if !defined(CONFIG_M68KFPU_EMU) && !defined(CONFIG_M5445X)
 	if (m68k_fputype == 0) {
 		printk(KERN_EMERG "*** YOU DO NOT HAVE A FLOATING POINT UNIT, "
 			"WHICH IS REQUIRED BY LINUX/M68K ***\n");

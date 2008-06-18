@@ -69,7 +69,7 @@ struct timer_list mcfrs_timer_struct;
 #define	DEFAULT_CBAUD		B38400
 #elif defined(CONFIG_MOD5272) || defined(CONFIG_M5208EVB) || \
       defined(CONFIG_M5329EVB) || defined(CONFIG_GILBARCO) || \
-      defined(CONFIG_M54455) || defined(CONFIG_M547X_8X)
+      defined(CONFIG_M5445X) || defined(CONFIG_M547X_8X)
 #define CONSOLE_BAUD_RATE 	115200
 #define DEFAULT_CBAUD		B115200
 #elif defined(CONFIG_ARNEWSH) || defined(CONFIG_FREESCALE) || \
@@ -102,7 +102,7 @@ static struct tty_driver *mcfrs_serial_driver;
 #undef SERIAL_DEBUG_FLOW
 
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
-    defined(CONFIG_M520x) || defined(CONFIG_M532x) || defined(CONFIG_M54455) || \
+    defined(CONFIG_M520x) || defined(CONFIG_M532x) || defined(CONFIG_M5445X) || \
     defined(CONFIG_M547X_8X)
 #define	IRQBASE	(MCFINT_VECBASE+MCFINT_UART0)
 #else
@@ -1630,7 +1630,7 @@ static void mcfrs_irqinit(struct mcf_serial *info)
 		/* GPIOs also must be initalized, depends on board */
 		break;
 	}
-#elif defined(CONFIG_M54455)
+#elif defined(CONFIG_M5445X)
 	volatile unsigned char *uartp;
 	uartp = info->addr;
 	switch (info->line) {
@@ -2022,7 +2022,7 @@ struct console mcfrs_console = {
 
 static int __init mcfrs_console_init(void)
 {
-#if !(defined(CONFIG_M54455) || defined(CONFIG_M547X_8X))
+#if !(defined(CONFIG_M5445X) || defined(CONFIG_M547X_8X))
 	register_console(&mcfrs_console);
 #endif
 	return 0;

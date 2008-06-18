@@ -35,14 +35,14 @@
 
 #include <asm/mcfsim.h>
 
-#if defined(CONFIG_M54455)
+#if defined(CONFIG_M5445X)
 #define UBOOT_EXTRA_CLOCKS
 #elif defined(CONFIG_M547X_8X)
 #define UBOOT_PCI
 #endif
 #include <asm/bootinfo.h>
 
-#ifdef CONFIG_M54455
+#ifdef CONFIG_M5445X
 #include <asm/mcf5445x_intc.h>
 #include <asm/mcf5445x_sdramc.h>
 #include <asm/mcf5445x_fbcs.h>
@@ -132,8 +132,9 @@ int __init uboot_commandline(char *bootargs)
 /*
  * This routine does things not done in the bootloader.
  */
-#if defined(CONFIG_M54455)
-#define DEFAULT_COMMAND_LINE "root=/dev/mtdblock1 rw rootfstype=jffs2 ip=none mtdparts=physmap-flash.0:5M(kernel)ro,-(jffs2)"
+#if defined(CONFIG_M5445X)
+#define FOO_DEFAULT_COMMAND_LINE "root=/dev/mtdblock1 rw rootfstype=jffs2 ip=none mtdparts=physmap-flash.0:5M(kernel)ro,-(jffs2)"
+#define DEFAULT_COMMAND_LINE "debug root=/dev/nfs rw nfsroot=172.27.155.1:/tftpboot/redstripe/rootfs/ ip=172.27.155.51:172.27.155.1"
 #elif defined(CONFIG_M547X_8X)
 #define DEFAULT_COMMAND_LINE "debug root=/dev/nfs rw nfsroot=172.27.155.1:/tftpboot/rigo/rootfs/ ip=172.27.155.85:172.27.155.1"
 #endif
@@ -143,14 +144,14 @@ asmlinkage void __init cf_early_init(void)
 
 	extern char _end;
 
-#if defined(CONFIG_M54455)
+#if defined(CONFIG_M5445X)
 	SET_VBR((void *)MCF_RAMBAR1);
 #elif defined(CONFIG_M547X_8X)
 	SET_VBR((void *)MCF_RAMBAR0);
 #endif
 
 	/* Mask all interrupts */
-#if defined(CONFIG_M54455)
+#if defined(CONFIG_M5445X)
 	MCF_INTC0_IMRL = 0xFFFFFFFF;
 	MCF_INTC0_IMRH = 0xFFFFFFFF;
 	MCF_INTC1_IMRL = 0xFFFFFFFF;
@@ -160,7 +161,7 @@ asmlinkage void __init cf_early_init(void)
 	MCF_IMRH = 0xFFFFFFFF;
 #endif
 
-#if defined(CONFIG_M54455)
+#if defined(CONFIG_M5445X)
 #if defined(CONFIG_NOR_FLASH_BASE)
 	MCF_FBCS_CSAR(1) = CONFIG_NOR_FLASH_BASE;
 #else
@@ -171,9 +172,9 @@ asmlinkage void __init cf_early_init(void)
 	/* Init optional SDRAM chip select */
 	MCF_SDRAMC_SDCS(1) = (256*1024*1024) | 0x1B;
 #endif
-#endif /* CONFIG_M54455 */
+#endif /* CONFIG_M5445X */
 
-#if defined(CONFIG_M54455)
+#if defined(CONFIG_M5445X)
 	/* Setup SDRAM crossbar(XBS) priorities */
 	MCF_XBS_PRS2 = (MCF_XBS_PRS_M0(MCF_XBS_PRI_2) |
 			MCF_XBS_PRS_M1(MCF_XBS_PRI_3) |
@@ -193,6 +194,7 @@ asmlinkage void __init cf_early_init(void)
 	m68k_memory[m68k_num_memory].addr = CONFIG_SDRAM_BASE;
 	m68k_memory[m68k_num_memory++].size = CONFIG_SDRAM_SIZE;
 
+#if 0
 	if (!uboot_commandline(m68k_command_line)) {
 #if defined(CONFIG_BOOTPARAM)
 		strncpy(m68k_command_line, CONFIG_BOOTPARAM_STRING, CL_SIZE-1);
@@ -200,6 +202,10 @@ asmlinkage void __init cf_early_init(void)
 		strcpy(m68k_command_line, DEFAULT_COMMAND_LINE);
 #endif
 	}
+#endif
+/* JKM -- temporary! */
+strcpy(m68k_command_line, DEFAULT_COMMAND_LINE);
+/* JKM -- temporary! */
 
 #if defined(CONFIG_BLK_DEV_INITRD)
 	/* add initrd image */
@@ -223,9 +229,10 @@ asmlinkage void __init cf_early_init(void)
 
 	/* Turn on caches via CACR, enable EUSP */
 	cacr_set(CACHE_INITIAL_MODE);
+
 }
 
-#if defined(CONFIG_M54455)
+#if defined(CONFIG_M5445X)
 void settimericr(unsigned int timer, unsigned int level)
 {
 	volatile unsigned char *icrp;
@@ -256,7 +263,7 @@ void __init coldfire_trap_init(void)
 	int i = 0;
 	e_vector *vectors;
 
-#if defined(CONFIG_M54455)
+#if defined(CONFIG_M5445X)
 	vectors = (e_vector *)MCF_RAMBAR1;
 #elif defined(CONFIG_M547X_8X)
 	vectors = (e_vector *)MCF_RAMBAR0;
@@ -281,7 +288,7 @@ void __init coldfire_trap_init(void)
 	vectors[32] = system_call;
 }
 
-#if defined(CONFIG_M54455)
+#if defined(CONFIG_M5445X)
 
 void coldfire_tick(void)
 {
@@ -369,7 +376,7 @@ unsigned long coldfire_gettimeoffset(void)
 
 void coldfire_reboot(void)
 {
-#if defined(CONFIG_M54455)
+#if defined(CONFIG_M5445X)
 	/* disable interrupts and do a software reset */
 	asm("movew #0x2700, %%sr\n\t"
 	    "moveb #0x80, %%d0\n\t"

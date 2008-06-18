@@ -56,7 +56,7 @@ config ARCH_MAY_HAVE_PC_FDC
 	default y
 
 config NO_IOPORT
-	def_bool !(M54455 || M547X_8X)
+	def_bool !(M5445X || M547X_8X)
 
 config NO_DMA
 	def_bool SUN3
@@ -143,7 +143,7 @@ config CFV4E
 
 config MCD_DMA
 	bool "ColdFire MCD DMA support"
-	depends on CFV4E
+	depends on M547X_8X
 	default y
 	help
 	  This enables support for the ColdFire 547x/548x family
@@ -177,7 +177,7 @@ config HADES
 config PCI
 	bool
 	depends on HADES || M54455
-	default y
+	default n
 	help
 	  Find out whether you have a PCI motherboard. PCI is the name of a
 	  bus system, i.e. the way the CPU talks to the other stuff inside
@@ -325,11 +325,34 @@ config M68060
 	  If you anticipate running this kernel on a computer with a MC68060
 	  processor, say Y. Otherwise, say N.
 
-config M54455
-	bool "MCF54455 support"
+config M5445X
+	bool "MCF5445x support"
 	depends on COLDFIRE
 	help
-          This option will add support for the MCF54455 processor with mmu.
+          This option will add support for the MCF5445 processor with mmu.
+
+config M54451
+	bool
+	depends on M5445X
+	default n
+
+config M54455
+	bool
+	depends on M5445X
+	default n
+
+choice
+	prompt "Model"
+	depends on M5445X
+	default M54451EVB
+	config M54451EVB
+		bool "M54451EVB"
+		select M54451
+	config M54455EVB
+		bool "M54455EVB"
+		select M54455
+endchoice
+
 
 config M547X_8X
 	bool "MCF547x/MCF548x support"
@@ -393,7 +416,8 @@ endchoice
 
 config MCFCLK
 	int
-	default 266666666 if M54455
+	default 266666666 if M54455EVB
+	default 240000000 if M54451EVB
 	default 266000000 if M547X
 	default 200000000 if M548X
 	help
@@ -401,7 +425,7 @@ config MCFCLK
 
 config MCF_USER_HALT
 	bool "Coldfire User Halt Enable"
-	depends on M54455 || M547X_8X
+	depends on M5445X || M547X_8X
 	default n
 	help
 	  Enables the HALT instruction in User Mode.
@@ -420,19 +444,21 @@ config MMU_CFV4E
 config SDRAM_BASE
 	hex
 	depends on COLDFIRE
-	default 0x40000000 if M54455
+	default 0x40000000 if M5445X
 	default 0x00000000 if M547X_8X
 
 config SDRAM_SIZE
 	hex
 	depends on COLDFIRE
-	default 0x0FFFFFFF if M54455
+	default 0x08000000 if M54451EVB
+	default 0x10000000 if M54455EVB
 	default 0x04000000 if M547X_8X
 
 config NOR_FLASH_BASE
 	hex "NOR Flash Base Address"
-	depends on M54455
-	default 0x00000000
+	depends on COLDFIRE
+	default 0x00000000 if M54451EVB
+	default 0x00000000 if M54455EVB
 
 config M68KFPU_EMU
 	bool "Math emulation support (EXPERIMENTAL)"

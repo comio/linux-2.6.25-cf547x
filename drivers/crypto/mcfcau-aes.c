@@ -5,7 +5,7 @@
  * Author: Andrey Butok
  * Copyright Freescale Semiconductor Inc.  2007
  *
- * NOTE: You can find the ColdFire CAU module on MCF54455 and MCF52235.
+ * NOTE: You can find the ColdFire CAU module on MCF5445X and MCF52235.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the

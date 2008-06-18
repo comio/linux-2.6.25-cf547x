@@ -20,14 +20,14 @@
 #define EDMA_DRIVER_NAME "ColdFire-eDMA"
 #define DMA_DEV_MINOR 1
 
-#ifdef CONFIG_M54455
+#ifdef CONFIG_M5445X
 #define EDMA_INT_CHANNEL_BASE 		8
 #define EDMA_INT_CONTROLLER_BASE 	64
 #define EDMA_INT_BASE			(EDMA_INT_CHANNEL_BASE + \
 					 EDMA_INT_CONTROLLER_BASE)
 #define EDMA_CHANNELS			16
 #define EDMA_INT_ERR			16	/* edma error interrupt */
-#endif /* CONFIG_M54455 */
+#endif /* CONFIG_M5445X */
  
 typedef irqreturn_t (*edma_irq_handler)(int, void *);
 typedef void (*edma_error_handler)(int, void *);

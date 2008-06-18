@@ -15,7 +15,7 @@
  *	Define the base address of the UARTS within the MBAR address
  *	space.
  */
-#if defined(CONFIG_M54455)
+#if defined(CONFIG_M5445X)
 #include <asm/mcf5445x_intc.h>
 #define MCFUART_BASE1		0xfc060000	/* Base address of UART1 */
 #define MCFUART_BASE2		0xfc064000	/* Base address of UART2 */

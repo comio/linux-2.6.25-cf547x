@@ -240,7 +240,7 @@ extern unsigned long m68k_machtype;
 #define FPU_68040      (1<<FPUB_68040)
 #define FPU_68060      (1<<FPUB_68060)
 #define FPU_SUNFPA     (1<<FPUB_SUNFPA)
-#ifndef CONFIG_M54455
+#ifndef CONFIG_M5445X
 #define FPU_CFV4E      (1<<FPUB_CFV4E)
 #else
 #define FPU_CFV4E      0

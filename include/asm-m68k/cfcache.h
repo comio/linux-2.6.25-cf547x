@@ -40,7 +40,7 @@
 #define CF_CACR_IDSP	    (0x00000080) /* Ins default supervisor-protect   */
 #define CF_CACR_EUSP        (0x00000020) /* Switch stacks in user mode       */
 
-#ifdef CONFIG_M54455
+#ifdef CONFIG_M5445X
 /*
  * M5445x Cache Configuration
  *	- cache line size is 16 bytes

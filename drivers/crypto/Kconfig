@@ -62,15 +62,15 @@ config CRYPTO_DEV_GEODE
 
 config CRYPTO_DEV_MCFCAU
 	bool "Support for Freescale Coldfire Cryptographic Acceleration Unit (CAU)"
-	depends on M54455
+	depends on M5445X
 	select CRYPTO_ALGAPI
 	help
 	  The cryptographic acceleration unit (CAU) is a ColdFire coprocessor
 	  implementing a set of specialized operations in hardware. For example, you can
-	  find it on MCF54455.
+	  find it on MCF5445X.
 
 config CRYPTO_DEV_MCFCAU_DES
-	tristate "DES and Triple DES cipher algorithms (MCF54455)"
+	tristate "DES and Triple DES cipher algorithms (MCF5445X)"
 	depends on CRYPTO_DEV_MCFCAU
 	select CRYPTO_ALGAPI
 	select CRYPTO_BLKCIPHER
@@ -84,7 +84,7 @@ config CRYPTO_DEV_MCFCAU_DES
 	  will be called mcfcau-des.
 
 config CRYPTO_DEV_MCFCAU_AES
-	tristate "AES cipher algorithm (MCF54455)"
+	tristate "AES cipher algorithm (MCF5445X)"
 	depends on CRYPTO_DEV_MCFCAU
 	select CRYPTO_ALGAPI
 	select CRYPTO_BLKCIPHER
@@ -98,7 +98,7 @@ config CRYPTO_DEV_MCFCAU_AES
 	  will be called mcfcau-aes.
 
 config CRYPTO_DEV_MCFCAU_MD5
-	tristate "MD5 digest algorithm (MCF54455)"
+	tristate "MD5 digest algorithm (MCF5445X)"
 	depends on CRYPTO_DEV_MCFCAU
 	select CRYPTO_ALGAPI
 	help
@@ -111,7 +111,7 @@ config CRYPTO_DEV_MCFCAU_MD5
 	  will be called mcfcau-md5.
 
 config CRYPTO_DEV_MCFCAU_SHA1
-	tristate "SHA1 digest algorithm (MCF54455)"
+	tristate "SHA1 digest algorithm (MCF5445X)"
 	depends on CRYPTO_DEV_MCFCAU
 	select CRYPTO_ALGAPI
 	help
