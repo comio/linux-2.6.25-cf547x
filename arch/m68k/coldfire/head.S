@@ -53,51 +53,62 @@
 #define __FINIT		.previous
 #endif
 
-/* JKM -- REVISE DOCS FOR M547x_8x and PHYS MAPPING */
-/*
- * Setup ACR mappings to provide the following memory map:
- *   Data
- *     0xA0000000 -> 0xAFFFFFFF [0] NO CACHE / PRECISE / SUPER ONLY
- *     0xF0000000 -> 0xFFFFFFFF [1] NO CACHE / PRECISE / SUPER ONLY
- *   Code
- *     None currently (mapped via TLBs)
- */
-
 #if CONFIG_SDRAM_BASE != PAGE_OFFSET
+/*
+ * Kernel mapped to virtual ram address.
+ *
+ * M5445x:
+ *    Data[0]: 0xF0000000 -> 0xFFFFFFFF	System regs
+ *    Data[1]: 0xA0000000 -> 0xAFFFFFFF	PCI
+ *    Code[0]: Not Mapped
+ *    Code[1]: Not Mapped
+ *
+ * M547x/M548x
+ *    Data[0]: 0xF0000000 -> 0xFFFFFFFF	System regs
+ *    Data[1]: Not Mapped
+ *    Code[0]: Not Mapped
+ *    Code[1]: Not Mapped
+ */
 #if defined(CONFIG_M5445X)
-#if 0
-#define ACR0_DEFAULT	#0xA00FA048   /* ACR0 default value */
-#endif
-#define ACR0_DEFAULT	#0x400FA028   /* ACR0 default value */
-#define ACR1_DEFAULT	#0xF00FA040   /* ACR1 default value */
-#if 0
-#define ACR2_DEFAULT	#0x00000000   /* ACR2 default value */
-#endif
-#define ACR2_DEFAULT	#0x400FA028   /* ACR2 default value */
-#define ACR3_DEFAULT	#0x00000000   /* ACR3 default value */
-/* ACR mapping for FPGA (maps 0) */
-#define ACR0_FPGA	#0x000FA048   /* ACR0 enable FPGA */
+#define ACR0_DEFAULT	#0xF00FA048   /* System regs */
+#define ACR1_DEFAULT	#0xA00FA048   /* PCI */
+#define ACR2_DEFAULT	#0x00000000   /* Not Mapped */
+#define ACR3_DEFAULT	#0x00000000   /* Not Mapped */
 #elif defined(CONFIG_M547X_8X)
-#define ACR0_DEFAULT	#0xE000C040   /* ACR0 default value */
-#define ACR1_DEFAULT	#0x00000000   /* ACR1 default value */
-#define ACR2_DEFAULT	#0x00000000   /* ACR2 default value */
-#define ACR3_DEFAULT	#0x00000000   /* ACR3 default value */
+#define ACR0_DEFAULT	#0xF00FA048   /* System Regs */
+#define ACR1_DEFAULT	#0x00000000   /* Not Mapped */
+#define ACR2_DEFAULT	#0x00000000   /* Not Mapped */
+#define ACR3_DEFAULT	#0x00000000   /* Not Mapped */
 #endif
 
-#else
+#else /* CONFIG_SDRAM_BASE = PAGE_OFFSET */
+/*
+ * Kernel mapped to physical ram address.
+ *
+ * M5445x:
+ *    Data[0]: 0xF0000000 -> 0xFFFFFFFF	System regs
+ *    Data[1]: 0x40000000 -> 0x4FFFFFFF	SDRAM - uncached
+ *    Code[0]: Not Mapped
+ *    Code[1]: 0x40000000 -> 0x4FFFFFFF	SDRAM - cached
+ *
+ * M547x/M548x
+ *    Data[0]: 0xF0000000 -> 0xFFFFFFFF	System regs
+ *    Data[1]: 0x00000000 -> 0x0FFFFFFF	SDRAM - uncached
+ *    Code[0]: Not Mapped
+ *    Code[1]: 0x00000000 -> 0x0FFFFFFF	SDRAM - cached
+ */
 #if defined(CONFIG_M5445X)
-#define ACR0_DEFAULT	#0xF00FC040   /* ACR0 default value */
-#define ACR1_DEFAULT	#0x400FA008   /* ACR1 default value */
-#define ACR2_DEFAULT	#0x00000000   /* ACR2 default value */
-#define ACR3_DEFAULT	#0x400FA008   /* ACR3 default value */
+#define ACR0_DEFAULT	#0xF00FA048   /* System Regs */
+#define ACR1_DEFAULT	#0x400FA048   /* SDRAM uncached */
+#define ACR2_DEFAULT	#0x00000000   /* Not mapped */
+#define ACR3_DEFAULT	#0x400FA008   /* SDRAM cached */
 #elif defined(CONFIG_M547X_8X)
-#define ACR0_DEFAULT	#0xF00FC040   /* ACR0 default value */
-#define ACR1_DEFAULT	#0x000FA008   /* ACR1 default value */
-#define ACR2_DEFAULT	#0x00000000   /* ACR2 default value */
-#define ACR3_DEFAULT	#0x000FA008   /* ACR3 default value */
+#define ACR0_DEFAULT	#0xF00FA048   /* System Regs */
+#define ACR1_DEFAULT	#0x000FA048   /* SDRAM uncached */
+#define ACR2_DEFAULT	#0x00000000   /* Not mapped */
+#define ACR3_DEFAULT	#0x000FA008   /* SDRAM cached */
 #endif
 #endif
-
 
 /* Several macros to make the writing of subroutines easier:
  * - func_start marks the beginning of the routine which setups the frame
