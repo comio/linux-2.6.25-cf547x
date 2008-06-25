@@ -132,11 +132,13 @@ int __init uboot_commandline(char *bootargs)
 /*
  * This routine does things not done in the bootloader.
  */
-#if defined(CONFIG_M5445X)
-#define FOO_DEFAULT_COMMAND_LINE "root=/dev/mtdblock1 rw rootfstype=jffs2 ip=none mtdparts=physmap-flash.0:5M(kernel)ro,-(jffs2)"
+#if defined(CONFIG_M54451)
 #define DEFAULT_COMMAND_LINE "debug root=/dev/nfs rw nfsroot=172.27.155.1:/tftpboot/redstripe/rootfs/ ip=172.27.155.51:172.27.155.1"
+#elif defined(CONFIG_M54455)
+#define MTD_DEFAULT_COMMAND_LINE "root=/dev/mtdblock1 rw rootfstype=jffs2 ip=none mtdparts=physmap-flash.0:5M(kernel)ro,-(jffs2)"
+#define DEFAULT_COMMAND_LINE "debug root=/dev/nfs rw nfsroot=172.27.155.1:/tftpboot/redstripe/rootfs/ ip=172.27.155.55:172.27.155.1"
 #elif defined(CONFIG_M547X_8X)
-#define DEFAULT_COMMAND_LINE "debug root=/dev/nfs rw nfsroot=172.27.155.1:/tftpboot/rigo/rootfs/ ip=172.27.155.85:172.27.155.1"
+#define DEFAULT_COMMAND_LINE "debug root=/dev/nfs rw nfsroot=172.27.155.1:/tftpboot/rigo/rootfs/ ip=172.27.155.75:172.27.155.1"
 #endif
 asmlinkage void __init cf_early_init(void)
 {
