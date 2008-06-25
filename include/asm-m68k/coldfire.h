@@ -3,8 +3,13 @@
 
 #if defined(CONFIG_M5445X)
 #define MCF_MBAR	0x0
-#define MCF_RAMBAR1 	0x80000000
-#define MCF_SRAM	0x80000000
+/*
+ * Even though RAMBAR1 should be in the 0x8xxxxxxx range there
+ * is a problem that needs to be resolved.  Currently head.S
+ * disables SRAM/RAMBAR1.
+ */
+#define MCF_RAMBAR1 	0x40000000
+#define MCF_SRAM	0x40000000
 #elif defined(CONFIG_M547X_8X)
 #define MCF_MBAR	0xF0000000
 #define MCF_MMUBAR	0xF1000000

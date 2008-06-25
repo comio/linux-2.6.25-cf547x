@@ -285,8 +285,9 @@ ENTRY(__start)
 	movel	%a0,%usp
 
 #if defined(CONFIG_M5445X)
-	movel  #(MCF_RAMBAR1 + 0x221), %d0
-	movec   %d0, %rambar1
+/* JKM -- don't enable it currently -- fix 	*/
+/*	movel  #(MCF_RAMBAR1 + 0x221), %d0	*/
+/*	movec   %d0, %rambar1 			*/
 #elif defined(CONFIG_M547X_8X)
 	movel   #MCF_MBAR, %d0
 	movec   %d0, %mbar
