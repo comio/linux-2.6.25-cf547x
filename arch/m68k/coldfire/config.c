@@ -449,7 +449,7 @@ void __init config_coldfire(void)
 /*	mach_hwclk 		= coldfire_hwclk; to be done */
 	mach_get_model 		= coldfire_get_model;
 
-	coldfire_bootmem_alloc(startmem, endmem);
+	coldfire_bootmem_alloc(startmem, endmem-1);
 
 	/*
 	 * initrd setup
