@@ -459,6 +459,7 @@ config NOR_FLASH_BASE
 	depends on COLDFIRE
 	default 0x00000000 if M54451EVB
 	default 0x00000000 if M54455EVB
+	default 0xE0000000 if M547X_8X
 
 config M68KFPU_EMU
 	bool "Math emulation support (EXPERIMENTAL)"
