@@ -326,16 +326,6 @@ ENTRY(__start)
 	movec   %d0, %acr3
 	nop
 
-#ifdef CONFIG_COLDFIRE
-/* zero bss */
-	lea	_sbss,%a0
-	lea	_ebss,%a1
-	clrl	%d0
-_loop_bss:
-	movel	%d0,(%a0)+
-	cmpl	%a0,%a1
-	bne	_loop_bss
-#endif
 	/* If you change the memory size to another value make a matching 
 	   change in paging_init(cf-mmu.c) to zones_size[]. */
 
@@ -563,6 +553,15 @@ ENTRY(__running_high)
 	subl	#_stext,%a1
 	addl	#PAGE_OFFSET,%a1
 	movel	%a1,%a0@
+
+/* zero bss */
+	lea	_sbss,%a0
+	lea	_ebss,%a1
+	clrl	%d0
+_loop_bss:
+	movel	%d0,(%a0)+
+	cmpl	%a0,%a1
+	bne	_loop_bss
 
 	/* Unmap unity mappings */
 #if CONFIG_SDRAM_BASE != PAGE_OFFSET
