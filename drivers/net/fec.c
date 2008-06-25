@@ -23,6 +23,9 @@
  *
  * Bug fixes and cleanup by Philippe De Muyter (phdm@macqel.be)
  * Copyright (c) 2004-2006 Macq Electronique SA.
+ *
+ * Coldfire bug fixes and cleanup by Kurt Mahan (kmahan@freescale.com)
+ * Copyright 2007-2008 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 
 #include <linux/module.h>
@@ -1865,7 +1868,7 @@ static void __inline__ fec_request_intrs(struct net_device *dev)
 
 	/* Setup interrupt handlers. */
 	for (idp = id; idp->name; idp++) {
-		if (request_irq(b+idp->irq, fec_enet_interrupt, 0,
+		if (request_irq(b+idp->irq, fec_enet_interrupt, IRQF_DISABLED,
 		    idp->name, dev) != 0)
 			printk(KERN_ERR "FEC: Could not alloc %s IRQ(%d)!\n",
 				idp->name, b+idp->irq);
