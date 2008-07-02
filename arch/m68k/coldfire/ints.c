@@ -317,6 +317,10 @@ void disable_irq(unsigned int irq)
 }
 EXPORT_SYMBOL(disable_irq);
 
+void disable_irq_nosync(unsigned int irq) __attribute__((alias("disable_irq")));
+EXPORT_SYMBOL(disable_irq_nosync);
+
+
 unsigned long probe_irq_on(void)
 {
 	return 0;
