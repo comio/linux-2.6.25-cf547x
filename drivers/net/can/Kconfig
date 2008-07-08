@@ -12,6 +12,19 @@ config CAN_VCAN
 	  This driver can also be built as a module.  If so, the module
 	  will be called vcan.
 
+config CAN_FLEXCAN
+	tristate "Support for Freescale FLEXCAN based chips"
+	depends on CAN && (PPC || M68K || M68KNOMMU)
+	---help---
+	  Say Y here if you want to support for Freescale FlexCAN.
+
+config CAN_MCF547X_8X
+	tristate "Freescale MCF547X/MCF548X onboard CAN controller"
+	depends on CAN_FLEXCAN && (M547X || M548X)
+	---help---
+	  Say Y here if you want to support for Freescale MCF547x/MCF548x
+	  onboard dualCAN controller.
+
 config CAN_DEBUG_DEVICES
 	bool "CAN devices debugging messages"
 	depends on CAN
