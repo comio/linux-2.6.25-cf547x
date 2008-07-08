@@ -672,6 +672,15 @@ config TXX9_WDT
 
 # PARISC Architecture
 
+# ColdFire Architecture
+
+config COLDFIRE_WATCHDOG
+	tristate "ColdFire watchdog support"
+	depends on WATCHDOG
+	help
+	  To compile this driver as a module, choose M here: the
+	  module will be called softdog.
+
 # POWERPC Architecture
 
 config MPC5200_WDT

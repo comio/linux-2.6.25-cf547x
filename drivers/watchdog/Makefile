@@ -86,6 +86,7 @@ obj-$(CONFIG_SBC_EPX_C3_WATCHDOG) += sbc_epx_c3.o
 # M32R Architecture
 
 # M68K Architecture
+obj-$(CONFIG_COLDFIRE_WATCHDOG) += mcf_wdt.o
 
 # M68KNOMMU Architecture
 
