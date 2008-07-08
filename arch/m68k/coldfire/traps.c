@@ -7,6 +7,7 @@
  *  68040 fixes by Martin Apel
  *  68060 fixes by Roman Hodek
  *  68060 fixes by Jesper Skov
+ *  Coldfire fixes by Kurt Mahan
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file COPYING in the main directory of this archive
@@ -288,13 +289,13 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 void bad_super_trap(struct frame *fp)
 {
 	console_verbose();
-	if (fp->ptregs.vector < 4*sizeof(vec_names)/sizeof(vec_names[0]))
+	if (fp->ptregs.vector < sizeof(vec_names)/sizeof(vec_names[0]))
 		printk(KERN_WARNING "*** %s ***   FORMAT=%X\n",
-			vec_names[(fp->ptregs.vector) >> 2],
+			vec_names[fp->ptregs.vector],
 			fp->ptregs.format);
 	else
 		printk(KERN_WARNING "*** Exception %d ***   FORMAT=%X\n",
-			(fp->ptregs.vector) >> 2,
+			fp->ptregs.vector,
 			fp->ptregs.format);
 	printk(KERN_WARNING "Current process id is %d\n", current->pid);
 	die_if_kernel("BAD KERNEL TRAP", &fp->ptregs, 0);
@@ -306,7 +307,7 @@ asmlinkage void trap_c(struct frame *fp)
 	siginfo_t info;
 
 	if (fp->ptregs.sr & PS_S) {
-		if ((fp->ptregs.vector >> 2) == VEC_TRACE) {
+		if (fp->ptregs.vector == VEC_TRACE) {
 			/* traced a trapping instruction */
 			current->ptrace |= PT_DTRACE;
 		} else
@@ -315,7 +316,7 @@ asmlinkage void trap_c(struct frame *fp)
 	}
 
 	/* send the appropriate signal to the user program */
-	switch ((fp->ptregs.vector) >> 2) {
+	switch (fp->ptregs.vector) {
 	case VEC_ADDRERR:
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
