@@ -196,7 +196,6 @@ asmlinkage void __init cf_early_init(void)
 	m68k_memory[m68k_num_memory].addr = CONFIG_SDRAM_BASE;
 	m68k_memory[m68k_num_memory++].size = CONFIG_SDRAM_SIZE;
 
-#if 0
 	if (!uboot_commandline(m68k_command_line)) {
 #if defined(CONFIG_BOOTPARAM)
 		strncpy(m68k_command_line, CONFIG_BOOTPARAM_STRING, CL_SIZE-1);
@@ -204,10 +203,6 @@ asmlinkage void __init cf_early_init(void)
 		strcpy(m68k_command_line, DEFAULT_COMMAND_LINE);
 #endif
 	}
-#endif
-/* JKM -- temporary! */
-strcpy(m68k_command_line, DEFAULT_COMMAND_LINE);
-/* JKM -- temporary! */
 
 #if defined(CONFIG_BLK_DEV_INITRD)
 	/* add initrd image */
