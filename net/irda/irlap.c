@@ -627,7 +627,7 @@ void irlap_status_indication(struct irlap_cb *self, int quality_of_link)
 {
 	switch (quality_of_link) {
 	case STATUS_NO_ACTIVITY:
-		IRDA_MESSAGE("IrLAP, no activity on link!\n");
+		/* IRDA_MESSAGE("IrLAP, no activity on link!\n"); */
 		break;
 	case STATUS_NOISY:
 		IRDA_MESSAGE("IrLAP, noisy link!\n");

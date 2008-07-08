@@ -979,6 +979,12 @@ config SERIAL_COLDFIRE
 	  This driver supports the built-in serial ports of the Motorola ColdFire
 	  family of CPUs.
 
+config SERIAL_COLDFIRE_IRDA
+	bool "ColdFire IRDA support"
+	depends on SERIAL_COLDFIRE
+	help
+	  This driver supports IRDA on the Motorola ColdFire.
+
 config SERIAL_MCF
 	bool "Coldfire serial support (new style driver)"
 	depends on COLDFIRE
