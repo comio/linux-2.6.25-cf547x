@@ -12,6 +12,9 @@ ifndef CONFIG_COLDFIRE
   obj-$(CONFIG_PCI) += bios32.o
 else   # CONFIG_COLDFIRE
   extra-y := ../coldfire/head.o vmlinux.lds
+ifdef CONFIG_M547X_8X
+  obj-$(CONFIG_PCI) += bios32_mcf548x.o
+endif
 endif
 endif
 

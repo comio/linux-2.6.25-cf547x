@@ -153,6 +153,10 @@ void __iomem *__ioremap(unsigned long physaddr, unsigned long size, int cachefla
 		 */
 		return (void __iomem *)physaddr;
 	}
+        if ((physaddr >= 0xd0000000) && (physaddr + size < 0xd800ffff)) {
+                printk("ioremap:PCI 0x%lx,0x%lx(%d) - PCI area hit\n", physaddr, size, cacheflag);
+                return (void *)physaddr;
+        }
 #endif
 
 #ifdef DEBUG
@@ -284,7 +288,12 @@ void __iounmap(void *addr, unsigned long size)
 	pgd_t *pgd_dir;
 	pmd_t *pmd_dir;
 	pte_t *pte_dir;
-
+#ifdef CONFIG_M547X_8X
+        if ((addr >= (void*)0xd0000000) && (addr + size < (void*)0xd800ffff)) {
+                printk("%s: PCI address\n",__FUNCTION__);
+                return;
+        }
+#endif
 	while ((long)size > 0) {
 		pgd_dir = pgd_offset_k(virtaddr);
 		if (pgd_bad(*pgd_dir)) {

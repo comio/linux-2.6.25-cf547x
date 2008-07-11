@@ -175,8 +175,8 @@ config HADES
 	  to use this kernel on a Hades, say Y here; otherwise say N.
 
 config PCI
-	bool
-	depends on HADES || M54455
+	bool "PCI bus support"
+	depends on HADES || M54455 || M547X_8X
 	default n
 	help
 	  Find out whether you have a PCI motherboard. PCI is the name of a

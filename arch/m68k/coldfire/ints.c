@@ -192,6 +192,8 @@ int setup_irq(unsigned int irq, struct irq_node *node)
 		/* Can't share interrupts unless both agree to */
 		if (!((*prev)->flags & node->flags & IRQF_SHARED)) {
 			spin_unlock_irqrestore(&contr->lock, flags);
+			printk(KERN_INFO "%s: -BUSY-Incorrect IRQ %d \n",
+				__FUNCTION__, irq);
 			return -EBUSY;
 		}
 		while (*prev)
@@ -219,9 +221,11 @@ int request_irq(unsigned int irq,
 	struct irq_node *node = get_irq_node();
 	int res;
 
-	if (!node)
+	if (!node) {
+		printk(KERN_INFO "%s:get_irq_node error %x\n",
+			__FUNCTION__,(unsigned int) node);
 		return -ENOMEM;
-
+	}
 	node->handler = handler;
 	node->flags   = flags;
 	node->dev_id  = dev_id;

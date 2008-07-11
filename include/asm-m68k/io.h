@@ -204,6 +204,12 @@ static inline u16 __iomem *isa_mtw(unsigned long addr)
 #define isa_outw(val,port) (ISA_SEX ? out_be16(isa_itw(port),(val)) : out_le16(isa_itw(port),(val)))
 #define isa_outl(val,port) (ISA_SEX ? out_be32(isa_itl(port),(val)) : out_le32(isa_itl(port),(val)))
 
+#ifndef CONFIG_COLDFIRE
+#define isa_readb(p)       in_8(isa_mtb(p))
+#define isa_readw(p)       (ISA_SEX ? in_be16(isa_mtw(p)) : in_le16(isa_mtw(p)))
+#define isa_writeb(val,p)  out_8(isa_mtb(p),(val))
+#define isa_writew(val,p)  (ISA_SEX ? out_be16(isa_mtw(p),(val)) : out_le16(isa_mtw(p),(val)))
+#else
 #define isa_readb(p)       in_8(isa_mtb((unsigned long)(p)))
 #define isa_readw(p)       \
 	(ISA_SEX ? in_be16(isa_mtw((unsigned long)(p)))	\
@@ -212,7 +218,7 @@ static inline u16 __iomem *isa_mtw(unsigned long addr)
 #define isa_writew(val,p)  \
 	(ISA_SEX ? out_be16(isa_mtw((unsigned long)(p)),(val))	\
 		 : out_le16(isa_mtw((unsigned long)(p)),(val)))
-
+#endif
 static inline void isa_delay(void)
 {
   switch(ISA_TYPE)
@@ -285,6 +291,29 @@ static inline void isa_delay(void)
 #endif /* CONFIG_ISA */
 
 #if defined(CONFIG_PCI)
+#ifdef CONFIG_COLDFIRE
+#define inb_p   inb
+#define inw_p   inw
+#define inl_p   inl
+#define outb_p  outb
+#define outw_p  outw
+#define outl_p  outl
+
+unsigned char  pci_inb(long addr);
+unsigned short pci_inw(long addr);
+unsigned long  pci_inl(long addr);
+void pci_outb(unsigned char  val, long addr);
+void pci_outw(unsigned short val, long addr);
+void pci_outl(unsigned long  val, long addr);
+
+void pci_insb(volatile unsigned char* addr, unsigned char* buf, int len);
+void pci_insw(volatile unsigned short* addr, unsigned short* buf, int len);
+void pci_insl(volatile unsigned long* addr, unsigned long* buf, int len);
+
+void pci_outsb(volatile unsigned char* addr, const unsigned char* buf, int len);
+void pci_outsw(volatile unsigned short* addr, const unsigned short* buf, int len);
+void pci_outsl(volatile unsigned long* addr, const unsigned long* buf, int len);
+#endif
 
 #define readl(addr)      in_le32(addr)
 #define writel(val,addr) out_le32((addr),(val))
@@ -300,6 +329,7 @@ static inline void isa_delay(void)
 #define readl_relaxed(addr) readl(addr)
 
 #ifndef CONFIG_ISA
+#ifndef CONFIG_COLDFIRE
 #define inb(port)      in_8(port)
 #define outb(val,port) out_8((port),(val))
 #define inw(port)      in_le16(port)
@@ -318,6 +348,30 @@ static inline void isa_delay(void)
 		raw_insw_swapw((u16 *)(port), (u16 *)(buf), (nr)<<1)
 #define outsl(port, buf, nr)	\
 		raw_outsw_swapw((u16 *)(port), (u16 *)(buf), (nr)<<1)
+#else
+#define inb(port)      pci_inb(port)
+#define outb(val,port) pci_outb((val),(port))
+#define inw(port)      pci_inw(port)
+#define outw(val,port) pci_outw((val),(port))
+#define insb(a,b,c)  pci_insb((volatile unsigned char*)a,(unsigned char*)b,c)
+#define insw(a,b,c)  pci_insw((volatile unsigned short*)a,(const unsigned short*)b,c)
+#define insl(a,b,c)  pci_insl((volatile unsigned long*)a,(const unsigned long*)b,c)
+#define outsb(a,b,c) pci_outsb((volatile unsigned char*)a,(const unsigned char*)b,c)
+#define outsw(a,b,c) pci_outsw((volatile unsigned short*)a,(const unsigned short*)b,c)
+#define outsl(a,b,c) pci_outsl((volatile unsigned long*)a,(const unsigned long*)b,c)
+#define inl(port)        pci_inl(port)
+#define outl(val,port)   pci_outl((val),(port))
+#endif
+
+#ifndef CONFIG_COLDFIRE
+#define __raw_readb readb
+#define __raw_readw readw
+#define __raw_readl readl
+#define __raw_writeb writeb
+#define __raw_writew writew
+#define __raw_writel writel
+#endif
+
 #else
 /*
  * kernel with both ISA and PCI compiled in, those have
@@ -432,6 +486,15 @@ static inline void memcpy_toio(volatile void __iomem *dst, const void *src, int 
 #define xlate_dev_kmem_ptr(p)	p
 
 #ifdef CONFIG_COLDFIRE
+#define __raw_readb(addr) \
+    ({ unsigned char __v = (*(volatile unsigned char *) (addr)); __v; })
+#define __raw_readw(addr) \
+    ({ unsigned short __v = (*(volatile unsigned short *) (addr)); __v; })
+#define __raw_readl(addr) \
+    ({ unsigned long __v = (*(volatile unsigned long *) (addr)); __v; })
+#define __raw_writeb(b,addr) (void)((*(volatile unsigned char *) (addr)) = (b))
+#define __raw_writew(b,addr) (void)((*(volatile unsigned short *) (addr)) = (b))
+#define __raw_writel(b,addr) (void)((*(volatile unsigned int *) (addr)) = (b))
 
 #define memset_io(a, b, c) memset((void *)(a), (b), (c))
 #define memcpy_fromio(a, b, c) memcpy((a), (void *)(b), (c))

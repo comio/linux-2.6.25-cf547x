@@ -46,8 +46,13 @@ static inline void *phys_to_virt(unsigned long address)
 #define virt_to_bus(a) (virt_to_phys(a) + (MACH_IS_HADES ? 0x80000000 : 0))
 #define bus_to_virt(a) (phys_to_virt((a) - (MACH_IS_HADES ? 0x80000000 : 0)))
 #else
+#ifdef CONFIG_COLDFIRE
+#define virt_to_bus(a) (a - PAGE_OFFSET + PCI_DMA_BASE)
+#define bus_to_virt(a) (a - PCI_DMA_BASE + PAGE_OFFSET)
+#else /* CONFIG_COLDFIRE */
 #define virt_to_bus virt_to_phys
 #define bus_to_virt phys_to_virt
+#endif
 #endif
 
 #endif

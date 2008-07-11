@@ -46,6 +46,29 @@ extern void __iounmap(void *addr, unsigned long size);
 #define out_le16(addr,w) (void)((*(__force volatile __le16 *) (addr)) = cpu_to_le16(w))
 #define out_le32(addr,l) (void)((*(__force volatile __le32 *) (addr)) = cpu_to_le32(l))
 
+#if (defined CONFIG_COLDFIRE) && (defined CONFIG_PCI)
+unsigned char  pci_inb(long addr);
+unsigned short pci_inw(long addr);
+unsigned long  pci_inl(long addr);
+void pci_outb(unsigned char  val, long addr);
+void pci_outw(unsigned short val, long addr);
+void pci_outl(unsigned long  val, long addr);
+unsigned short pci_raw_inw(long addr);
+unsigned long  pci_raw_inl(long addr);
+void pci_raw_outw(unsigned short val, long addr);
+void pci_raw_outl(unsigned long  val, long addr);
+#define raw_inb(port) pci_inb((long)((volatile unsigned char *)(port)))
+#define raw_inw(port) pci_raw_inw((long)((volatile unsigned short *)(port)))
+#define raw_inl(port) pci_raw_inl((long)((volatile unsigned long *)(port)))
+
+#define raw_outb(val,port) pci_outb((val),(long)((volatile unsigned char *)(port)))
+#define raw_outw(val,port) pci_raw_outw((val),(long)((volatile unsigned short *)(port)))
+#define raw_outl(val,port) pci_raw_outl((val),(long)((volatile unsigned long *)(port)))
+
+#define swap_inw(port) pci_inw((long)((volatile unsigned short *)(port)))
+#define swap_outw(val,port) pci_outw((val),(long)((volatile unsigned short *)(port)))
+
+#else
 #define raw_inb in_8
 #define raw_inw in_be16
 #define raw_inl in_be32
@@ -60,6 +83,9 @@ extern void __iounmap(void *addr, unsigned long size);
 #define __raw_writew(val,addr) out_be16((addr),(val))
 #define __raw_writel(val,addr) out_be32((addr),(val))
 
+#define swap_inw(port) in_le16((port))
+#define swap_outw(val,port) out_le16((port),(val))
+#endif
 static inline void raw_insb(volatile u8 __iomem *port, u8 *buf, unsigned int len)
 {
 	unsigned int i;
