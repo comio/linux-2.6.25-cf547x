@@ -201,6 +201,16 @@ config FB_TILEBLITTING
 comment "Frame buffer hardware drivers"
 	depends on FB
 
+config FB_SMI
+	tristate "SiliconMotion Lynx support"
+	depends on FB && PCI
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	---help---
+	  This enables support for the Silicon Motion Lynx family of graphic
+	  chips. It has been tested on ColdFire.
+
 config FB_CIRRUS
 	tristate "Cirrus Logic support"
 	depends on FB && (ZORRO || PCI)

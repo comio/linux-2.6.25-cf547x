@@ -2679,8 +2679,11 @@ static int fbcon_set_palette(struct vc_data *vc, unsigned char *table)
 {
 	struct fb_info *info = registered_fb[con2fb_map[vc->vc_num]];
 	int i, j, k, depth;
-	u8 val;
-
+#ifndef CONFIG_COLDFIRE
+        u8 val;
+#else
+        u32 val;
+#endif
 	if (fbcon_is_inactive(vc, info))
 		return -EINVAL;
 

@@ -44,12 +44,12 @@
 #endif
 
 static const u32 cfb_tab8[] = {
-#if defined(__BIG_ENDIAN)
+#if defined(__BIG_ENDIAN) && !defined(CONFIG_COLDFIRE)
     0x00000000,0x000000ff,0x0000ff00,0x0000ffff,
     0x00ff0000,0x00ff00ff,0x00ffff00,0x00ffffff,
     0xff000000,0xff0000ff,0xff00ff00,0xff00ffff,
     0xffff0000,0xffff00ff,0xffffff00,0xffffffff
-#elif defined(__LITTLE_ENDIAN)
+#elif defined(__LITTLE_ENDIAN) || defined(CONFIG_COLDFIRE)
     0x00000000,0xff000000,0x00ff0000,0xffff0000,
     0x0000ff00,0xff00ff00,0x00ffff00,0xffffff00,
     0x000000ff,0xff0000ff,0x00ff00ff,0xffff00ff,
@@ -60,9 +60,9 @@ static const u32 cfb_tab8[] = {
 };
 
 static const u32 cfb_tab16[] = {
-#if defined(__BIG_ENDIAN)
+#if defined(__BIG_ENDIAN) && !defined(CONFIG_COLDFIRE)
     0x00000000, 0x0000ffff, 0xffff0000, 0xffffffff
-#elif defined(__LITTLE_ENDIAN)
+#elif defined(__LITTLE_ENDIAN) || defined(CONFIG_COLDFIRE)
     0x00000000, 0xffff0000, 0x0000ffff, 0xffffffff
 #else
 #error FIXME: No endianness??

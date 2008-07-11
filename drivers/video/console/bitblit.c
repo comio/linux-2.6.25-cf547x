@@ -78,7 +78,11 @@ static inline void bit_putcs_aligned(struct vc_data *vc, struct fb_info *info,
 				     u32 d_pitch, u32 s_pitch, u32 cellsize,
 				     struct fb_image *image, u8 *buf, u8 *dst)
 {
+#ifndef CONFIG_COLDFIRE
 	u16 charmask = vc->vc_hi_font_mask ? 0x1ff : 0xff;
+#else
+        u32 charmask = vc->vc_hi_font_mask ? 0x1ff : 0xff;
+#endif
 	u32 idx = vc->vc_font.width >> 3;
 	u8 *src;
 
@@ -111,7 +115,11 @@ static inline void bit_putcs_unaligned(struct vc_data *vc,
 				       struct fb_image *image, u8 *buf,
 				       u8 *dst)
 {
+#ifndef CONFIG_COLDFIRE
 	u16 charmask = vc->vc_hi_font_mask ? 0x1ff : 0xff;
+#else
+        u32 charmask = vc->vc_hi_font_mask ? 0x1ff : 0xff;
+#endif
 	u32 shift_low = 0, mod = vc->vc_font.width % 8;
 	u32 shift_high = 8;
 	u32 idx = vc->vc_font.width >> 3;
@@ -238,7 +246,11 @@ static void bit_cursor(struct vc_data *vc, struct fb_info *info, int mode,
 {
 	struct fb_cursor cursor;
 	struct fbcon_ops *ops = info->fbcon_par;
+#ifndef CONFIG_COLDFIRE
 	unsigned short charmask = vc->vc_hi_font_mask ? 0x1ff : 0xff;
+#else
+        unsigned long charmask = vc->vc_hi_font_mask ? 0x1ff : 0xff;
+#endif
 	int w = (vc->vc_font.width + 7) >> 3, c;
 	int y = real_y(ops->p, vc->vc_y);
 	int attribute, use_sw = (vc->vc_cursor_type & 0x10);

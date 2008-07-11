@@ -873,6 +873,17 @@ struct fb_info {
 #define fb_writeq sbus_writeq
 #define fb_memset sbus_memset_io
 
+#elif defined(CONFIG_COLDFIRE)
+#define fb_readb readb
+#define fb_readw readw
+#define fb_readl readl
+#define fb_readq readq
+#define fb_writeb writeb
+#define fb_writew writew
+#define fb_writel writel
+#define fb_writeq writeq
+#define fb_memset memset_io
+
 #elif defined(__i386__) || defined(__alpha__) || defined(__x86_64__) || defined(__hppa__) || (defined(__sh__) && !defined(__SH5__)) || defined(__powerpc__) || defined(__avr32__)
 
 #define fb_readb __raw_readb
@@ -899,7 +910,7 @@ struct fb_info {
 
 #endif
 
-#if defined (__BIG_ENDIAN)
+#if defined (__BIG_ENDIAN) && !defined(CONFIG_COLDFIRE)
 #define FB_LEFT_POS(bpp)          (32 - bpp)
 #define FB_SHIFT_HIGH(val, bits)  ((val) >> (bits))
 #define FB_SHIFT_LOW(val, bits)   ((val) << (bits))
