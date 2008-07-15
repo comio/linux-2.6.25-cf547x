@@ -35,7 +35,7 @@
 #include <asm/coldfire.h>
 #include <asm/tlbflush.h>
 
-#define KMAPAREA(x)	((x >= KMAP_START) && ( x < KMAP_END))
+#define KMAPAREA(x)	((x >= VMALLOC_START) && ( x < KMAP_END))
 
 #undef DEBUG
 
@@ -62,11 +62,6 @@ void free_initmem(void)
 	unsigned long start = (unsigned long)&__init_begin;
 	unsigned long end = (unsigned long)&__init_end;
 
-/* 
- * JKM -- revisit -- the latest round of vmlinux.lds changes has caused
- * a little grief with how init areas are handled.  With the new toolchain
- * release I'll fix this.
- */
 	printk(KERN_INFO "free_initmem: __init_begin = 0x%lx  __init_end = 0x%lx\n", start, end);
 
 	addr = (unsigned long)&__init_begin;

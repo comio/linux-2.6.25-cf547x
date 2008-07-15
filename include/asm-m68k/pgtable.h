@@ -73,7 +73,9 @@
 #define KMAP_START     0x0DC00000
 #define KMAP_END       0x0E000000
 #elif defined(CONFIG_COLDFIRE)
-#define KMAP_START	0xd0000000
+#define	VMALLOC_START	0xc0000000
+#define VMALLOC_END	0xcfffffff
+#define KMAP_START	(VMALLOC_END + 1)
 #define KMAP_END	0xe0000000
 #else
 #define	KMAP_START	0xd0000000
@@ -88,9 +90,11 @@
  * The vmalloc() routines leaves a hole of 4kB between each vmalloced
  * area for the same reason. ;)
  */
+#if !defined(CONFIG_COLDFIRE)
 #define VMALLOC_OFFSET	(8*1024*1024)
 #define VMALLOC_START (((unsigned long) high_memory + VMALLOC_OFFSET) & ~(VMALLOC_OFFSET-1))
 #define VMALLOC_END KMAP_START
+#endif
 #else
 extern unsigned long vmalloc_end;
 #define VMALLOC_START 0x0f800000
