@@ -26,26 +26,40 @@
  */
 
 /* number of supported SPI selects */
-#define SPI_NUM_CHIPSELECTS	4
+#define SPI_NUM_CHIPSELECTS	8
 
 void coldfire_spi_cs_control(u8 cs, u8 command)
 {
 	/* nothing special required */
 }
 
+#if defined(CONFIG_SPI_SPIDEV) || defined(CONFIG_SPI_SPIDEV_MODULE)
+static struct coldfire_spi_chip spidev_chip_info = {
+	.bits_per_word = 8,
+};
+#endif
+
 static struct spi_board_info spi_board_info[] = {
-	/* no board info */
+#if defined(CONFIG_SPI_SPIDEV) || defined(CONFIG_SPI_SPIDEV_MODULE)
+	{
+		.modalias = "spidev",
+		.max_speed_hz = 16000000,  	/* max clk (SCK) speed in HZ */
+		.bus_num = 1,
+		.chip_select = 0,		/* CS0 */
+		.controller_data = &spidev_chip_info,
+ 	}
+#endif
 };
 
 static int spi_irq_list[] = {
-	/* IRQ, ICR Offset, ICR Val, Mask */
-	64 + ISC_DSPI_OVRFW, 0, 0, 0,
-	64 + ISC_DSPI_RFOF,  0, 0, 0,
-	64 + ISC_DSPI_RFDF,  0, 0, 0,
-	64 + ISC_DSPI_TFUF,  0, 0, 0,
-	64 + ISC_DSPI_TCF,   0, 0, 0,
-	64 + ISC_DSPI_TFFF,  0, 0, 0,
-	64 + ISC_DSPI_EOQF,  0, 0, 0,
+	/* IRQ, 	     ICR Offset, 	ICR Val,Mask */
+	64 + ISC_DSPI_OVRFW, ISC_DSPI_OVRFW,	0x18, 	0,
+	64 + ISC_DSPI_RFOF,  ISC_DSPI_RFOF,	0x18, 	0,
+	64 + ISC_DSPI_RFDF,  ISC_DSPI_RFDF,	0x18, 	0,
+	64 + ISC_DSPI_TFUF,  ISC_DSPI_TFUF,	0x18, 	0,
+	64 + ISC_DSPI_TCF,   ISC_DSPI_TCF,	0x18, 	0,
+	64 + ISC_DSPI_TFFF,  ISC_DSPI_TFFF,	0x18, 	0,
+	64 + ISC_DSPI_EOQF,  ISC_DSPI_EOQF,	0x18, 	0,
 	0,0,0,0,
 };
 
@@ -120,7 +134,6 @@ static int __init m547x_8x_spi_init(void)
 	/* register device */
 	retval = platform_device_register(&coldfire_spi);
 	if (retval < 0) {
-		printk(KERN_ERR "SPI-m547x_8x: platform_device_register failed with code=%d\n", retval);
 		goto out;
 	}
 

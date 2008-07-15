@@ -117,6 +117,12 @@ config SPI_COLDFIRE
 	  Tested with the 5282 processor, but should also work with other
 	  Coldfire variants.
 
+config SPI_DSPI
+	tristate "Coldfire DSPI"
+	depends on SPI_MASTER && COLDFIRE
+	help
+	  SPI driver for Coldfire DSPI driver only.
+
 config SPI_COLDFIRE_DSPI_EDMA	  
 	boolean "Coldfire DSPI master driver uses eDMA"
 	depends on SPI_MASTER && COLDFIRE && SPI_COLDFIRE && EXPERIMENTAL && COLDFIRE_EDMA
