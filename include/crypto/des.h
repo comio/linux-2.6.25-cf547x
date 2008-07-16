@@ -4,7 +4,9 @@
 
 #ifndef __CRYPTO_DES_H
 #define __CRYPTO_DES_H
-
+#ifdef CONFIG_OCF_OCF
+#include "ocf_des.h"
+#endif
 #define DES_KEY_SIZE		8
 #define DES_EXPKEY_WORDS	32
 #define DES_BLOCK_SIZE		8

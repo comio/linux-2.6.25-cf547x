@@ -7,7 +7,9 @@
 
 #include <linux/types.h>
 #include <linux/crypto.h>
-
+#ifdef CONFIG_OCF_OCF
+#include "ocf_aes.h"
+#endif
 #define AES_MIN_KEY_SIZE	16
 #define AES_MAX_KEY_SIZE	32
 #define AES_KEYSIZE_128		16
