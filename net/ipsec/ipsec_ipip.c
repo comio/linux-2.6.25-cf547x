@@ -73,7 +73,7 @@ ipsec_xmit_ipip_setup(struct ipsec_xmit_state *ixs)
   switch(sysctl_ipsec_tos) {
   case 0:
 #ifdef NET_21
-    ixs->iph->tos = ixs->skb->nh.iph->tos;
+    ixs->iph->tos = ip_hdr(ixs->skb)->tos;
 #else /* NET_21 */
     ixs->iph->tos = ixs->skb->ip_hdr->tos;
 #endif /* NET_21 */
@@ -97,7 +97,7 @@ ipsec_xmit_ipip_setup(struct ipsec_xmit_state *ixs)
   ixs->newsrc = (__u32)ixs->iph->saddr;
   
 #ifdef NET_21
-  ixs->skb->h.ipiph = ixs->skb->nh.iph;
+	ixs->skb->transport_header = (sk_buff_data_t)ip_hdr(ixs->skb);
 #endif /* NET_21 */
   return IPSEC_XMIT_OK;
 }

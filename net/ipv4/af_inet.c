@@ -1437,6 +1437,16 @@ static int __init inet_init(void)
 #if defined(CONFIG_IP_MROUTE)
 	ip_mr_init();
 #endif
+#if defined(CONFIG_KLIPS)
+	{
+		extern int ipsec_klips_init(void);
+		/*
+		* Initialize AF_INET ESP and AH protocol support including
+		* e-routing and SA tables
+		*/
+		ipsec_klips_init();
+	}
+#endif /* CONFIG_KLIPS */
 	/*
 	 *	Initialise per-cpu ipv4 mibs
 	 */

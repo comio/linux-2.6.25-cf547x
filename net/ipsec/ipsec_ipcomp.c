@@ -92,7 +92,7 @@ ipsec_rcv_ipcomp_checks(struct ipsec_rcv_state *irs,
 		return IPSEC_RCV_BADLEN;
 	}
 
-	irs->protostuff.ipcompstuff.compp = (struct ipcomphdr *)skb->h.raw;
+	irs->protostuff.ipcompstuff.compp = (struct ipcomphdr *)skb->transport_header;
 	irs->said.spi = htonl((__u32)ntohs(irs->protostuff.ipcompstuff.compp->ipcomp_cpi));
 	return IPSEC_RCV_OK;
 }
@@ -106,7 +106,7 @@ ipsec_rcv_ipcomp_decomp(struct ipsec_rcv_state *irs)
 
 	skb=irs->skb;
 
-	ipsec_xmit_dmp("ipcomp", skb->h.raw, skb->len);
+	ipsec_xmit_dmp("ipcomp", skb->transport_header, skb->len);
 
 	if(ipsp == NULL) {
 		return IPSEC_RCV_SAIDNOTFOUND;
@@ -163,7 +163,7 @@ ipsec_rcv_ipcomp_decomp(struct ipsec_rcv_state *irs)
 	irs->skb = skb;
 	
 #ifdef NET_21
-	irs->ipp = skb->nh.iph;
+	irs->ipp = ip_hdr(skb);
 #else /* NET_21 */
 	irs->ipp = skb->ip_hdr;
 #endif /* NET_21 */
@@ -196,7 +196,7 @@ ipsec_xmit_ipcomp_setup(struct ipsec_xmit_state *ixs)
   ixs->skb = skb_compress(ixs->skb, ixs->ipsp, &flags);
 
 #ifdef NET_21
-  ixs->iph = ixs->skb->nh.iph;
+  ixs->iph = ip_hdr(ixs->skb);
 #else /* NET_21 */
   ixs->iph = ixs->skb->ip_hdr;
 #endif /* NET_21 */

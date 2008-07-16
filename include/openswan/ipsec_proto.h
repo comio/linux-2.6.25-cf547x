@@ -21,6 +21,7 @@
 #ifndef _IPSEC_PROTO_H_
 
 #include "ipsec_param.h"
+#include <net/ip.h>
 
 /* 
  * This file is a kernel only file that declares prototypes for

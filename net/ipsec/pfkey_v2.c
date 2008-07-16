@@ -501,9 +501,9 @@ pfkey_destroy_socket(struct sock *sk)
 			} else {
 				printk(" dev:NULL");
 			}
-			printk(" h:0p%p", skb->h.raw);
-			printk(" nh:0p%p", skb->nh.raw);
-			printk(" mac:0p%p", skb->mac.raw);
+			printk(" h:0p%p", skb->transport_header);
+			printk(" nh:0p%p", skb->network_header);
+			printk(" mac:0p%p", skb->mac_header);
 			printk(" dst:0p%p", skb->dst);
 			if(sysctl_ipsec_debug_verbose) {
 				int i;
@@ -616,8 +616,8 @@ pfkey_upmsg(struct socket *sock, struct sadb_msg *pfkey_msg)
 		ipsec_kfree_skb(skb);
 		return -ENOBUFS;
 	}
-	skb->h.raw = skb_put(skb, pfkey_msg->sadb_msg_len * IPSEC_PFKEYv2_ALIGN);
-	memcpy(skb->h.raw, pfkey_msg, pfkey_msg->sadb_msg_len * IPSEC_PFKEYv2_ALIGN);
+	skb->transport_header = skb_put(skb, pfkey_msg->sadb_msg_len * IPSEC_PFKEYv2_ALIGN);
+	memcpy(skb->transport_header, pfkey_msg, pfkey_msg->sadb_msg_len * IPSEC_PFKEYv2_ALIGN);
 
 	if((error = sock_queue_rcv_skb(sk, skb)) < 0) {
 		skb->sk=NULL;
@@ -1102,8 +1102,8 @@ pfkey_recvmsg(struct socket *sock
 
 	skb_copy_datagram_iovec(skb, 0, msg->msg_iov, size);
 #ifdef HAVE_TSTAMP
-	sk->sk_stamp.tv_sec  = skb->tstamp.off_sec;
-	sk->sk_stamp.tv_usec = skb->tstamp.off_usec;
+	sk->sk_stamp  = skb->tstamp;
+	//sk->sk_stamp.tv_usec = skb->tstamp.off_usec;
 #else
         sk->sk_stamp=skb->stamp;
 #endif
@@ -1177,8 +1177,8 @@ pfkey_get_info(char *buffer, char **start, off_t offset, int length
 #endif					
 					sk->sk_protocol,
 					sk->sk_sndbuf,
-					(unsigned int)sk->sk_stamp.tv_sec,
-					(unsigned int)sk->sk_stamp.tv_usec,
+					(unsigned int)sk->sk_stamp.tv.sec,
+					(unsigned int)sk->sk_stamp.tv.nsec,
 					sk->sk_socket->flags,
 					sk->sk_socket->type,
 					sk->sk_socket->state);

@@ -106,7 +106,7 @@ module_param(ocf_xmit_calls_failed, int, 0444);
 		schedule_work(&(wq)); \
 	})
 #else
-#define PROCESS_LATER(wq, sm, arg) \		
+#define PROCESS_LATER(wq, sm, arg) \
 	({ \
 		INIT_WORK(&(wq), (void (*)(void *))(sm), (void *)(arg)); \
 		schedule_work(&(wq)); \
@@ -261,8 +261,8 @@ ipsec_ocf_ipcomp_copy_expand (struct ipsec_rcv_state *irs)
 
         memcpy (nskb->head, irs->skb->head, skb_headroom(irs->skb));
 
-        nskb->nh.raw = nskb->data + (irs->skb->nh.raw - irs->skb->data);
-        nskb->h.raw  = nskb->data + (irs->skb->h.raw - irs->skb->data);
+        nskb->network_header = nskb->data + skb_network_offset(irs->skb);
+        nskb->transport_header  = nskb->data + (irs->skb->transport_header - irs->skb->data);
 
         // update all irs pointers
         ptr_delta = nskb->data - irs->skb->data;
@@ -573,8 +573,8 @@ ipsec_ocf_rcv_cb(struct cryptop *crp)
                 memmove (newiph, irs->ipp, irs->iphlen);
                 irs->ipp = newiph;
 
-                irs->skb->nh.raw += sizeof (struct ipcomphdr);
-                irs->skb->h.raw += sizeof (struct ipcomphdr);
+                irs->skb->network_header += sizeof (struct ipcomphdr);
+                irs->skb->transport_header += sizeof (struct ipcomphdr);
 
                 // adjust the ipp pointer to point to the header we decoded
                 //irs->ipp = (void*)((char*)irs->ipp - irs->iphlen;
@@ -591,7 +591,7 @@ ipsec_ocf_rcv_cb(struct cryptop *crp)
                 safe_skb_put (irs->skb, decomp_len - orig_len);
 
                 // set the new header in the skb
-                irs->skb->nh.iph = irs->ipp;
+                irs->skb->network_header = (sk_buff_data_t)irs->ipp;
 
                 // relese the backup copy
                 if (irs->pre_ipcomp_skb) {
@@ -740,7 +740,7 @@ ipsec_ocf_rcv(struct ipsec_rcv_state *irs)
 
 		irs->esphlen     = ESP_HEADER_LEN + ipsp->ips_iv_size;
 		irs->ilen       -= irs->esphlen;
-		crde->crd_skip   = (irs->skb->h.raw - irs->skb->data) + irs->esphlen;
+		crde->crd_skip   = (irs->skb->transport_header - irs->skb->data) + irs->esphlen;
 		crde->crd_len    = irs->ilen;
 		crde->crd_inject = crde->crd_skip - ipsp->ips_iv_size;
 		crde->crd_klen   = ipsp->ips_key_bits_e;
@@ -871,8 +871,8 @@ ipsec_ocf_xmit_cb(struct cryptop *crp)
 			ipsec_skb_gc_enqueue(ixs->skb);
 
                         ixs->skb = ixs->pre_ipcomp_skb;
-                        ixs->skb->nh.raw  += ptr_delta;
-                        ixs->skb->h.raw   += ptr_delta;
+                        ixs->skb->network_header  += ptr_delta;
+                        ixs->skb->transport_header   += ptr_delta;
                         ixs->pre_ipcomp_skb = NULL;
 
                         // this means we don't compress
@@ -921,8 +921,8 @@ ipsec_ocf_xmit_cb(struct cryptop *crp)
                 memmove (newiph, ixs->iph, ixs->iphlen);
                 ixs->iph = newiph;
 
-                ixs->skb->nh.raw -= sizeof (struct ipcomphdr);
-                ixs->skb->h.raw -= sizeof (struct ipcomphdr);
+                ixs->skb->network_header -= sizeof (struct ipcomphdr);
+                ixs->skb->transport_header -= sizeof (struct ipcomphdr);
 
                 // now we can fill in the ipcomp header
                 cmph->ipcomp_nh = ixs->next_header;

@@ -602,10 +602,10 @@ ipsec_tunnel_send(struct ipsec_xmit_state*ixs)
 	ixs->skb->dev = ixs->physdev;
 	memset (&fl, 0x0, sizeof (struct flowi));
  	fl.oif = ixs->physdev->iflink;
- 	fl.nl_u.ip4_u.daddr = ixs->skb->nh.iph->daddr;
- 	fl.nl_u.ip4_u.saddr = ixs->pass ? 0 : ixs->skb->nh.iph->saddr;
- 	fl.nl_u.ip4_u.tos = RT_TOS(ixs->skb->nh.iph->tos);
- 	fl.proto = ixs->skb->nh.iph->protocol;
+ 	fl.nl_u.ip4_u.daddr = ip_hdr(ixs->skb)->daddr;
+ 	fl.nl_u.ip4_u.saddr = ixs->pass ? 0 : ip_hdr(ixs->skb)->saddr;
+ 	fl.nl_u.ip4_u.tos = RT_TOS(ip_hdr(ixs->skb)->tos);
+ 	fl.proto = ip_hdr(ixs->skb)->protocol;
  	if ((ixs->error = ip_route_output_key(&ixs->route, &fl))) {
 		ixs->stats->tx_errors++;
 		KLIPS_PRINT(debug_tunnel & DB_TN_XMIT,
@@ -628,16 +628,16 @@ ipsec_tunnel_send(struct ipsec_xmit_state*ixs)
 	dst_release(ixs->skb->dst);
 	ixs->skb->dst = &ixs->route->u.dst;
 	ixs->stats->tx_bytes += ixs->skb->len;
-	if(ixs->skb->len < ixs->skb->nh.raw - ixs->skb->data) {
+	if(ixs->skb->len < skb_network_offset(ixs->skb)) {
 		ixs->stats->tx_errors++;
 		printk(KERN_WARNING
 		       "klips_error:ipsec_xmit_send: "
 		       "tried to __skb_pull nh-data=%ld, %d available.  This should never happen, please report.\n",
-		       (unsigned long)(ixs->skb->nh.raw - ixs->skb->data),
+		       (unsigned long)(skb_network_offset(ixs->skb)),
 		       ixs->skb->len);
 		return IPSEC_XMIT_PUSHPULLERR;
 	}
-	__skb_pull(ixs->skb, ixs->skb->nh.raw - ixs->skb->data);
+	__skb_pull(ixs->skb, skb_network_offset(ixs->skb));
 #ifdef SKB_RESET_NFCT
 	if(!ixs->pass) {
 	  nf_conntrack_put(ixs->skb->nfct);
@@ -651,7 +651,7 @@ ipsec_tunnel_send(struct ipsec_xmit_state*ixs)
 		    "klips_debug:ipsec_xmit_send: "
 		    "...done, calling ip_send() on device:%s\n",
 		    ixs->skb->dev ? ixs->skb->dev->name : "NULL");
-	KLIPS_IP_PRINT(debug_tunnel & DB_TN_XMIT, ixs->skb->nh.iph);
+	KLIPS_IP_PRINT(debug_tunnel & DB_TN_XMIT, ip_hdr(ixs->skb));
 	{
 		int err;
 
@@ -951,8 +951,8 @@ ipsec_tunnel_hard_header(struct sk_buff *skb, struct net_device *dev,
 #ifdef NET_21
 			KLIPS_PRINTMORE(debug_tunnel & DB_TN_REVEC,
 					"ip=%08x->%08x\n",
-					(__u32)ntohl(skb->nh.iph->saddr),
-					(__u32)ntohl(skb->nh.iph->daddr) );
+					(__u32)ntohl(ip_hdr(skb)->saddr),
+					(__u32)ntohl(ip_hdr(skb)->daddr) );
 #else /* NET_21 */
 			KLIPS_PRINTMORE(debug_tunnel & DB_TN_REVEC,
 					"ip=%08x->%08x\n",
@@ -977,8 +977,8 @@ ipsec_tunnel_hard_header(struct sk_buff *skb, struct net_device *dev,
 #ifdef NET_21
 		KLIPS_PRINTMORE(debug_tunnel & DB_TN_REVEC,
 			    "ip=%08x->%08x\n",
-			    (__u32)ntohl(skb->nh.iph->saddr),
-			    (__u32)ntohl(skb->nh.iph->daddr) );
+				(__u32)ntohl(ip_hdr(skb)->saddr),
+				(__u32)ntohl(ip_hdr(skb)->daddr) );
 #else /* NET_21 */
 		KLIPS_PRINTMORE(debug_tunnel & DB_TN_REVEC,
 			    "ip=%08x->%08x\n",
@@ -1044,8 +1044,8 @@ ipsec_tunnel_rebuild_header(void *buff, struct net_device *dev,
 #ifdef NET_21
 		KLIPS_PRINT(debug_tunnel & DB_TN_REVEC,
 			    "ip=%08x->%08x\n",
-			    (__u32)ntohl(skb->nh.iph->saddr),
-			    (__u32)ntohl(skb->nh.iph->daddr) );
+			    (__u32)ntohl(ip_hdr(skb)->saddr),
+			    (__u32)ntohl(ip_hdr(skb)->daddr) );
 #else /* NET_21 */
 		KLIPS_PRINT(debug_tunnel & DB_TN_REVEC,
 			    "ip=%08x->%08x\n",
@@ -1063,8 +1063,8 @@ ipsec_tunnel_rebuild_header(void *buff, struct net_device *dev,
 #ifdef NET_21
 	KLIPS_PRINT(debug_tunnel & DB_TN_REVEC,
 		    "ip=%08x->%08x\n",
-		    (__u32)ntohl(skb->nh.iph->saddr),
-		    (__u32)ntohl(skb->nh.iph->daddr) );
+		    (__u32)ntohl(ip_hdr(skb)->saddr),
+		    (__u32)ntohl(ip_hdr(skb)->daddr) );
 #else /* NET_21 */
 	KLIPS_PRINT(debug_tunnel & DB_TN_REVEC,
 		    "ip=%08x->%08x\n",
@@ -1517,7 +1517,7 @@ ipsec_tunnel_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		if (colon) *colon = 0;
 		them = ipsec_dev_get(realphysname);
 #else /* CONFIG_IP_ALIAS */
-		them = ipsec_dev_get(cf->cf_name);
+		them = ipsec_dev_get(&init_net, cf->cf_name);
 #endif /* CONFIG_IP_ALIAS */
 
 		if (them == NULL) {
@@ -1769,7 +1769,7 @@ ipsec_tunnel_init(struct net_device *dev)
 	dev->set_multicast_list = NULL;
 	dev->do_ioctl		= ipsec_tunnel_ioctl;
 	dev->hard_header	= NULL;
-	dev->rebuild_header 	= NULL;
+	dev->rebuild_header     = NULL;
 	dev->set_mac_address 	= NULL;
 #ifndef NET_21
 	dev->header_cache_bind 	= NULL;
@@ -1858,7 +1858,7 @@ ipsec_tunnel_init_devices(void)
 		memset((caddr_t)dev_ipsec->name, 0, IFNAMSIZ);
 		strncpy(dev_ipsec->name, name, IFNAMSIZ);
 #endif /* NETDEV_23 */
-		dev_ipsec->next = NULL;
+		dev_ipsec->dev_list.next = NULL;
 		dev_ipsec->init = &ipsec_tunnel_probe;
 		KLIPS_PRINT(debug_tunnel & DB_TN_INIT,
 			    "klips_debug:ipsec_tunnel_init_devices: "
@@ -1922,7 +1922,7 @@ ipsec_tunnel_cleanup_devices(void)
 // this handles creating and managing state for xmit path
 
 static spinlock_t ixs_cache_lock = SPIN_LOCK_UNLOCKED;
-static kmem_cache_t *ixs_cache_allocator = NULL;
+static struct kmem_cache *ixs_cache_allocator = NULL;
 
 int
 ipsec_xmit_state_cache_init (void)
@@ -1934,7 +1934,7 @@ ipsec_xmit_state_cache_init (void)
 
         ixs_cache_allocator = kmem_cache_create ("ipsec_ixs",
                 sizeof (struct ipsec_xmit_state), 0,
-                0, NULL, NULL);
+                0, NULL);
         if (! ixs_cache_allocator)
                 return -ENOMEM;
 

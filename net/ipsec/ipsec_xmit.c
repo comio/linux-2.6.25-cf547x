@@ -493,7 +493,7 @@ ipsec_xmit_sanity_check_skb(struct ipsec_xmit_state *ixs)
 		}
 	}
 
-	ixs->iph = ixs->skb->nh.iph;
+	ixs->iph = ip_hdr(ixs->skb);
 
 	/* sanity check for IP version as we can't handle IPv6 right now */
 	if (ixs->iph->version != 4) {
@@ -688,7 +688,7 @@ ipsec_xmit_encap_init(struct ipsec_xmit_state *ixs)
 	ixs->iph = (struct iphdr *)ixs->dat;
 	ixs->iph->tot_len = htons(ixs->skb->len);
 
-        ixs->skb->nh.iph = ixs->iph;
+        ixs->skb->network_header = (sk_buff_data_t)ixs->iph;
 
 	return IPSEC_XMIT_OK;
 }
@@ -741,7 +741,7 @@ ipsec_xmit_esp(struct ipsec_xmit_state *ixs)
 
 	ixs->espp = (struct esphdr *)(ixs->dat + ixs->iphlen);
 #ifdef NET_21
-	ixs->skb->h.raw = (unsigned char*)ixs->espp;
+	ixs->skb->transport_header = (unsigned char*)ixs->espp;
 #endif /* NET_21 */
 	ixs->espp->esp_spi = ixs->ipsp->ips_said.spi;
 	ixs->espp->esp_rpl = htonl(++(ixs->ipsp->ips_replaywin_lastseq));
@@ -900,7 +900,7 @@ ipsec_xmit_ah(struct ipsec_xmit_state *ixs)
 
 	ahp = (struct ahhdr *)(ixs->dat + ixs->iphlen);
 #ifdef NET_21
-	ixs->skb->h.raw = (unsigned char*)ahp;
+	ixs->skb->transport_header = (unsigned char*)ahp;
 #endif /* NET_21 */
 	ahp->ah_spi = ixs->ipsp->ips_said.spi;
 	ahp->ah_rpl = htonl(++(ixs->ipsp->ips_replaywin_lastseq));
@@ -989,7 +989,7 @@ ipsec_xmit_ipip(struct ipsec_xmit_state *ixs)
 	switch(sysctl_ipsec_tos) {
 	case 0:
 #ifdef NET_21
-		ixs->iph->tos = ixs->skb->nh.iph->tos;
+		ixs->iph->tos = ip_hdr(ixs->skb)->tos;
 #else /* NET_21 */
 		ixs->iph->tos = ixs->skb->ip_hdr->tos;
 #endif /* NET_21 */
@@ -1013,7 +1013,7 @@ ipsec_xmit_ipip(struct ipsec_xmit_state *ixs)
 	ixs->newsrc = (__u32)ixs->iph->saddr;
 	
 #ifdef NET_21
-	ixs->skb->h.ipiph = ixs->skb->nh.iph;
+	ixs->skb->transport_header = (sk_buff_data_t)ip_hdr(ixs->skb);
 #endif /* NET_21 */
 	return IPSEC_XMIT_OK;
 }
@@ -1044,7 +1044,7 @@ ipsec_xmit_ipcomp(struct ipsec_xmit_state *ixs)
 	ixs->skb = skb_compress(ixs->skb, ixs->ipsp, &flags);
 
 #ifdef NET_21
-	ixs->iph = ixs->skb->nh.iph;
+	ixs->iph = ip_hdr(ixs->skb);
 #else /* NET_21 */
 	ixs->iph = ixs->skb->ip_hdr;
 #endif /* NET_21 */
@@ -1089,9 +1089,9 @@ enum ipsec_xmit_value
 ipsec_xmit_cont(struct ipsec_xmit_state *ixs)
 {
 #ifdef NET_21
-	ixs->skb->nh.raw = ixs->skb->data;
+	ixs->skb->network_header = ixs->skb->data;
 #else /* NET_21 */
-	ixs->skb->ip_hdr = ixs->skb->h.iph = (struct iphdr *) ixs->skb->data;
+	ixs->skb->network_header = (struct iphdr *) ixs->skb->data;
 #endif /* NET_21 */
 	ixs->iph->check = 0;
 	ixs->iph->check = ip_fast_csum((unsigned char *)ixs->iph, ixs->iph->ihl);

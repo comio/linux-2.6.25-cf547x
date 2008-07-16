@@ -516,7 +516,7 @@ ipsec_rcv_init(struct ipsec_rcv_state *irs)
 	/* dev->hard_header_len is unreliable and should not be used */
 	/* klips26_rcv_encap will have already set hard_header_len for us */
 	if (irs->hard_header_len == 0) {
-		irs->hard_header_len = skb->mac.raw ? (skb->nh.raw - skb->mac.raw) : 0;
+	  irs->hard_header_len = skb->mac_header ? (skb->network_header - skb->mac_header) : 0;
 		if((irs->hard_header_len < 0) || (irs->hard_header_len > skb_headroom(skb)))
 			irs->hard_header_len = 0;
 	}
@@ -541,7 +541,7 @@ ipsec_rcv_init(struct ipsec_rcv_state *irs)
         }
 #endif /* IP_FRAGMENT_LINEARIZE */
 
-	ipp = skb->nh.iph;
+	ipp = ip_hdr(skb);
 
 #if defined(CONFIG_IPSEC_NAT_TRAVERSAL) && !defined(NET_26)
 	if (irs->natt_len) {
@@ -1078,7 +1078,7 @@ ipsec_rcv_auth_init(struct ipsec_rcv_state *irs)
 	}
 
 	/* ilen counts number of bytes in ESP portion */
-	irs->ilen = ((irs->skb->data + irs->skb->len) - irs->skb->h.raw) - irs->authlen;
+	irs->ilen = ((irs->skb->data + irs->skb->len) - irs->skb->transport_header) - irs->authlen;
 	if(irs->ilen <= 0) {
 	  KLIPS_PRINT(debug_rcv,
 		      "klips_debug:ipsec_rcv: "
@@ -1256,9 +1256,9 @@ ipsec_rcv_decap_cont(struct ipsec_rcv_state *irs)
 	 */
 	skb = irs->skb;
 	irs->len = skb->len;
-	ipp = irs->ipp = skb->nh.iph;
+	ipp = irs->ipp = ip_hdr(skb);
 	irs->iphlen = ipp->ihl<<2;
-	skb->h.raw = skb->nh.raw + irs->iphlen;
+	skb->transport_header = skb->network_header + irs->iphlen;
 
 	/* zero any options that there might be */
 	memset(&(IPCB(skb)->opt), 0, sizeof(struct ip_options));
@@ -1276,7 +1276,7 @@ ipsec_rcv_decap_cont(struct ipsec_rcv_state *irs)
 	ipp->protocol = irs->next_header;
 
 	ipp->check = 0;	/* NOTE: this will be included in checksum */
-	ipp->check = ip_fast_csum((unsigned char *)skb->nh.iph, irs->iphlen >> 2);
+	ipp->check = ip_fast_csum((unsigned char *)ip_hdr(skb), irs->iphlen >> 2);
 
 	KLIPS_PRINT(debug_rcv & DB_RX_PKTRX,
 		    "klips_debug:ipsec_rcv: "
@@ -1566,14 +1566,14 @@ ipsec_rcv_cleanup(struct ipsec_rcv_state *irs)
 			 * options, but also by any UDP/ESP encap there might
 			 * have been, and this deals with all cases.
 			 */
-			skb_pull(skb, (skb->h.raw - skb->nh.raw));
+			skb_pull(skb, skb_network_header_len(skb));
 			
 			/* new L3 header is where L4 payload was */
-			skb->nh.raw = skb->h.raw;
+			skb->network_header = skb->transport_header;
 			
 			/* now setup new L4 payload location */
-			ipp = (struct iphdr *)skb->nh.raw;
-			skb->h.raw = skb->nh.raw + (ipp->ihl << 2);
+			ipp = (struct iphdr *)skb->network_header;
+			skb->transport_header = skb->network_header + (ipp->ihl << 2);
 			
 			
 			/* remove any saved options that we might have,
@@ -1657,12 +1657,12 @@ ipsec_rcv_cleanup(struct ipsec_rcv_state *irs)
 
 	skb->pkt_type = PACKET_HOST;
 	if(irs->hard_header_len &&
-	   (skb->mac.raw != (skb->nh.raw - irs->hard_header_len)) &&
+	   (skb->mac_header != (skb->network_header - irs->hard_header_len)) &&
 	   (irs->hard_header_len <= skb_headroom(skb))) {
 		/* copy back original MAC header */
-		memmove(skb->nh.raw - irs->hard_header_len,
-			skb->mac.raw, irs->hard_header_len);
-		skb->mac.raw = skb->nh.raw - irs->hard_header_len;
+		memmove(skb->network_header - irs->hard_header_len,
+			skb->mac_header, irs->hard_header_len);
+		skb->mac_header = skb->network_header - irs->hard_header_len;
 	}
 	return IPSEC_RCV_OK;
 }
@@ -1720,11 +1720,11 @@ ipsec_rcv_complete(struct ipsec_rcv_state *irs)
 	 * pointers wind up a different for 2.6 vs 2.4, so we just fudge it here.
 	 */
 #ifdef NET_26
-	irs->skb->data = skb_push(irs->skb, irs->skb->h.raw - irs->skb->nh.raw);
+	irs->skb->data = skb_push(irs->skb, irs->skb->transport_header - irs->skb->network_header);
 #else
-	irs->skb->data = irs->skb->nh.raw;
+	irs->skb->data = irs->skb->network_header;
 	{
-	  struct iphdr *iph = irs->skb->nh.iph;
+	  struct iphdr *iph = ip_hdr(irs->skb);
 	  int len = ntohs(iph->tot_len);
 	  irs->skb->len  = len;
 	}
@@ -2072,7 +2072,7 @@ error_alloc:
 // this handles creating and managing state for recv path
 
 static spinlock_t irs_cache_lock = SPIN_LOCK_UNLOCKED;
-static kmem_cache_t *irs_cache_allocator = NULL;
+static struct kmem_cache *irs_cache_allocator = NULL;
 
 int
 ipsec_rcv_state_cache_init (void)
@@ -2084,7 +2084,7 @@ ipsec_rcv_state_cache_init (void)
 
         irs_cache_allocator = kmem_cache_create ("ipsec_irs",
                 sizeof (struct ipsec_rcv_state), 0,
-                0, NULL, NULL);
+                0, NULL);
         if (! irs_cache_allocator)
                 return -ENOMEM;
 

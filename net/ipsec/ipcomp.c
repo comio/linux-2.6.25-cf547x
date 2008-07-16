@@ -145,7 +145,7 @@ struct sk_buff *skb_compress(struct sk_buff *skb, struct ipsec_sa *ips, unsigned
 	}
 	
 #ifdef NET_21
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 #else /* NET_21 */
 	iph = skb->ip_hdr;
 #endif /* NET_21 */
@@ -371,7 +371,7 @@ struct sk_buff *skb_decompress(struct sk_buff *skb, struct ipsec_sa *ips, unsign
 	}
 	
 #ifdef NET_21
-	oiph = skb->nh.iph;
+	oiph = ip_hdr(skb);
 #else /* NET_21 */
 	oiph = skb->ip_hdr;
 #endif /* NET_21 */
@@ -490,7 +490,7 @@ struct sk_buff *skb_decompress(struct sk_buff *skb, struct ipsec_sa *ips, unsign
 #endif /* CONFIG_KLIPS_DEBUG */
 
 #ifdef NET_21
-	iph = nskb->nh.iph;
+	iph = ip_hdr(nskb);
 #else /* NET_21 */
 	iph = nskb->ip_hdr;
 #endif /* NET_21 */
@@ -597,7 +597,7 @@ struct sk_buff *skb_copy_ipcomp(struct sk_buff *skb, int data_growth, int gfp_ma
          */
 	
 #ifdef NET_21
-	iph = skb->nh.iph;
+	iph = ip_hdr(skb);
 #else /* NET_21 */
 	iph = skb->ip_hdr;
 #endif /* NET_21 */
@@ -629,16 +629,16 @@ struct sk_buff *skb_copy_ipcomp(struct sk_buff *skb, int data_growth, int gfp_ma
 	n->prev=NULL;
         n->sk=NULL;
         n->dev=skb->dev;
-	if (skb->h.raw)
-		n->h.raw=skb->h.raw+offset;
+	if (skb->transport_header)
+		n->transport_header=skb->transport_header+offset;
 	else
-		n->h.raw=NULL;
+		n->transport_header=NULL;
         n->protocol=skb->protocol;
 #ifdef NET_21
         n->csum = 0;
         n->priority=skb->priority;
         n->dst=dst_clone(skb->dst);
-        n->nh.raw=skb->nh.raw+offset;
+        n->network_header=skb->network_header+offset;
 #ifndef NETDEV_23
         n->is_clone=0;
 #endif /* NETDEV_23 */
@@ -669,10 +669,10 @@ struct sk_buff *skb_copy_ipcomp(struct sk_buff *skb, int data_growth, int gfp_ma
 	n->users=0;
 	memcpy(n->proto_priv, skb->proto_priv, sizeof(skb->proto_priv));
 #endif /* NET_21 */
-	if (skb->mac.raw)
-		n->mac.raw=skb->mac.raw+offset;
+	if (skb->mac_header)
+		n->mac_header=skb->mac_header+offset;
 	else
-		n->mac.raw=NULL;
+		n->mac_header=NULL;
 #ifndef NETDEV_23
 	n->used=skb->used;
 #endif /* !NETDEV_23 */

@@ -114,7 +114,7 @@ ipsec_rcv_esp_checks(struct ipsec_rcv_state *irs,
 		return IPSEC_RCV_BADLEN;
 	}
 
-	irs->protostuff.espstuff.espp = (struct esphdr *)skb->h.raw;
+	irs->protostuff.espstuff.espp = (struct esphdr *)skb->transport_header;
 	irs->said.spi = irs->protostuff.espstuff.espp->esp_spi;
 
 	return IPSEC_RCV_OK;
@@ -141,7 +141,7 @@ ipsec_rcv_esp_decrypt_setup(struct ipsec_rcv_state *irs,
 		    irs->sa_len ? irs->sa : " (error)");
 
 	*replay = ntohl(espp->esp_rpl);
-	*authenticator = &(skb->h.raw[irs->ilen]);
+	*authenticator = &(skb->transport_header[irs->ilen]);
 
 	return IPSEC_RCV_OK;
 }
@@ -223,7 +223,7 @@ ipsec_rcv_esp_decrypt(struct ipsec_rcv_state *irs)
 
 	skb=irs->skb;
 
-	idat = skb->h.raw;
+	idat = skb->transport_header;
 
 	/* encaplen is the distance between the end of the IP
 	 * header and the beginning of the ESP header.
@@ -233,7 +233,7 @@ ipsec_rcv_esp_decrypt(struct ipsec_rcv_state *irs)
 	 * Note: UDP-encap code has already moved the
 	 *       skb->data forward to accomodate this.
 	 */
-	encaplen = skb->h.raw - (skb->nh.raw + irs->iphlen);
+	encaplen = skb->transport_header - (skb->network_header + irs->iphlen);
 
 	ixt_e=ipsp->ips_alg_enc;
 	irs->esphlen = ESP_HEADER_LEN + ixt_e->ixt_common.ixt_support.ias_ivlen/8;
@@ -278,7 +278,7 @@ ipsec_rcv_esp_post_decrypt(struct ipsec_rcv_state *irs)
 
 	skb = irs->skb;
 
-	idat = skb->h.raw + irs->esphlen;
+	idat = skb->transport_header + irs->esphlen;
 
 	ESP_DMP("postdecrypt", idat, irs->ilen);
 
@@ -341,7 +341,7 @@ ipsec_rcv_esp_post_decrypt(struct ipsec_rcv_state *irs)
 	 *
 	 */
 	memmove((void *)(idat - irs->iphlen),
-		(void *)(skb->nh.raw), irs->iphlen);
+		(void *)(skb->network_header), irs->iphlen);
 
 	ESP_DMP("esp postmove", (idat - irs->iphlen),
 		irs->iphlen + irs->ilen);
@@ -357,8 +357,8 @@ ipsec_rcv_esp_post_decrypt(struct ipsec_rcv_state *irs)
 		return IPSEC_RCV_ESP_DECAPFAIL;
 	}
 	skb_pull(skb, irs->esphlen);
-	skb->nh.raw = idat - irs->iphlen;
-	irs->ipp = skb->nh.iph;
+	skb->network_header = idat - irs->iphlen;
+	irs->ipp = ip_hdr(skb);
 
 	ESP_DMP("esp postpull", skb->data, skb->len);
 
@@ -522,7 +522,7 @@ ipsec_xmit_esp_setup(struct ipsec_xmit_state *ixs)
     return IPSEC_XMIT_AH_BADALG;
   }
 
-  ixs->skb->h.raw = (unsigned char*)espp;
+  ixs->skb->transport_header = (unsigned char*)espp;
 
   return IPSEC_XMIT_OK;
 }

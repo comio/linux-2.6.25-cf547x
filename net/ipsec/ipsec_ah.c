@@ -77,7 +77,7 @@ ipsec_rcv_ah_checks(struct ipsec_rcv_state *irs,
 	ahminlen = irs->hard_header_len + sizeof(struct iphdr);
 
 	/* take care not to deref this pointer until we check the minlen though */
-	irs->protostuff.ahstuff.ahp = (struct ahhdr *)skb->h.raw;
+	irs->protostuff.ahstuff.ahp = (struct ahhdr *)skb->transport_header;
 
 	if((skb->len < ahminlen+sizeof(struct ahhdr)) ||
 	   (skb->len < ahminlen+(irs->protostuff.ahstuff.ahp->ah_hl << 2))) {
@@ -170,7 +170,7 @@ ipsec_rcv_ah_authcalc(struct ipsec_rcv_state *irs,
 
 	/* finally, do the packet contents themselves */
 	(*aa->update)((void*)&tctx,
-		      (caddr_t)skb->h.raw + ahhlen,
+		      (caddr_t)skb->transport_header + ahhlen,
 		      skb->len - ahhlen);
 
 	(*aa->final)(irs->hash, (void *)&tctx);
@@ -201,8 +201,9 @@ ipsec_rcv_ah_decap(struct ipsec_rcv_state *irs)
 	 * move the IP header forward by the size of the AH header, which
 	 * will remove the the AH header from the packet.
 	 */
-	memmove((void *)(skb->nh.raw + ahhlen),
-		(void *)(skb->nh.raw), irs->iphlen);
+	memmove((void *)(skb->network_header + ahhlen),
+		(void *)(skb->network_header), irs->iphlen);
+
 
 	ipsec_rcv_dmp("ah postmove", skb->data, skb->len);
 
@@ -219,10 +220,10 @@ ipsec_rcv_ah_decap(struct ipsec_rcv_state *irs)
 	}
 	skb_pull(skb, ahhlen);
 
-	skb->nh.raw = skb->nh.raw + ahhlen;
-	irs->ipp = skb->nh.iph;
+	skb->network_header = skb->network_header + ahhlen;
+	irs->ipp = ip_hdr(skb);
 
-	ipsec_rcv_dmp("ah postpull", (void *)skb->nh.iph, skb->len);
+	ipsec_rcv_dmp("ah postpull", (void *)ip_hdr(skb), skb->len);
 
 	return IPSEC_RCV_OK;
 }
@@ -315,7 +316,7 @@ ipsec_xmit_ah_setup(struct ipsec_xmit_state *ixs)
     return IPSEC_XMIT_AH_BADALG;
   }
 #ifdef NET_21
-  ixs->skb->h.raw = (unsigned char*)ahp;
+  ixs->skb->transport_header = (unsigned char*)ahp;
 #endif /* NET_21 */
 
   return IPSEC_XMIT_OK;
