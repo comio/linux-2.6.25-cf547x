@@ -64,7 +64,7 @@ obj-$(CONFIG_CRYPTO_AUTHENC) += authenc.o
 obj-$(CONFIG_CRYPTO_LZO) += lzo.o
 
 obj-$(CONFIG_CRYPTO_TEST) += tcrypt.o
-
+obj-$(CONFIG_OCF_OCF) += ocf/
 #
 # generic algorithms and the async_tx api
 #

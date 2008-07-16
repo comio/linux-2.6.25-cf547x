@@ -99,13 +99,14 @@ struct supported_list *pfkey_supported_list[SADB_SATYPE_MAX+1];
 struct socket_list *pfkey_open_sockets = NULL;
 struct socket_list *pfkey_registered_sockets[SADB_SATYPE_MAX+1];
 
+
 int pfkey_msg_interp(struct sock *, struct sadb_msg *, struct sadb_msg **);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+DEBUG_NO_STATIC int pfkey_create(struct net *net, struct socket *sock, int protocol);
+#else
 DEBUG_NO_STATIC int pfkey_create(struct socket *sock, int protocol);
-DEBUG_NO_STATIC int pfkey_shutdown(struct socket *sock, int mode);
-DEBUG_NO_STATIC int pfkey_release(struct socket *sock);
-
-DEBUG_NO_STATIC int pfkey_create(struct socket *sock, int protocol);
+#endif
 DEBUG_NO_STATIC int pfkey_shutdown(struct socket *sock, int mode);
 DEBUG_NO_STATIC int pfkey_release(struct socket *sock);
 
@@ -119,13 +120,24 @@ DEBUG_NO_STATIC int pfkey_recvmsg(struct socket *sock, struct msghdr *msg, int s
 #endif
 
 struct net_proto_family pfkey_family_ops = {
+#ifdef NETDEV_23
+	.family = PF_KEY,
+	.create = pfkey_create,
+#ifdef NET_26
+	.owner  = THIS_MODULE,
+#endif
+#else
 	PF_KEY,
 	pfkey_create
+#endif /*NETDEV_23*/
 };
 
 struct proto_ops SOCKOPS_WRAPPED(pfkey_ops) = {
 #ifdef NETDEV_23
 	family:		PF_KEY,
+#ifdef NET_26
+	owner:          THIS_MODULE,
+#endif
 	release:	pfkey_release,
 	bind:		sock_no_bind,
 	connect:	sock_no_connect,
@@ -641,8 +653,13 @@ static struct proto key_proto = {
 };
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+DEBUG_NO_STATIC int
+pfkey_create(struct net *net, struct socket *sock, int protocol)
+#else
 DEBUG_NO_STATIC int
 pfkey_create(struct socket *sock, int protocol)
+#endif
 {
 	struct sock *sk;
 
@@ -653,7 +670,8 @@ pfkey_create(struct socket *sock, int protocol)
 		return -EINVAL;
 	}
 
-	KLIPS_PRINT(debug_pfkey,
+	//KLIPS_PRINT(debug_pfkey,
+	printk(
 		    "klips_debug:pfkey_create: "
 		    "sock=0p%p type:%d state:%d flags:%ld protocol:%d\n",
 		    sock,
@@ -662,7 +680,8 @@ pfkey_create(struct socket *sock, int protocol)
 		    sock->flags, protocol);
 
 	if(sock->type != SOCK_RAW) {
-		KLIPS_PRINT(debug_pfkey,
+//		KLIPS_PRINT(debug_pfkey,
+		printk(
 			    "klips_debug:pfkey_create: "
 			    "only SOCK_RAW supported.\n");
 		return -ESOCKTNOSUPPORT;
@@ -688,7 +707,11 @@ pfkey_create(struct socket *sock, int protocol)
 
 #ifdef NET_26
 #ifdef NET_26_12_SKALLOC
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+	sk=(struct sock *)sk_alloc(net, PF_KEY, GFP_KERNEL, &key_proto);
+#else
 	sk=(struct sock *)sk_alloc(PF_KEY, GFP_KERNEL, &key_proto, 1);
+#endif
 #else
 	sk=(struct sock *)sk_alloc(PF_KEY, GFP_KERNEL, 1, NULL);
 #endif
@@ -1101,9 +1124,11 @@ pfkey_recvmsg(struct socket *sock
 	}
 
 	skb_copy_datagram_iovec(skb, 0, msg->msg_iov, size);
-#ifdef HAVE_TSTAMP
-	sk->sk_stamp  = skb->tstamp;
-	//sk->sk_stamp.tv_usec = skb->tstamp.off_usec;
+#ifdef HAVE_KERNEL_TSTAMP
+	sk->sk_stamp = skb->tstamp;
+#elif defined(HAVE_TSTAMP)
+//	sk->sk_stamp.tv_sec  = skb->tstamp.off_sec;
+//	sk->sk_stamp.tv_usec = skb->tstamp.off_usec;
 #else
         sk->sk_stamp=skb->stamp;
 #endif
@@ -1116,6 +1141,7 @@ pfkey_recvmsg(struct socket *sock
 #ifndef PROC_FS_2325
 DEBUG_NO_STATIC
 #endif /* PROC_FS_2325 */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
 int
 pfkey_get_info(char *buffer, char **start, off_t offset, int length
 #ifndef  PROC_NO_DUMMY
@@ -1344,6 +1370,164 @@ struct proc_dir_entry proc_net_pfkey_registered =
 	pfkey_registered_get_info
 };
 #endif /* !PROC_FS_2325 */
+#else /*KERNE VERSION*/
+static int pfkey_info_show(struct seq_file *m, void *v)
+{
+#ifdef NET_26
+	struct hlist_node *node;
+#endif
+	struct sock *sk;
+	
+#ifdef CONFIG_KLIPS_DEBUG
+	if(!sysctl_ipsec_debug_verbose) {
+#endif /* CONFIG_KLIPS_DEBUG */
+	seq_printf(m, 
+		      "    sock   pid   socket     next     prev e n p sndbf    Flags     Type St\n");
+#ifdef CONFIG_KLIPS_DEBUG
+	} else {
+	seq_printf(m,
+		      "    sock   pid d    sleep   socket     next     prev e r z n p sndbf    stamp    Flags     Type St\n");
+	}
+#endif /* CONFIG_KLIPS_DEBUG */
+
+	sk_for_each(sk, node, &pfkey_sock_list) {
+
+#ifdef CONFIG_KLIPS_DEBUG
+		if(!sysctl_ipsec_debug_verbose) {
+#endif /* CONFIG_KLIPS_DEBUG */
+		  seq_printf(m,
+					"%8p %5d %8p %d %d %5d %08lX %8X %2X\n",
+					sk,
+					key_pid(sk),
+					sk->sk_socket,
+					sk->sk_err,
+					sk->sk_protocol,
+					sk->sk_sndbuf,
+					sk->sk_socket->flags,
+					sk->sk_socket->type,
+					sk->sk_socket->state);
+#ifdef CONFIG_KLIPS_DEBUG
+		} else {
+		  seq_printf(m,
+					"%8p %5d %d %8p %8p %d %d %d %d %5d %d.%06d %08lX %8X %2X\n",
+					sk,
+					key_pid(sk),
+					sock_flag(sk, SOCK_DEAD),
+					sk->sk_sleep,
+					sk->sk_socket,
+					sk->sk_err,
+					sk->sk_reuse,
+#ifdef HAVE_SOCK_ZAPPED
+					sock_flag(sk, SOCK_ZAPPED),
+#else
+					sk->sk_zapped,
+#endif					
+					sk->sk_protocol,
+					sk->sk_sndbuf,
+					(unsigned int)sk->sk_stamp.tv.sec,
+					(unsigned int)sk->sk_stamp.tv.nsec,
+					sk->sk_socket->flags,
+					sk->sk_socket->type,
+					sk->sk_socket->state);
+		}
+#endif /* CONFIG_KLIPS_DEBUG */
+	}
+	return 0;
+}
+
+static int pfkey_info_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, pfkey_info_show, NULL);
+}
+
+static const struct file_operations pfkey_proc_info = {
+	.open		= pfkey_info_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.owner		= THIS_MODULE,
+};
+
+static int pfkey_supported_show(struct seq_file *m, void *v)
+{
+	int satype;
+	struct supported_list *ps;
+	
+	seq_printf(m,
+		      "satype exttype alg_id ivlen minbits maxbits name\n");
+	
+	for(satype = SADB_SATYPE_UNSPEC; satype <= SADB_SATYPE_MAX; satype++) {
+		ps = pfkey_supported_list[satype];
+		while(ps) {
+			struct ipsec_alg_supported *alg = ps->supportedp;
+			unsigned char *n = alg->ias_name;
+			if(n == NULL) n = "unknown";
+
+			seq_printf(m,
+					      "    %2d      %2d     %2d   %3d     %3d     %3d %20s\n",
+					      satype,
+					      alg->ias_exttype,
+					      alg->ias_id,
+					      alg->ias_ivlen,
+					      alg->ias_keyminbits,
+					      alg->ias_keymaxbits,
+					      n);
+			
+			ps = ps->next;
+		}
+	}
+	return 0;
+}
+
+static int pfkey_supported_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, pfkey_supported_show, NULL);
+}
+
+static const struct file_operations pfkey_proc_supported_info = {
+	.open		= pfkey_supported_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.owner		= THIS_MODULE,
+};
+
+static int pfkey_registered_show(struct seq_file *m, void *v)
+{
+	int satype;
+	struct socket_list *pfkey_sockets;
+	
+	seq_printf(m,
+		      "satype   socket   pid       sk\n");
+	
+	for(satype = SADB_SATYPE_UNSPEC; satype <= SADB_SATYPE_MAX; satype++) {
+		pfkey_sockets = pfkey_registered_sockets[satype];
+		while(pfkey_sockets) {
+			seq_printf(m,
+				     "    %2d %8p %5d %8p\n",
+				     satype,
+				     pfkey_sockets->socketp,
+				     key_pid(pfkey_sockets->socketp->sk),
+				     pfkey_sockets->socketp->sk);
+			pfkey_sockets = pfkey_sockets->next;
+		}
+	}
+	return 0;
+}
+
+static int pfkey_registered_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, pfkey_registered_show, NULL);
+}
+
+static const struct file_operations pfkey_proc_registered_info = {
+	.open		= pfkey_registered_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.owner		= THIS_MODULE,
+};
+#endif /*KERNE VERSION*/
 #endif /* CONFIG_PROC_FS */
 
 DEBUG_NO_STATIC int
@@ -1483,9 +1667,15 @@ pfkey_init(void)
 	error |= proc_register_dynamic(&proc_net, &proc_net_pfkey_registered);
 #    endif /* PROC_FS_21 */
 #  else /* !PROC_FS_2325 */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+	proc_create("pf_key", 0, init_net.proc_net, &pfkey_proc_info);
+	proc_create("pf_key_supported", 0, init_net.proc_net, &pfkey_proc_supported_info);
+	proc_create("pf_key_registered", 0, init_net.proc_net, &pfkey_proc_registered_info);
+#  else /* KERNEL_VERSION */
 	proc_net_create ("pf_key", 0, pfkey_get_info);
 	proc_net_create ("pf_key_supported", 0, pfkey_supported_get_info);
 	proc_net_create ("pf_key_registered", 0, pfkey_registered_get_info);
+#endif
 #  endif /* !PROC_FS_2325 */
 #endif /* CONFIG_PROC_FS */
 
@@ -1520,9 +1710,15 @@ pfkey_cleanup(void)
 		printk("klips_debug:pfkey_cleanup: "
 		       "cannot unregister /proc/net/pf_key_registered\n");
 #  else /* !PROC_FS_2325 */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+	proc_net_remove (&init_net, "pf_key");
+	proc_net_remove (&init_net, "pf_key_supported");
+	proc_net_remove (&init_net, "pf_key_registered");
+#else
 	proc_net_remove ("pf_key");
 	proc_net_remove ("pf_key_supported");
 	proc_net_remove ("pf_key_registered");
+#endif
 #  endif /* !PROC_FS_2325 */
 #endif /* CONFIG_PROC_FS */
 

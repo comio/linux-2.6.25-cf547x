@@ -112,6 +112,10 @@
 #endif
 #include <linux/module.h>
 #include <openswan.h>
+#include <net/ip.h>		/* struct iphdr */
+#include <linux/tcp.h>         /* struct tcphdr */
+#include <linux/udp.h>         /* struct udphdr */
+#include <net/icmp.h>		/* icmp_send() */
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -161,6 +165,8 @@ static void talitos_reset_device_master(struct talitos_softc *sc);
 static void talitos_reset_device(struct talitos_softc *sc);
 static void talitos_errorprocessing(struct talitos_softc *sc,
 						unsigned long chnum);
+static void talitos_print_ip (struct iphdr *ip);
+static void talitos_print_desc(struct talitos_desc *td);
 static int talitos_probe(struct platform_device *pdev);
 static int talitos_remove(struct platform_device *pdev);
 
@@ -190,6 +196,8 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Enable debug");
 
+#define	DPRINTF(a...)	if (debug) { printk(DRV_NAME ": " a); }
+
 static inline void talitos_write(volatile unsigned *addr, u32 val)
 {
 	out_be32(addr, val);
@@ -208,6 +216,15 @@ static void dump_talitos_status(struct talitos_softc *sc)
 	unsigned int v_hi;
 	unsigned int *ptr;
 	unsigned int i;
+
+	v = talitos_read(sc->sc_base_addr + TALITOS_MDEU_ISR);
+	v_hi = talitos_read(sc->sc_base_addr + TALITOS_MDEU_ISR_HI);
+	printk(KERN_INFO DRV_NAME ": MDEU_ISR     0x%08x_%08x\n", v, v_hi);
+
+	v = talitos_read(sc->sc_base_addr + TALITOS_MDEU_ICR);
+	v_hi = talitos_read(sc->sc_base_addr + TALITOS_MDEU_ICR_HI);
+	printk(KERN_INFO DRV_NAME ": MDEU_ICR     0x%08x_%08x\n", v, v_hi);
+
 	v = talitos_read(sc->sc_base_addr + TALITOS_MCR);
 	v_hi = talitos_read(sc->sc_base_addr + TALITOS_MCR_HI);
 	printk(KERN_INFO DRV_NAME ": MCR          0x%08x_%08x\n", v, v_hi);
@@ -411,12 +428,11 @@ talitos_newsession(void *arg, u_int32_t *sidp, struct cryptoini *cri)
 		}
 	}
 	if (sc->sc_sessions == NULL) {
-		sc->sc_sessions = (struct talitos_session *)
-			kmalloc(sizeof(struct talitos_session), GFP_ATOMIC);
 		ses = (struct talitos_session *)
 			kmalloc(sizeof(struct talitos_session), GFP_ATOMIC);
 		if (ses == NULL)
 			return ENOMEM;
+		sc->sc_sessions = ses;
 		memset(ses, 0, sizeof(struct talitos_session));
 		sesn = 0;
 		sc->sc_nsessions = 1;
@@ -546,6 +562,8 @@ talitos_process(void *arg, struct cryptop *crp, int hint)
 	unsigned long r_flags;
 	int status;
 	int rc;
+	u32 addr;
+	u32 *p;
 
 	DPRINTF("%s()\n", __FUNCTION__);
 
@@ -704,6 +722,7 @@ talitos_process(void *arg, struct cryptop *crp, int hint)
 			err = EINVAL;
 			goto errout;
 		}
+		goto hmac_process;
 	} else {
 		if (sc->sc_desc_types & TALITOS_HAS_DT_IPSEC_ESP)
 			td->hdr |= TD_TYPE_IPSEC_ESP;
@@ -938,7 +957,32 @@ talitos_process(void *arg, struct cryptop *crp, int hint)
 		if (enccrd->crd_flags & CRD_F_KEY_EXPLICIT)
 			printk(DRV_NAME ": CRD_F_KEY_EXPLICIT unimplemented\n");
 	}
+
+hmac_process:
 	if (!enccrd && maccrd) {
+		hmac_key = 2;
+		hmac_data = 3;
+		//cipher_iv_out = 6;
+		cipher_iv_out = 5;
+		if (crp->crp_flags & CRYPTO_F_SKBUF) {
+			/* using SKB buffers */
+			struct sk_buff *skb = (struct sk_buff *)crp->crp_buf;
+			if (skb_shinfo(skb)->nr_frags) {
+				printk(DRV_NAME ": skb frags unimplemented\n");
+				err = EINVAL;
+				goto errout;
+			}
+
+			td->ptr[hmac_data].ptr = dma_map_single(NULL, skb->data,
+					skb->len, DMA_TO_DEVICE);
+			td->ptr[hmac_data].len = skb->len;
+
+			td->ptr[cipher_iv_out].ptr = dma_map_single(NULL, skb->data,
+						skb->len, DMA_TO_DEVICE);
+			td->ptr[cipher_iv_out].ptr += maccrd->crd_inject;
+			td->ptr[cipher_iv_out].len = 12;
+		}
+
 		/* single MD5 or SHA */
 		td->hdr |= TALITOS_SEL0_MDEU
 				|  TALITOS_MODE0_MDEU_INIT
@@ -948,19 +992,25 @@ talitos_process(void *arg, struct cryptop *crp, int hint)
 			td->hdr |= TALITOS_MODE0_MDEU_MD5;
 			DPRINTF("MD5  ses %d ch %d len %d\n",
 				(u32)TALITOS_SESSION(crp->crp_sid),
-				chsel, td->ptr[in_fifo].len);
+				chsel, td->ptr[hmac_data].len);
 			break;
 		case	CRYPTO_MD5_HMAC:
 			td->hdr |= TALITOS_MODE0_MDEU_MD5_HMAC;
+			DPRINTF("MD5_HMAC  ses %d ch %d len %d\n",
+				(u32)TALITOS_SESSION(crp->crp_sid),
+				chsel, td->ptr[hmac_data].len);
 			break;
 		case	CRYPTO_SHA1:
 			td->hdr |= TALITOS_MODE0_MDEU_SHA1;
 			DPRINTF("SHA1 ses %d ch %d len %d\n",
 				(u32)TALITOS_SESSION(crp->crp_sid),
-				chsel, td->ptr[in_fifo].len);
+				chsel, td->ptr[hmac_data].len);
 			break;
 		case	CRYPTO_SHA1_HMAC:
 			td->hdr |= TALITOS_MODE0_MDEU_SHA1_HMAC;
+			DPRINTF("SHA1_HMAC  ses %d ch %d len %d\n",
+				(u32)TALITOS_SESSION(crp->crp_sid),
+				chsel, td->ptr[hmac_data].len);
 			break;
 		default:
 			/* We cannot order the SEC as requested */
@@ -976,9 +1026,9 @@ talitos_process(void *arg, struct cryptop *crp, int hint)
 		if ((maccrd->crd_alg == CRYPTO_MD5_HMAC) ||
 		   (maccrd->crd_alg == CRYPTO_SHA1_HMAC)) {
 			td->ptr[hmac_key].ptr = dma_map_single(NULL,
-				ses->ses_hmac, ses->ses_hmac_len,
+				ses->ses_key, ses->ses_klen,
 				DMA_TO_DEVICE);
-			td->ptr[hmac_key].len = ses->ses_hmac_len;
+			td->ptr[hmac_key].len = ses->ses_klen;
 		}
 	} else {
 		/* using process key (session data has duplicate) */
@@ -1000,9 +1050,82 @@ errout:
 	if (err != ERESTART) {
 		crp->crp_etype = err;
 		crypto_done(crp);
-	}
+	} else
+		sc->sc_needwakeup |= CRYPTO_SYMQ;
 	return err;
 }
+
+static void
+talitos_print_ip(struct iphdr *ip)
+{
+#define TALITOS_ADDRTOA_BUF 16
+	char buf[TALITOS_ADDRTOA_BUF];
+	printk("%s: ", __FUNCTION__); 
+	printk(" ihl:%d", ip->ihl << 2);
+	printk(" ver:%d", ip->version);
+	printk(" tos:%d", ip->tos);
+	printk(" tlen:%d", ntohs(ip->tot_len));
+	printk(" id:%d", ntohs(ip->id));
+	printk(" %s%s%sfrag_off:%d",
+               ip->frag_off & __constant_htons(IP_CE) ? "CE " : "",
+               ip->frag_off & __constant_htons(IP_DF) ? "DF " : "",
+               ip->frag_off & __constant_htons(IP_MF) ? "MF " : "",
+               (ntohs(ip->frag_off) & IP_OFFSET) << 3);
+	printk(" ttl:%d", ip->ttl);
+	printk(" proto:%d", ip->protocol);
+	printk(" chk:%d", ntohs(ip->check));
+
+	addrtoa(*((struct in_addr*)(&ip->saddr)), 0, buf, sizeof(buf));
+	printk(" saddr:%s", buf);
+	if(ip->protocol == IPPROTO_UDP)
+		printk(":%d",
+		       ntohs(((struct udphdr*)((caddr_t)ip + (ip->ihl << 2)))->source));
+	if(ip->protocol == IPPROTO_TCP)
+		printk(":%d",
+		       ntohs(((struct tcphdr*)((caddr_t)ip + (ip->ihl << 2)))->source));
+	addrtoa(*((struct in_addr*)(&ip->daddr)), 0, buf, sizeof(buf));
+	printk(" daddr:%s", buf);
+	if(ip->protocol == IPPROTO_UDP)
+		printk(":%d",
+		       ntohs(((struct udphdr*)((caddr_t)ip + (ip->ihl << 2)))->dest));
+	if(ip->protocol == IPPROTO_TCP)
+		printk(":%d",
+		       ntohs(((struct tcphdr*)((caddr_t)ip + (ip->ihl << 2)))->dest));
+	if(ip->protocol == IPPROTO_ICMP)
+		printk(" type:code=%d:%d",
+		       ((struct icmphdr*)((caddr_t)ip + (ip->ihl << 2)))->type,
+		       ((struct icmphdr*)((caddr_t)ip + (ip->ihl << 2)))->code);
+	printk("\n");
+
+}
+
+static void talitos_print_desc(struct talitos_desc *td)
+{
+	u32 *p;
+	printk("hdr = 0x%08x\n", td->hdr);
+
+	printk("0: ptr = 0x%08x\n", td->ptr[0].ptr);
+	printk("0: len = %d\n", td->ptr[0].len);
+
+	printk("1: ptr = 0x%08x\n", td->ptr[1].ptr);
+	printk("1: len = %d\n", td->ptr[1].len);
+
+	printk("2: ptr = 0x%08x\n", td->ptr[2].ptr);
+	printk("2: len = %d\n", td->ptr[2].len);
+
+	printk("3: ptr = 0x%08x\n", td->ptr[3].ptr);
+	printk("3: len = %d\n", td->ptr[3].len);
+
+	printk("4: ptr = 0x%08x\n", td->ptr[4].ptr);
+	printk("4: len = %d\n", td->ptr[4].len);
+
+	printk("5: ptr = 0x%08x\n", td->ptr[5].ptr);
+	printk("5: len = %d\n", td->ptr[5].len);
+
+	printk("6: ptr = 0x%08x\n", td->ptr[6].ptr);
+	printk("6: len = %d\n", td->ptr[6].len);
+}
+
 
 #ifdef TALITOS_TASKLET
 
@@ -1449,6 +1572,12 @@ static int talitos_probe(struct platform_device *pdev)
 		memset(sc->sc_chnfifo[i], 0,
 			sc->sc_chfifo_len * sizeof(struct desc_cryptop_pair));
 	}
+
+#ifdef TALITOS_TASKLET
+	for (i = 0; i < sc->sc_num_channels; i++)
+		for (j = 0; j < sc->sc_chfifo_len; j++)
+			INIT_LIST_HEAD(&sc->sc_chnfifo[i][j].desc_list);
+#endif /* TALITOS_TASKLET */
 
 	/* reset and initialize the SEC h/w device */
 	talitos_reset_device(sc);

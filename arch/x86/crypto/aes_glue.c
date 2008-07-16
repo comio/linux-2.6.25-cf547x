@@ -3,7 +3,7 @@
  *
  */
 
-#include <crypto/aes.h>
+#include <crypto/aes_generic.h>
 
 asmlinkage void aes_enc_blk(struct crypto_tfm *tfm, u8 *out, const u8 *in);
 asmlinkage void aes_dec_blk(struct crypto_tfm *tfm, u8 *out, const u8 *in);

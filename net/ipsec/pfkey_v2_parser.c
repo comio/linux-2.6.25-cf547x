@@ -301,7 +301,11 @@ pfkey_getspi_parse(struct sock *sk, struct sadb_ext **extensions, struct pfkey_e
 		SENDERR(EEXIST);
 	}
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+	if(ip_chk_addr(&init_net, (unsigned long)extr->ips->ips_said.dst.u.v4.sin_addr.s_addr) == IS_MYADDR) {
+#else
 	if(ip_chk_addr((unsigned long)extr->ips->ips_said.dst.u.v4.sin_addr.s_addr) == IS_MYADDR) {
+#endif
 		extr->ips->ips_flags |= EMT_INBOUND;
 	}
 	
@@ -450,7 +454,11 @@ pfkey_update_parse(struct sock *sk, struct sadb_ext **extensions, struct pfkey_e
 		SENDERR(ENOENT);
 	}
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+	if(ip_chk_addr(&init_net, (unsigned long)extr->ips->ips_said.dst.u.v4.sin_addr.s_addr) == IS_MYADDR) {
+#else
 	if(ip_chk_addr((unsigned long)extr->ips->ips_said.dst.u.v4.sin_addr.s_addr) == IS_MYADDR) {
+#endif
 		extr->ips->ips_flags |= EMT_INBOUND;
 	}
 
@@ -719,7 +727,11 @@ pfkey_add_parse(struct sock *sk, struct sadb_ext **extensions, struct pfkey_extr
 		SENDERR(EEXIST);
 	}
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+	if(ip_chk_addr(&init_net, (unsigned long)extr->ips->ips_said.dst.u.v4.sin_addr.s_addr) == IS_MYADDR) {
+#else
 	if(ip_chk_addr((unsigned long)extr->ips->ips_said.dst.u.v4.sin_addr.s_addr) == IS_MYADDR) {
+#endif
 		extr->ips->ips_flags |= EMT_INBOUND;
 	}
 

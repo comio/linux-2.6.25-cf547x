@@ -138,7 +138,7 @@
 #define TALITOS_ID		0x1020
 #define TALITOS_ID_HI		0x1024
 #define TALITOS_MCR		0x1030		/* master control register */
-#define TALITOS_MCR_HI		0x1038		/* master control register */
+#define TALITOS_MCR_HI		0x1034		/* master control register */
 #define TALITOS_MCR_SWR		0x1
 #define TALITOS_IMR		0x1008		/* interrupt mask register */
 #define TALITOS_IMR_ALL		0x00010fff	/* enable all interrupts mask */
@@ -152,6 +152,12 @@
 #define TALITOS_ISR_HI		0x1014		/* interrupt status register */
 #define TALITOS_ICR		0x1018		/* interrupt clear register */
 #define TALITOS_ICR_HI		0x101C		/* interrupt clear register */
+#define TALITOS_MDEU_ISR	0x6030		/* mdeu interrupt status register */
+#define TALITOS_MDEU_ISR_HI	0x6034		/* mdeu interrupt status register */
+
+#define TALITOS_MDEU_ICR	0x6038		/* mdeu interrupt status register */
+#define TALITOS_MDEU_ICR_HI	0x603c		/* mdeu interrupt control register */
+
 
 /* channel register address stride */
 #define TALITOS_CH_OFFSET	0x100
@@ -276,4 +282,3 @@ struct talitos_desc {
 
 #define TALITOS_HDR_DONE_BITS	0xff000000
 
-#define	DPRINTF(a...)	if (debug) { printk(DRV_NAME ": " a); }

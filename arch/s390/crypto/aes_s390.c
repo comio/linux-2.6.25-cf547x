@@ -17,7 +17,7 @@
  *
  */
 
-#include <crypto/aes.h>
+#include <crypto/aes_generic.h>
 #include <crypto/algapi.h>
 #include <linux/err.h>
 #include <linux/module.h>

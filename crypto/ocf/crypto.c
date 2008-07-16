@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD: src/sys/opencrypto/crypto.c,v 1.16 2005/01/07 02:29:16 imp E
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+//#include <linux/slub_def.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
@@ -128,8 +129,8 @@ static spinlock_t crypto_ret_q_lock;
 				spin_unlock_irqrestore(&crypto_ret_q_lock, r_flags); \
 			 })
 
-static kmem_cache_t *cryptop_zone;
-static kmem_cache_t *cryptodesc_zone;
+static struct kmem_cache *cryptop_zone;
+static struct kmem_cache *cryptodesc_zone;
 
 static int debug = 0;
 module_param(debug, int, 0644);
@@ -1901,9 +1902,9 @@ crypto_init(void)
 	spin_lock_init(&crypto_ret_q_lock);
 
 	cryptop_zone = kmem_cache_create("cryptop", sizeof(struct cryptop),
-				       0, SLAB_HWCACHE_ALIGN, NULL, NULL);
+				       0, SLAB_HWCACHE_ALIGN, NULL);
 	cryptodesc_zone = kmem_cache_create("cryptodesc", sizeof(struct cryptodesc),
-				       0, SLAB_HWCACHE_ALIGN, NULL, NULL);
+				       0, SLAB_HWCACHE_ALIGN, NULL);
 	if (cryptodesc_zone == NULL || cryptop_zone == NULL) {
 		printk("crypto: crypto_init cannot setup crypto zones\n");
 		error = ENOMEM;

@@ -47,7 +47,7 @@
  * ---------------------------------------------------------------------------
  */
 
-#include <crypto/aes.h>
+#include <crypto/aes_generic.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>

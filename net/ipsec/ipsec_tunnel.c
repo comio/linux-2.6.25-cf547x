@@ -65,6 +65,7 @@ char ipsec_tunnel_c_version[] = "RCSID $Id: ipsec_tunnel.c,v 1.234 2005/11/11 04
 #ifdef NETDEV_23
 # include <linux/netfilter_ipv4.h>
 #endif /* NETDEV_23 */
+#define NF_IP_LOCAL_OUT               3
 
 #include <linux/if_arp.h>
 #include <net/arp.h>
@@ -159,9 +160,13 @@ ipsec_tunnel_close(struct net_device *dev)
 static inline int ipsec_tunnel_xmit2(struct sk_buff *skb)
 {
 	sendip_called++;
+	KLIPS_PRINT(debug_tunnel ,
+		    "klips_debug:ipsec_tunnel_xmit2: %d\n",__LINE__);
 	if(atomic_read(&skb->users) > 1) {
 		printk("tunnel_xmit2: users=%u\n", atomic_read(&skb->users));
 	}
+	KLIPS_PRINT(debug_tunnel ,
+		    "klips_debug:ipsec_tunnel_xmit2: %d\n",__LINE__);
 	return dst_output(skb);
 }
 
@@ -358,8 +363,11 @@ ipsec_tunnel_SAlookup(struct ipsec_xmit_state *ixs)
 	 * cheat for now...are we udp/500? If so, let it through
 	 * without interference since it is most likely an IKE packet.
 	 */
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+	if (ip_chk_addr(&init_net, (unsigned long)ixs->iph->saddr) == IS_MYADDR
+#else
 	if (ip_chk_addr((unsigned long)ixs->iph->saddr) == IS_MYADDR
+#endif
 	    && (ixs->eroute==NULL
 		|| ixs->iph->daddr == ixs->eroute->er_said.dst.u.v4.sin_addr.s_addr
 		|| INADDR_ANY == ixs->eroute->er_said.dst.u.v4.sin_addr.s_addr)
@@ -391,7 +399,11 @@ ipsec_tunnel_SAlookup(struct ipsec_xmit_state *ixs)
 	 *
 	 */
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+	if (ip_chk_addr(&init_net, (unsigned long)ixs->iph->saddr) == IS_MYADDR
+#else
 	if (ip_chk_addr((unsigned long)ixs->iph->saddr) == IS_MYADDR
+#endif
 	    && (ixs->eroute==NULL
 		|| ixs->iph->daddr == ixs->eroute->er_said.dst.u.v4.sin_addr.s_addr
 		|| INADDR_ANY == ixs->eroute->er_said.dst.u.v4.sin_addr.s_addr)
@@ -606,7 +618,11 @@ ipsec_tunnel_send(struct ipsec_xmit_state*ixs)
  	fl.nl_u.ip4_u.saddr = ixs->pass ? 0 : ip_hdr(ixs->skb)->saddr;
  	fl.nl_u.ip4_u.tos = RT_TOS(ip_hdr(ixs->skb)->tos);
  	fl.proto = ip_hdr(ixs->skb)->protocol;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+ 	if ((ixs->error = ip_route_output_key(&init_net, &ixs->route, &fl))) {
+#else
  	if ((ixs->error = ip_route_output_key(&ixs->route, &fl))) {
+#endif
 		ixs->stats->tx_errors++;
 		KLIPS_PRINT(debug_tunnel & DB_TN_XMIT,
 			    "klips_debug:ipsec_xmit_send: "
@@ -669,6 +685,8 @@ ipsec_tunnel_send(struct ipsec_xmit_state*ixs)
 			return IPSEC_XMIT_IPSENDFAILURE;
 		}
 	}
+	KLIPS_PRINT(debug_tunnel ,
+		    "klips_debug:ipsec_xmit_send: %d\n",__LINE__);
 	ixs->stats->tx_packets++;
 
 	ixs->skb = NULL;
@@ -852,11 +870,15 @@ ipsec_tunnel_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	ixs->xsm_complete = ipsec_tunnel_xsm_complete;
 
+	KLIPS_PRINT(debug_tunnel ,
+		    "klips_debug:ipsec_tunnel_start_xmit: %d\n",__LINE__);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 	ipsec_xsm(&ixs->workq);
 #else
 	ipsec_xsm(ixs);
 #endif
+	KLIPS_PRINT(debug_tunnel ,
+		    "klips_debug:ipsec_tunnel_start_xmit: %d\n",__LINE__);
 	return 0;
 
 cleanup:
@@ -873,6 +895,7 @@ ipsec_tunnel_get_stats(struct net_device *dev)
 	return &(((struct ipsecpriv *)(dev->priv))->mystats);
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
 /*
  * Revectored calls.
  * For each of these calls, a field exists in our private structure.
@@ -1082,6 +1105,7 @@ ipsec_tunnel_rebuild_header(void *buff, struct net_device *dev,
 	skb->dev = tmp;
 	return ret;
 }
+#endif
 
 DEBUG_NO_STATIC int
 ipsec_tunnel_set_mac_address(struct net_device *dev, void *addr)
@@ -1293,6 +1317,7 @@ ipsec_tunnel_attach(struct net_device *dev, struct net_device *physdev)
 	prv->hard_start_xmit = physdev->hard_start_xmit;
 	prv->get_stats = physdev->get_stats;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
 	if (physdev->hard_header) {
 		prv->hard_header = physdev->hard_header;
 		dev->hard_header = ipsec_tunnel_hard_header;
@@ -1304,6 +1329,7 @@ ipsec_tunnel_attach(struct net_device *dev, struct net_device *physdev)
 		dev->rebuild_header = ipsec_tunnel_rebuild_header;
 	} else
 		dev->rebuild_header = NULL;
+#endif /* KERNEL_VERSION */
 	
 	if (physdev->set_mac_address) {
 		prv->set_mac_address = physdev->set_mac_address;
@@ -1319,11 +1345,13 @@ ipsec_tunnel_attach(struct net_device *dev, struct net_device *physdev)
 		dev->header_cache_bind = NULL;
 #endif /* !NET_21 */
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
 	if (physdev->header_cache_update) {
 		prv->header_cache_update = physdev->header_cache_update;
 		dev->header_cache_update = ipsec_tunnel_cache_update;
 	} else
 		dev->header_cache_update = NULL;
+#endif /* KERNEL_VERSION */
 
 	dev->hard_header_len = physdev->hard_header_len;
 
@@ -1515,7 +1543,11 @@ ipsec_tunnel_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		realphysname[IFNAMSIZ-1] = 0;
 		colon = strchr(realphysname, ':');
 		if (colon) *colon = 0;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+		them = ipsec_dev_get(&init_net, realphysname);
+#else
 		them = ipsec_dev_get(realphysname);
+#endif
 #else /* CONFIG_IP_ALIAS */
 		them = ipsec_dev_get(&init_net, cf->cf_name);
 #endif /* CONFIG_IP_ALIAS */
@@ -1768,13 +1800,17 @@ ipsec_tunnel_init(struct net_device *dev)
 
 	dev->set_multicast_list = NULL;
 	dev->do_ioctl		= ipsec_tunnel_ioctl;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
 	dev->hard_header	= NULL;
 	dev->rebuild_header     = NULL;
+#endif
 	dev->set_mac_address 	= NULL;
 #ifndef NET_21
 	dev->header_cache_bind 	= NULL;
 #endif /* !NET_21 */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
 	dev->header_cache_update= NULL;
+#endif
 
 #ifdef NET_21
 /*	prv->neigh_setup        = NULL; */

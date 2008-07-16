@@ -58,7 +58,7 @@ static int null_newsession(void *, u_int32_t *, struct cryptoini *);
 static int null_freesession(void *, u_int64_t);
 
 static int debug = 0;
-MODULE_PARM(debug, "i");
+module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Enable debug");
 
 /*

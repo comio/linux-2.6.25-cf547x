@@ -55,7 +55,7 @@
 #ifdef FIPS_TEST_RNG
 #include "rndtest.h"
 #endif
-
+#define HAS_RANDOM_INPUT_WAIT
 #ifndef HAS_RANDOM_INPUT_WAIT
 #error "Please do not enable OCF_RANDOMHARVEST unless you have applied patches"
 #endif

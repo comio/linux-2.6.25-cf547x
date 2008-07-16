@@ -652,7 +652,11 @@ ipsec_rcv_init(struct ipsec_rcv_state *irs)
 					    "Info -- pkt already proc'ed a group of ipsec headers, processing next group of ipsec headers.\n");
 				break;
 			}
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+			if((ipsecdev = __ipsec_dev_get(&init_net, name)) == NULL) {
+#else
 			if((ipsecdev = __ipsec_dev_get(name)) == NULL) {
+#endif
 				KLIPS_PRINT(debug_rcv,
 					    "klips_error:ipsec_rcv: "
 					    "device %s does not exist\n",
@@ -1745,6 +1749,7 @@ ipsec_rcv_complete(struct ipsec_rcv_state *irs)
 		    "klips_debug:ipsec_rcv: "
 		    "netif_rx() called.\n");
 	netif_rx(irs->skb);
+//	netif_receive_skb(irs->skb);
 	irs->skb=NULL;
 
 	return IPSEC_RCV_OK;
@@ -1783,7 +1788,14 @@ ipsec_rsm(struct ipsec_rcv_state *irs)
 	/*
 	 * make sure nothing is removed from underneath us
 	 */
-	spin_lock_bh(&tdb_lock);
+//#ifdef CONFIG_SMP
+	if(irs->state == IPSEC_RSM_INIT)
+//#endif
+	{
+	KLIPS_PRINT(debug_rcv,
+		    "klips_debug:ipsec_rsm lock tdb_lock\n");
+		spin_lock_bh(&tdb_lock);
+	}
 
 	KLIPS_PRINT(debug_rcv, "klips_debug:ipsec_rsm(%p)\n",irs);
 
@@ -1835,9 +1847,14 @@ ipsec_rsm(struct ipsec_rcv_state *irs)
 			KLIPS_PRINT(debug_rcv,
 				    "klips_debug:ipsec_rsm: (%p) processing suspended at state=%u\n", irs, irs->state);
 
-			spin_unlock_bh(&tdb_lock);
+//#ifdef CONFIG_SMP
+//	if(irs->state != IPSEC_RSM_DONE)
+//#endif
+//			spin_unlock_bh(&tdb_lock);
 
 			rsm_exit2++;
+			KLIPS_PRINT(debug_rcv,
+				    "klips_debug:ipsec_rsm: processing suspended at state=%u return\n", irs->state);
 			return;
 		} else {
 			/* bad result, force state change to done */
@@ -1851,7 +1868,14 @@ ipsec_rsm(struct ipsec_rcv_state *irs)
 	/*
 	 * all done with anything needing locks
 	 */
-	spin_unlock_bh(&tdb_lock);
+//#ifdef CONFIG_SMP
+	if(irs->state == IPSEC_RSM_DONE)
+//#endif
+	{
+	KLIPS_PRINT(debug_rcv,
+		    "klips_debug:ipsec_rsm unlock tdb_lock\n");
+		spin_unlock_bh(&tdb_lock);
+	}
 
 	if (irs->skb) {
 		ipsec_kfree_skb(irs->skb);
@@ -1963,6 +1987,8 @@ ipsec_rcv(struct sk_buff *skb
 	ipsec_rsm(irs);
 #endif
 
+	KLIPS_PRINT(debug_rcv,
+		    "klips_debug:ipsec_rcv: return\n");
   	return(0);
 
 error_alloc:
@@ -2043,10 +2069,14 @@ int klips26_rcv_encap(struct sk_buff *skb, __u16 encap_type)
 	 */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 	ipsec_rsm(&irs->workq);
+	KLIPS_PRINT(debug_rcv,
+		    "klips_debug:klips26_rcv_encap: return\n");
 #else
 	ipsec_rsm(irs);
 #endif
 
+	KLIPS_PRINT(debug_rcv,
+		    "klips_debug:klips26_rcv_encap: return\n");
 	/* empty any saved SKBs */
 	ipsec_skb_gc_flush();
 

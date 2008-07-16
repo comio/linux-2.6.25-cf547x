@@ -35,7 +35,7 @@
 #include <linux/ktime.h>
 
 #include <crypto/algapi.h>
-#include <crypto/des.h>
+#include <crypto/des_generic.h>
 
 #include <asm/kmap_types.h>
 

@@ -20,7 +20,7 @@
 #include <linux/crypto.h>
 #include <linux/types.h>
 
-#include <crypto/des.h>
+#include <crypto/des_generic.h>
 
 #define ROL(x, r) ((x) = rol32((x), (r)))
 #define ROR(x, r) ((x) = ror32((x), (r)))

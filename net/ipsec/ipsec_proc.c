@@ -587,7 +587,11 @@ ipsec_tncfg_get_info(char *buffer,
 
 	for(i = 0; i < IPSEC_NUM_IF; i++) {
 		ipsec_snprintf(name, (ssize_t) sizeof(name), IPSEC_DEV_FORMAT, i);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+		dev = __ipsec_dev_get(&init_net,name);
+#else
 		dev = __ipsec_dev_get(name);
+#endif
 		if(dev) {
 			priv = (struct ipsecpriv *)(dev->priv);
 			len += ipsec_snprintf(buffer+len, length-len, "%s",
@@ -971,8 +975,11 @@ ipsec_proc_init()
 	/* zero these out before we initialize /proc/net/ipsec/birth/stuff */
 	memset(&ipsec_ipv4_birth_packet, 0, sizeof(struct ipsec_birth_reply));
 	memset(&ipsec_ipv6_birth_packet, 0, sizeof(struct ipsec_birth_reply));
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+	proc_net_ipsec_dir = proc_mkdir("ipsec", init_net.proc_net);
+#else
 	proc_net_ipsec_dir = proc_mkdir("ipsec", proc_net);
+#endif
 	if(proc_net_ipsec_dir == NULL) {
 		/* no point in continuing */
 		return 1;
@@ -1005,12 +1012,21 @@ ipsec_proc_init()
 	}
 	
 	/* now create some symlinks to provide compatibility */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+	proc_symlink("ipsec_eroute", init_net.proc_net, "ipsec/eroute/all");
+	proc_symlink("ipsec_spi",    init_net.proc_net, "ipsec/spi/all");
+	proc_symlink("ipsec_spigrp", init_net.proc_net, "ipsec/spigrp/all");
+	proc_symlink("ipsec_tncfg",  init_net.proc_net, "ipsec/tncfg");
+	proc_symlink("ipsec_version",init_net.proc_net, "ipsec/version");
+	proc_symlink("ipsec_klipsdebug",init_net.proc_net,"ipsec/klipsdebug");
+#else
 	proc_symlink("ipsec_eroute", proc_net, "ipsec/eroute/all");
 	proc_symlink("ipsec_spi",    proc_net, "ipsec/spi/all");
 	proc_symlink("ipsec_spigrp", proc_net, "ipsec/spigrp/all");
 	proc_symlink("ipsec_tncfg",  proc_net, "ipsec/tncfg");
 	proc_symlink("ipsec_version",proc_net, "ipsec/version");
-	proc_symlink("ipsec_klipsdebug",proc_net,"ipsec/klipsdebug");
+	proc_symlink("ipsec_klipsdebug",proc_net,"ipsec/klipsdebug")
+#endif
 
 #endif /* !PROC_FS_2325 */
 
@@ -1065,7 +1081,17 @@ ipsec_proc_cleanup()
 		} while(it >= proc_items);
 	}
 
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
+#ifdef CONFIG_KLIPS_DEBUG
+        remove_proc_entry("ipsec_klipsdebug", init_net.proc_net);
+#endif /* CONFIG_KLIPS_DEBUG */
+        remove_proc_entry("ipsec_eroute",     init_net.proc_net);
+        remove_proc_entry("ipsec_spi",        init_net.proc_net);
+        remove_proc_entry("ipsec_spigrp",     init_net.proc_net);
+        remove_proc_entry("ipsec_tncfg",      init_net.proc_net);
+        remove_proc_entry("ipsec_version",    init_net.proc_net);
+        remove_proc_entry("ipsec",            init_net.proc_net);
+#else
 #ifdef CONFIG_KLIPS_DEBUG
 	remove_proc_entry("ipsec_klipsdebug", proc_net);
 #endif /* CONFIG_KLIPS_DEBUG */
@@ -1075,6 +1101,7 @@ ipsec_proc_cleanup()
 	remove_proc_entry("ipsec_tncfg",      proc_net);
 	remove_proc_entry("ipsec_version",    proc_net);
 	remove_proc_entry("ipsec",            proc_net);
+#endif
 #endif /* 2.4 kernel */
 }
 
