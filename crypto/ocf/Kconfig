@@ -84,11 +84,8 @@ config OCF_HIFNHIPP
 	  OCF driver for various HIFN based crypto accelerators (HIPP)
 	  (7855)
 
-config OCF_TALITOS
-	tristate "talitos (HW crypto engine)"
-	depends on OCF_OCF
-	help
-	  OCF driver for Freescale's security engine (SEC/talitos).
+source "crypto/ocf/talitos/Kconfig"
+source "crypto/ocf/sectest/Kconfig"
 
 config OCF_BENCH
 	tristate "ocf-bench (HW crypto in-kernel benchmark)"

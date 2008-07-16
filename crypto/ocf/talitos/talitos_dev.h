@@ -27,21 +27,22 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-
+#define FSL_SEC11_MCF547X_8X 1
 /* device ID register values */
-#define TALITOS_ID_SEC_2_0	0x40
-#define TALITOS_ID_SEC_2_1	0x40 /* cross ref with IP block revision reg */
-#define TALITOS_ID_SEC_2_0_1    (0x00000041)  /* low word  - MPC8349E */
-#define TALITOS_ID_SEC_2_1_0    (0x00000080)  /* low word  - original MPC8548 */
-#define TALITOS_ID_SEC_2_1_1    (0x0030010100000000)  /* high word - MPC8548 */
-#define TALITOS_ID_SEC_2_1_2    (0x0030010200000000)  /* high word - MPC8548 */
-#define TALITOS_ID_SEC_2_2_0    (0x000000a0)  /* low word  - future use */
-#define TALITOS_ID_SEC_2_2_1    (0x0030020000000000) /* future use */
-#define TALITOS_ID_SEC_2_5_0    (0x0030050100000000) /* future use */
+#define TALITOS_ID_SEC_1_1                     (0x09000000)  /* MCF547x and MCF548x */
+#define TALITOS_ID_SEC_2_0	                      0x40
+#define TALITOS_ID_SEC_2_1	                      0x40   /* cross ref with IP block revision reg */
+#define TALITOS_ID_SEC_2_0_1                   (0x00000041)  /* low word  - MPC8349E */
+#define TALITOS_ID_SEC_2_1_0                   (0x00000080)  /* low word  - original MPC8548 */
+#define TALITOS_ID_SEC_2_1_1           (0x0030010100000000)  /* high word - MPC8548 */
+#define TALITOS_ID_SEC_2_1_2           (0x0030010200000000)  /* high word - MPC8548 */
+#define TALITOS_ID_SEC_2_2_0                   (0x000100a0)  /* low word  - future use */
+#define TALITOS_ID_SEC_2_2_1           (0x0030020000000000)  /* high word - future use */
+#define TALITOS_ID_SEC_2_5_0           (0x0030050100000000)  /* high word - future use */
 #define TALITOS
 
 /*
- * following num_channels, channel-fifo-depth, exec-unit-mask, and
+ * following num_channels, channel-fifo-depth, exec-unit-mask, and 
  * descriptor-types-mask are for forward-compatibility with openfirmware
  * flat device trees
  */
@@ -52,10 +53,12 @@
 
 /* n.b. this driver requires these values be a power of 2 */
 #define TALITOS_NCHANNELS_SEC_1_0	4
+#define TALITOS_NCHANNELS_SEC_1_1       2
 #define TALITOS_NCHANNELS_SEC_1_2	1
 #define TALITOS_NCHANNELS_SEC_2_0	4
 #define TALITOS_NCHANNELS_SEC_2_01	4
 #define TALITOS_NCHANNELS_SEC_2_1	4
+#define TALITOS_NCHANNELS_SEC_2_2	1
 #define TALITOS_NCHANNELS_SEC_2_4	4
 
 /*
@@ -63,17 +66,19 @@
  *  pointers a channel fetch fifo can hold.
  */
 #define TALITOS_CHFIFOLEN_SEC_1_0	1
+#define TALITOS_CHFIFOLEN_SEC_1_1       1
 #define TALITOS_CHFIFOLEN_SEC_1_2	1
 #define TALITOS_CHFIFOLEN_SEC_2_0	24
 #define TALITOS_CHFIFOLEN_SEC_2_01	24
 #define TALITOS_CHFIFOLEN_SEC_2_1	24
+#define TALITOS_CHFIFOLEN_SEC_2_2	24
 #define TALITOS_CHFIFOLEN_SEC_2_4	24
 
-/*
+/* 
  *  exec-unit-mask : The bitmask representing what Execution Units (EUs)
- *  are available. EU information should be encoded following the SEC's
+ *  are available. EU information should be encoded following the SEC's 
  *  EU_SEL0 bitfield documentation, i.e. as follows:
- *
+ * 
  *    bit 31 = set if SEC permits no-EU selection (should be always set)
  *    bit 30 = set if SEC has the ARC4 EU (AFEU)
  *    bit 29 = set if SEC has the des/3des EU (DEU)
@@ -82,7 +87,7 @@
  *    bit 26 = set if SEC has the public key EU (PKEU)
  *    bit 25 = set if SEC has the aes EU (AESU)
  *    bit 24 = set if SEC has the Kasumi EU (KEU)
- *
+ * 
  */
 #define TALITOS_HAS_EU_NONE		(1<<0)
 #define TALITOS_HAS_EU_AFEU		(1<<1)
@@ -95,16 +100,18 @@
 
 /* the corresponding masks for each SEC version */
 #define TALITOS_HAS_EUS_SEC_1_0		0x7f
-#define TALITOS_HAS_EUS_SEC_1_2		0x4d
+#define TALITOS_HAS_EUS_SEC_1_1		0x5e
+#define TALITOS_HAS_EUS_SEC_1_2         0x4d
 #define TALITOS_HAS_EUS_SEC_2_0		0x7f
 #define TALITOS_HAS_EUS_SEC_2_01	0x7f
 #define TALITOS_HAS_EUS_SEC_2_1		0xff
+#define TALITOS_HAS_EUS_SEC_2_2		0x4c
 #define TALITOS_HAS_EUS_SEC_2_4		0x7f
 
 /*
  *  descriptor-types-mask : The bitmask representing what descriptors
- *  are available. Descriptor type information should be encoded
- *  following the SEC's Descriptor Header Dword DESC_TYPE field
+ *  are available. Descriptor type information should be encoded 
+ *  following the SEC's Descriptor Header Dword DESC_TYPE field 
  *  documentation, i.e. as follows:
  *
  *    bit 0  = set if SEC supports the aesu_ctr_nonsnoop desc. type
@@ -127,38 +134,97 @@
 #define TALITOS_HAS_DT_COMMON_NONSNOOP		(1<<2)
 
 /* the corresponding masks for each SEC version */
+#define TALITOS_HAS_DESCTYPES_SEC_1_1   0x33003334
 #define TALITOS_HAS_DESCTYPES_SEC_2_0	0x01010ebf
 #define TALITOS_HAS_DESCTYPES_SEC_2_1	0x012b0ebf
+#define TALITOS_HAS_DESCTYPES_SEC_2_2	0x0122003f
 
-/*
+/* 
  * a TALITOS_xxx_HI address points to the low data bits (32-63) of the register
  */
-
+#ifdef FSL_SEC11_MCF547X_8X
 /* global register offset addresses */
-#define TALITOS_ID		0x1020
-#define TALITOS_ID_HI		0x1024
-#define TALITOS_MCR		0x1030		/* master control register */
-#define TALITOS_MCR_HI		0x1034		/* master control register */
-#define TALITOS_MCR_SWR		0x1
+#define TALITOS_EUACR           0x1000          /* EU Assaginment controller register is useless*/
+#define TALITOS_EUACR_HI        0x1004		/* EU Assaginment controller register is useless*/
+
 #define TALITOS_IMR		0x1008		/* interrupt mask register */
-#define TALITOS_IMR_ALL		0x00010fff	/* enable all interrupts mask */
-#define TALITOS_IMR_ERRONLY	0x00010aaa	/* enable error interrupts */
+#define TALITOS_IMR_ALL		0xf8000000	/* enable all interrupts mask */
+#define TALITOS_IMR_ERRONLY	0xa8000000	/* enable error interrupts */
+#define TALITOS_IMR_DONEONLY    0x50000000      /* enable done interrupts */
 #define TALITOS_IMR_HI		0x100C		/* interrupt mask register */
-#define TALITOS_IMR_HI_ALL	0x00323333	/* enable all interrupts mask */
-#define TALITOS_IMR_HI_ERRONLY	0x00222222	/* enable error interrupts */
+#define TALITOS_IMR_HI_ALL	0x03333340	/* enable all channel interrupts mask */
+#define TALITOS_IMR_HI_ERRONLY	0x00222240	/* enable error interrupts */
+#define TALITOS_IMR_HI_DONEONLY 0x00111100      /* enable done interrupts */
+
 #define TALITOS_ISR		0x1010		/* interrupt status register */
-#define TALITOS_ISR_ERROR	0x00010faa	/* errors mask */
-#define TALITOS_ISR_DONE	0x00000055	/* channel(s) done mask */
+#define TALITOS_ISR_ERROR	0xa8000000	/* errors mask */
+#define TALITOS_ISR_DONE	0x50000000	/* channel(s) done mask */
 #define TALITOS_ISR_HI		0x1014		/* interrupt status register */
+
 #define TALITOS_ICR		0x1018		/* interrupt clear register */
 #define TALITOS_ICR_HI		0x101C		/* interrupt clear register */
-#define TALITOS_MDEU_ISR	0x6030		/* mdeu interrupt status register */
-#define TALITOS_MDEU_ISR_HI	0x6034		/* mdeu interrupt status register */
 
-#define TALITOS_MDEU_ICR	0x6038		/* mdeu interrupt status register */
-#define TALITOS_MDEU_ICR_HI	0x603c		/* mdeu interrupt control register */
+#define TALITOS_ID              0x1020
+#define TALITOS_ID_HI           0x1024
 
+#define TALITOS_EUASR           0x1028          /* EU Assaginment status register is useless*/
+#define TALITOS_EUASR_HI        0x102C          /* EU Assaginment status register is useless*/
 
+#define TALITOS_MCR             0x1030          /* master control register */
+#define TALITOS_MCR_HI          0x1038          /* master control register */
+#define TALITOS_MCR_SWR         0x01000000
+#else
+/* global register offset addresses */
+#define TALITOS_EUACR           0x1000          /* EU Assaginment controller register*/
+#define TALITOS_EUACR_HI        0x1004          /* EU Assaginment controller register*/
+#define TALITOS_IMR             0x1008          /* interrupt mask register */
+#define TALITOS_IMR_ALL         0x00010fff      /* enable all interrupts mask */
+#define TALITOS_IMR_ERRONLY     0x00010aaa      /* enable error interrupts */
+#define TALITOS_IMR_HI          0x100C          /* interrupt mask register */
+#define TALITOS_IMR_HI_ALL      0x00020000      /* enable all channel interrupts mask */
+#define TALITOS_IMR_HI_ERRONLY  0x00222222      /* enable error interrupts */
+#define TALITOS_ISR             0x1010          /* interrupt status register */
+#define TALITOS_ISR_ERROR       0x00010faa      /* errors mask */
+#define TALITOS_ISR_DONE        0x00000055      /* channel(s) done mask */
+#define TALITOS_ISR_HI          0x1014          /* interrupt status register */
+#define TALITOS_ICR             0x1018          /* interrupt clear register */
+#define TALITOS_ICR_HI          0x101C          /* interrupt clear register */
+#define TALITOS_ID              0x1020
+#define TALITOS_ID_HI           0x1024
+#define TALITOS_EUASR           0x1028          /* EU Assaginment status register*/
+#define TALITOS_EUASR_HI        0x102C          /* EU Assaginment status register*/
+#define TALITOS_MCR             0x1030          /* master control register */
+#define TALITOS_MCR_HI          0x1038          /* master control register */
+#define TALITOS_MCR_SWR         0x1
+#endif
+/*
+ * In fact, both ocf sec2 driver and sec1.1 driver of 2.6.10-mcf547x do not static assignment any EU to any channel
+ * so the TALITOS_EUACR and TALITOS_EUASR are not used in driver.
+ */
+#ifdef FSL_SEC11_MCF547X_8X
+/* channel register address stride */
+#define TALITOS_CH_OFFSET       0x1000
+
+/* channel register offset addresses and bits */
+#define TALITOS_CH_CCCR         0x200c  /* Crypto-Channel Config Register */
+#define TALITOS_CH_CCCR_RESET   0x1     /* Channel Reset bit */
+#define TALITOS_CH_CCCR_CDWE    0x10    /* Channel done writeback enable bit */
+#define TALITOS_CH_CCCR_NE      0x8     /* Fetch Next Descriptor Enable bit */
+#define TALITOS_CH_CCCR_NT      0x4     /* Notification type bit */
+#define TALITOS_CH_CCCR_CDIE    0x2     /* Channel Done Interrupt Enable bit */
+
+#define TALITOS_CH_CCPSR        0x2014  /* Crypto-Channel Pointer Status Reg */
+#define TALITOS_CH_CCPSR_HI     0x2010  /* Crypto-Channel Pointer Status Reg */
+
+#define TALITOS_CH_FF           0x204c  /* Fetch FIFO */
+#define TALITOS_CH_FF_HI        0x2048  /* Fetch FIFO is useless in MCF547X and MCF548X*/
+
+#define TALITOS_CH_CDPR         0x2044  /* Crypto-Channel Pointer Status Reg */
+#define TALITOS_CH_CDPR_HI      0x2044  /* Crypto-Channel Pointer Status Reg ?????????????????*/
+
+#define TALITOS_CH_DESCBUF      0x2080  /* (thru 11bf) Crypto-Channel 
+                                         * Descriptor Buffer (debug) 0x2080-0x20BF*/
+#else
 /* channel register address stride */
 #define TALITOS_CH_OFFSET	0x100
 
@@ -175,49 +241,135 @@
 #define TALITOS_CH_FF_HI	0x114c	/* Fetch FIFO's FETCH_ADRS */
 #define TALITOS_CH_CDPR		0x1140	/* Crypto-Channel Pointer Status Reg */
 #define TALITOS_CH_CDPR_HI	0x1144	/* Crypto-Channel Pointer Status Reg */
-#define TALITOS_CH_DESCBUF	0x1180	/* (thru 11bf) Crypto-Channel
+#define TALITOS_CH_DESCBUF	0x1180	/* (thru 11bf) Crypto-Channel 
 					 * Descriptor Buffer (debug) */
+#endif
 
 /* execution unit register offset addresses and bits */
-#define TALITOS_DEUSR		0x2028	/* DEU status register */
-#define TALITOS_DEUSR_HI	0x202c	/* DEU status register */
-#define TALITOS_DEUISR		0x2030	/* DEU interrupt status register */
-#define TALITOS_DEUISR_HI	0x2034	/* DEU interrupt status register */
-#define TALITOS_DEUICR		0x2038	/* DEU interrupt control register */
-#define TALITOS_DEUICR_HI	0x203c	/* DEU interrupt control register */
-#define TALITOS_AESUISR		0x4030	/* AESU interrupt status register */
-#define TALITOS_AESUISR_HI	0x4034	/* AESU interrupt status register */
-#define TALITOS_AESUICR		0x4038	/* AESU interrupt control register */
-#define TALITOS_AESUICR_HI	0x403c	/* AESU interrupt control register */
-#define TALITOS_MDEUISR		0x6030	/* MDEU interrupt status register */
-#define TALITOS_MDEUISR_HI	0x6034	/* MDEU interrupt status register */
-#define TALITOS_RNGSR		0xa028	/* RNG status register */
-#define TALITOS_RNGSR_HI	0xa02c	/* RNG status register */
-#define TALITOS_RNGSR_HI_RD	0x1	/* RNG Reset done */
-#define TALITOS_RNGSR_HI_OFL	0xff0000/* number of dwords in RNG output FIFO*/
-#define TALITOS_RNGDSR		0xa010	/* RNG data size register */
-#define TALITOS_RNGDSR_HI	0xa014	/* RNG data size register */
-#define TALITOS_RNG_FIFO	0xa800	/* RNG FIFO - pool of random numbers */
-#define TALITOS_RNGISR		0xa030	/* RNG Interrupt status register */
-#define TALITOS_RNGISR_HI	0xa034	/* RNG Interrupt status register */
-#define TALITOS_RNGRCR		0xa018	/* RNG Reset control register */
-#define TALITOS_RNGRCR_HI	0xa01c	/* RNG Reset control register */
-#define TALITOS_RNGRCR_HI_SR	0x1	/* RNG RNGRCR:Software Reset */
+#ifdef FSL_SEC11_MCF547X_8X
+#define TALITOS_DEURCR          0xa018  /* DEU reset control register */
+#define TALITOS_DEURCR_RESET    0x01000000  /* DEU reset bit */
+#define TALITOS_DEUSR		0xa028	/* DEU status register */
+#define TALITOS_DEUSR_RESET     0x01000000  /* DEU Reset status bit */
+#define TALITOS_DEUSR_HI	0xa02c	/* DEU status register is useless in MCF547X_548X*/
+#define TALITOS_DEUISR		0xa030	/* DEU interrupt status register */
+#define TALITOS_DEUISR_HI	0xa034	/* DEU interrupt status register is useless in MCF547X_548X**/
+#define TALITOS_DEUICR		0xa038	/* DEU interrupt control register */
+#define TALITOS_DEUICR_MASK     0xf63f0000  /* DEU interrupt control mask*/
+#define TALITOS_DEUICR_HI	0xa03c	/* DEU interrupt control register is useless in MCF547X_548X**/
 
+#define TALITOS_AESURCR         0x12018  /* AESU reset control register */
+#define TALITOS_AESURCR_RESET   0x01000000  /* AESU reset bit */
+#define TALITOS_AESUSR          0x12028  /* AESU status register */
+#define TALITOS_AESUSR_RESET    0x01000000  /* AESU Reset status bit */
+#define TALITOS_AESUSR_HI       0x1202c  /* AESU status register is useless in MCF547X_548X*/
+#define TALITOS_AESUISR         0x12030  /* AESU interrupt status register */
+#define TALITOS_AESUISR_HI      0x12034  /* AESU interrupt status register is useless in MCF547X_548X**/
+#define TALITOS_AESUICR         0x12038  /* AESU interrupt control register */
+#define TALITOS_AESUICR_MASK    0xf61f0000  /* AESU interrupt control mask*/
+#define TALITOS_AESUICR_HI      0x1203c  /* AESU interrupt control register is useless in MCF547X_548X**/
+
+#define TALITOS_MDEURCR         0xc018  /* MDEU reset control register */
+#define TALITOS_MDEURCR_RESET   0x01000000  /* MDEU reset bit */
+#define TALITOS_MDEUSR          0xc028  /* MDEU status register */
+#define TALITOS_MDEUSR_RESET    0x01000000  /* MDEU Reset status bit */
+#define TALITOS_MDEUSR_HI       0xc02c  /* MDEU status register is useless in MCF547X_548X*/
+#define TALITOS_MDEUISR         0xc030  /* MDEU interrupt status register */
+#define TALITOS_MDEUISR_HI      0xc034  /* MDEU interrupt status register is useless in MCF547X_548X**/
+#define TALITOS_MDEUICR         0xc038  /* MDEU interrupt control register */
+#define TALITOS_MDEUICR_MASK    0xc41f0000  /* MDEU interrupt control mask*/
+#define TALITOS_MDEUICR_HI      0xc03c  /* MDEU interrupt control register is useless in MCF547X_548X**/
+
+#define TALITOS_AFEURCR         0x8018  /* AFEU reset control register */
+#define TALITOS_AFEURCR_RESET   0x01000000  /* AFEU reset bit */
+#define TALITOS_AFEUSR          0x8028  /* AFEU status register */
+#define TALITOS_AFEUSR_RESET    0x01000000  /* AFEU Reset status bit */
+#define TALITOS_AFEUSR_HI       0x802c  /* AFEU status register is useless in MCF547X_548X*/
+#define TALITOS_AFEUISR         0x8030  /* AFEU interrupt status register */
+#define TALITOS_AFEUISR_HI      0x8034  /* AFEU interrupt status register is useless in MCF547X_548X**/
+#define TALITOS_AFEUICR         0x8038  /* AFEU interrupt control register */
+#define TALITOS_AFEUICR_MASK    0xf61f0000  /* AFEU interrupt control mask*/
+#define TALITOS_AFEUICR_HI      0x803c  /* AFEU interrupt control register is useless in MCF547X_548X**/
+
+#define TALITOS_RNGRCR          0xe018  /* RNG Reset control register */
+#define TALITOS_RNGRCR_HI       0xe01c  /* RNG Reset control register is useless in MCF547X_548X*/
+#define TALITOS_RNGRCR_SR       0x01000000      /* RNG RNGRCR:Software Reset */
+#define TALITOS_RNGSR		0xe028	/* RNG status register */
+#define TALITOS_RNGSR_HI	0xe02c	/* RNG status register is useless in MCF547X_548X*/
+#define TALITOS_RNGSR_RD	0x01000000	/* RNG Reset done */
+#define TALITOS_RNGSR_HI_OFL	0xff0000/* number of dwords in RNG output FIFO*/
+#define TALITOS_RNGDSR		0xe010	/* RNG data size register */
+#define TALITOS_RNGDSR_HI	0xe014	/* RNG data size register is useless in MCF547X_548X*/
+#define TALITOS_RNG_FIFO	0xe800	/* RNG FIFO - pool of random numbers */
+#define TALITOS_RNGISR		0xe030	/* RNG Interrupt status register */
+#define TALITOS_RNGISR_HI	0xe034	/* RNG Interrupt status register is useless in MCF547X_548X */
+#define TALITOS_RNGICR          0xe038  /* RNG interrupt control register */
+#define TALITOS_RNGICR_MASK     0xc2100000  /* RNG interrupt control mask*/
+#define TALITOS_RNGICR_HI       0xe03c  /* RNG interrupt control register is useless in MCF547X_548X**/
+#else
+#define TALITOS_DEUSR           0x2028  /* DEU status register */
+#define TALITOS_DEUSR_HI        0x202c  /* DEU status register */
+#define TALITOS_DEUISR          0x2030  /* DEU interrupt status register */
+#define TALITOS_DEUISR_HI       0x2034  /* DEU interrupt status register */
+#define TALITOS_DEUICR          0x2038  /* DEU interrupt control register */
+#define TALITOS_DEUICR_HI       0x203c  /* DEU interrupt control register */
+#define TALITOS_AESUISR         0x4030  /* AESU interrupt status register */
+#define TALITOS_AESUISR_HI      0x4034  /* AESU interrupt status register */
+#define TALITOS_AESUICR         0x4038  /* AESU interrupt control register */
+#define TALITOS_AESUICR_HI      0x403c  /* AESU interrupt control register */
+#define TALITOS_MDEUISR         0x6030  /* MDEU interrupt status register */
+#define TALITOS_MDEUISR_HI      0x6034  /* MDEU interrupt status register */
+#define TALITOS_RNGSR           0xa028  /* RNG status register */
+#define TALITOS_RNGSR_HI        0xa02c  /* RNG status register */
+#define TALITOS_RNGSR_HI_RD     0x1     /* RNG Reset done */
+#define TALITOS_RNGSR_HI_OFL    0xff0000/* number of dwords in RNG output FIFO*/
+#define TALITOS_RNGDSR          0xa010  /* RNG data size register */
+#define TALITOS_RNGDSR_HI       0xa014  /* RNG data size register */
+#define TALITOS_RNG_FIFO        0xa800  /* RNG FIFO - pool of random numbers */
+#define TALITOS_RNGISR          0xa030  /* RNG Interrupt status register */
+#define TALITOS_RNGISR_HI       0xa034  /* RNG Interrupt status register */
+#define TALITOS_RNGRCR          0xa018  /* RNG Reset control register */
+#define TALITOS_RNGRCR_HI       0xa01c  /* RNG Reset control register */
+#define TALITOS_RNGRCR_HI_SR    0x1     /* RNG RNGRCR:Software Reset */
+#endif
+
+#ifdef FSL_SEC11_MCF547X_8X
 /* descriptor pointer entry */
 struct talitos_desc_ptr {
-	u16	len;		/* length */
-	u8	extent;		/* jump (to s/g link table) and extent */
-	u8	res;		/* reserved */
-	u32	ptr;		/* pointer */
+        u32     len;
+        u32     ptr;            /* pointer */
+
 };
 
 /* descriptor */
 struct talitos_desc {
 	u32	hdr;				/* header */
-	u32	res;				/* reserved */
 	struct talitos_desc_ptr		ptr[7];	/* ptr/len pair array */
+	u32     next_hdr;
 };
+#else
+/* descriptor pointer entry */
+struct talitos_desc_ptr {
+        u16     len;            /* length */
+        u8      extent;         /* jump (to s/g link table) and extent */
+        u8      res;            /* reserved */
+        u32     ptr;            /* pointer */
+};
+
+/* descriptor */
+struct talitos_desc {
+        u32     hdr;                            /* header */
+        u32     res;                            /* reserved */
+        struct talitos_desc_ptr         ptr[7]; /* ptr/len pair array */
+};
+#endif
+
+/***************************RC4*******************/
+#define ARC4_SEC_MIN_KEY_SIZE   5
+#define ARC4_SEC_MAX_KEY_SIZE   16
+#define ARC4_SEC_CONTEXT_LEN    259
+#define   SEC_ALG_AFEU_KEY              0x10200050
+#define   SEC_ALG_AFEU_CONTEXT          0x10700050
 
 /* talitos descriptor header (hdr) bits */
 
@@ -282,3 +434,4 @@ struct talitos_desc {
 
 #define TALITOS_HDR_DONE_BITS	0xff000000
 
+#define	DPRINTF(a...)	if (debug) { printk(DRV_NAME ": " a); }

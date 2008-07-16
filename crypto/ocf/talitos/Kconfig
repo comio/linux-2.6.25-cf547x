@@ -1,0 +1,21 @@
+
+menu "Talitos Driver"
+
+config OCF_TALITOS
+	tristate "talitos (HW crypto engine)"
+	depends on OCF_OCF
+	help
+	  OCF driver for Freescale's security engine (SEC/talitos).
+
+config OCF_TALITOS_GTIMER
+	tristate "global timer used with talitos"
+	depends on OCF_TALITOS
+	help
+	  Global timer driver.
+
+config OCF_TALITOS_KTIMER
+	tristate "kernel timer used with talitos"
+	depends on OCF_TALITOS
+	help
+	  Global timer driver.
+endmenu

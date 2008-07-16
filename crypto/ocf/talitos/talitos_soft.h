@@ -31,7 +31,8 @@
  * paired descriptor and associated crypto operation
  */
 struct desc_cryptop_pair {
-	struct list_head	desc_list;     	/* for tasklet design */
+	struct list_head 	desc_list;      /* AK for tasklet design */
+	spinlock_t  		desc_lock;      /* AK for protecting header */
 	struct talitos_desc	cf_desc;	/* descriptor ptr */
 	struct cryptop		*cf_crp;	/* cryptop ptr */
 };
@@ -41,7 +42,7 @@ struct desc_cryptop_pair {
  */
 struct talitos_softc {
 	struct platform_device	*sc_dev;	/* device backpointer */
-	ocf_iomem_t		sc_base_addr;
+	/*ocf_iomem_t*/void __iomem		*sc_base_addr;
 	int			sc_irq;
 	int			sc_num;		/* if we have multiple chips */
 	int32_t			sc_cid;		/* crypto tag */
@@ -52,12 +53,8 @@ struct talitos_softc {
 	int			sc_chfifo_len;	/* channel fetch fifo len */
 	int			sc_exec_units;	/* execution units mask */
 	int			sc_desc_types;	/* descriptor types mask */
-	int			sc_needwakeup;
-	/*
-	 * mutual exclusion for intra-channel resources, e.g. fetch fifos
-	 * the last entry is a meta-channel lock used by the channel scheduler
-	 */
-	spinlock_t		*sc_chnfifolock;
+	int			sc_needwakeup;  /* AK added */
+	int			sc_rc4_first;   /*Shrek added*/
 	/* sc_chnlastalgo contains last algorithm for that channel */
 	int			*sc_chnlastalg;
 	/* sc_chnfifo holds pending descriptor--crypto operation pairs */
@@ -75,4 +72,12 @@ struct talitos_session {
 
 #define	TALITOS_SESSION(sid)	((sid) & 0x0fffffff)
 #define	TALITOS_SID(crd, sesn)	(((crd) << 28) | ((sesn) & 0x0fffffff))
+
+/* AK added the following */
+//#define  TALITOS_SMALL_PACKET_IMPROVE
+//#define  TALITOS_SMALL_PACKET_IMPROVE_NEW
+//#define  TALITOS_INTERRUPT_COALESCE
+//#define  TALITOS_KERNEL_TIMER
+//#define TALITOS_BASELINE
 #define TALITOS_TASKLET
+

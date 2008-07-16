@@ -104,6 +104,9 @@ struct cryptodesc {
 	int		crd_inject;	/* Where to inject results, if applicable */
 	int		crd_flags;
 
+#define CRD_ARC4_FIRST     0x200
+#define CRD_ARC4_NEXT      0x400
+
 #define	CRD_F_ENCRYPT		0x01	/* Set when doing encryption */
 #define	CRD_F_IV_PRESENT	0x02	/* When encrypting, IV is already in
 					   place, so don't copy. */

@@ -1,0 +1,13 @@
+#
+# SEC driver testing configuration
+#
+
+menu "SEC Test Options"
+#	depends on MPC836x_MDS
+	depends on OCF_TALITOS
+config SEC_TEST
+	tristate "SEC1.x and SEC2.x testing support"
+#	depends on 83xx
+	depends on OCF_TALITOS
+	default M
+endmenu

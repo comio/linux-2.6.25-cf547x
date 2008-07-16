@@ -17,6 +17,7 @@ obj-$(CONFIG_OCF_SAFE)       += $(obj-base)safe/
 obj-$(CONFIG_OCF_HIFN)       += $(obj-base)hifn/
 obj-$(CONFIG_OCF_IXP4XX)     += $(obj-base)ixp4xx/
 obj-$(CONFIG_OCF_TALITOS)    += $(obj-base)talitos/
+obj-$(CONFIG_SEC_TEST)       += $(obj-base)sectest/
 obj-$(CONFIG_OCF_OCFNULL)    += $(obj-base)ocfnull/
 
 obj-$(CONFIG_OCF_BENCH)      += $(obj-base)ocf-bench.o
