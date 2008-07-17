@@ -50,6 +50,10 @@
 #include <asm/mcf5445x_xbs.h>
 #endif
 
+#ifdef CONFIG_M547X_8X
+#include <asm/m5485gpt.h>
+#endif
+
 extern int get_irq_list(struct seq_file *p, void *v);
 extern char _text, _end;
 extern char _etext, _edata, __init_begin, __init_end;
@@ -379,6 +383,11 @@ void coldfire_reboot(void)
 	    "moveb #0x80, %%d0\n\t"
 	    "moveb %%d0, 0xfc0a0000\n\t"
 	    : : : "%d0");
+#elif defined(CONFIG_M547X_8X)
+	/* disable interrupts and enable the watchdog */
+	printk(KERN_INFO "Rebooting\n");
+	asm("movew #0x2700, %sr\n");
+	MCF_GPT_GMS0 = MCF_GPT_GMS_WDEN | MCF_GPT_GMS_CE | MCF_GPT_GMS_TMS(4);
 #endif
 }
 
