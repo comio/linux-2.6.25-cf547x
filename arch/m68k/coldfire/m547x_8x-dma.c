@@ -455,7 +455,7 @@ irqreturn_t dma_interrupt_handler(int irq, void *dev_id)
 	 * pending interrupts with those that aren't masked.
 	 */
 	interrupts = MCF_DMA_DIPR;
-	MCF_DMA_DIPR |= interrupts;
+	MCF_DMA_DIPR = interrupts;
 
 	for (i = 0; i < 16; ++i, interrupts >>= 1) {
 		if (interrupts & 0x1)
