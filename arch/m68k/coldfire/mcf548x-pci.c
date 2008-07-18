@@ -1,5 +1,23 @@
 /*
  * 	ColdFire 547x/548x PCI Host Controller functions
+ *
+ * Copyright (c) 2005-2008 Freescale Semiconductor, Inc.
+ *
+ * This code is based on the 2.6.10 version of pci.c
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -814,6 +832,13 @@ struct pci_bus_info *__init init_coldfire_pci(void)
 		printk("Failed to request bridge ioport resource\n");
 		return NULL;
 	}
+
+	/* Must Reset!!! If bootloader has PCI enabled, it will cause
+	 * problem in linux when it tries to configure/find resources
+	 * for the pci devices.  Both registers need to be reset.
+	 */
+	MCF_PCIGSCR = 0x1;
+	MCF_PCITCR = 0x00000000;
 
 	/* Set up the arbiter */
 	MCF_PCIARB_PACR = 0 /*MCF_PCIARB_PACR_PKMD*/
