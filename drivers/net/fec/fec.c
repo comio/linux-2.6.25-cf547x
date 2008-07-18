@@ -941,9 +941,9 @@ void fec_interrupt_fec_rx_handler(struct net_device *dev)
 {
 	struct fec_priv *fp = netdev_priv(dev);
 	struct sk_buff *skb;
+	int i;
 
 	fp->fecpriv_rxflag = 1;
-/*
 	// Some buffers can be missed
 	if(!(fp->fecpriv_rxdesc[fp->fecpriv_current_rx].statCtrl & MCD_FEC_END_FRAME))
 	{
@@ -961,7 +961,7 @@ void fec_interrupt_fec_rx_handler(struct net_device *dev)
 			return;
 		}
 	}
-*/
+
 	for (; fp->fecpriv_rxdesc[fp->fecpriv_current_rx].statCtrl & MCD_FEC_END_FRAME;	fp->fecpriv_current_rx = (fp->fecpriv_current_rx + 1) & FEC_RX_INDEX_MASK) {
 	    if( (fp->fecpriv_rxdesc[fp->fecpriv_current_rx].length <= FEC_MAXBUF_SIZE) &&
 		    (fp->fecpriv_rxdesc[fp->fecpriv_current_rx].length > 4)) { /* --tym-- */
