@@ -150,6 +150,7 @@
 #define __S011	__pgprot(CF_PAGE_VALID \
 			 | CF_PAGE_ACCESSED \
 			 | CF_PAGE_SHARED \
+			 | CF_PAGE_WRITABLE \
 			 | CF_PAGE_READABLE)
 #define __S111	__pgprot(CF_PAGE_VALID \
 			 | CF_PAGE_ACCESSED \
