@@ -177,7 +177,7 @@ extern inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 
 #define pmd_set(pmdp, ptep) do {} while (0)
 
-extern inline void pgd_set(pgd_t *pgdp, pmd_t *pmdp)
+static inline void pgd_set(pgd_t *pgdp, pmd_t *pmdp)
 {
 	pgd_val(*pgdp) = virt_to_phys(pmdp);
 }
