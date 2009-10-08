@@ -885,6 +885,136 @@ config GPIO_TB0219
 	depends on TANBAC_TB022X
 	select GPIO_VR41XX
 
+config MCF_GPIO
+	tristate "MCF 547x/548x GPIO Support (base layer)"
+	depends on M547X_8X
+	help
+	  Give userspace access to the GPIO pins on the CFV4E processors.
+
+	  If compiled as a module, it will be called mcf_gpio.
+
+config MCF_GPIO_DEBUG
+	bool "MCF 547x/548x GPIO Debug Code"
+	depends on MCF_GPIO
+	help
+	  Print a lot of debug messages.
+
+config MCF_GPIO_PROCFS
+	bool "MCF 547x/548x GPIO ProcFS interface"
+	depends on MCF_GPIO && PROC_FS
+	help
+	  Enable the ProcFS interface.
+
+config MCF_GPIO_IOCTL
+	bool "MCF 547x/548x GPIO ioctl() interface"
+	depends on MCF_GPIO
+	help
+	  Enable the ioctl() interface.
+
+config MCF_GPIO_DMA
+	tristate "MCF 547x/548x GPIO Support - DMA Port"
+	depends on MCF_GPIO
+	help
+	  Give userspace access to the GPIO pins of the DMA Port on the CFV4E processors.
+
+	  If compiled as a module, it will be called mcf_gpio_dma.
+
+config MCF_GPIO_FBCS
+	tristate "MCF 547x/548x GPIO Support - FBCS Port"
+	depends on MCF_GPIO
+	help
+	  Give userspace access to the GPIO pins of the FBCS Port on the CFV4E processors.
+
+	  If compiled as a module, it will be called mcf_gpio_fbcs.
+
+config MCF_GPIO_FBCTL
+	tristate "MCF 547x/548x GPIO Support - FBCTL Port"
+	depends on MCF_GPIO
+	help
+	  Give userspace access to the GPIO pins of the FBCTL Port on the CFV4E processors.
+
+	  If compiled as a module, it will be called mcf_gpio_fbctl.
+	  
+config MCF_GPIO_FEC1L
+	tristate "MCF 547x/548x GPIO Support - FEC1L Port"
+	depends on MCF_GPIO
+	help
+	  Give userspace access to the GPIO pins of the FEC1L Port on the CFV4E processors.
+
+	  If compiled as a module, it will be called mcf_gpio_fec1l.
+
+config MCF_GPIO_FEC1H
+	tristate "MCF 547x/548x GPIO Support - FEC1H Port"
+	depends on MCF_GPIO
+	help
+	  Give userspace access to the GPIO pins of the FEC1H Port on the CFV4E processors.
+
+	  If compiled as a module, it will be called mcf_gpio_fec1h.
+
+config MCF_GPIO_FEC0L
+	tristate "MCF 547x/548x GPIO Support - FEC0L Port"
+	depends on MCF_GPIO
+	help
+	  Give userspace access to the GPIO pins of the FEC0L Port on the CFV4E processors.
+
+	  If compiled as a module, it will be called mcf_gpio_fec0l.
+
+config MCF_GPIO_FEC0H
+	tristate "MCF 547x/548x GPIO Support - FEC0H Port"
+	depends on MCF_GPIO
+	help
+	  Give userspace access to the GPIO pins of the FEC0H Port on the CFV4E processors.
+
+	  If compiled as a module, it will be called mcf_gpio_fec0h.
+
+config MCF_GPIO_PCIBR
+	tristate "MCF 547x/548x GPIO Support - PCIBR Port"
+	depends on MCF_GPIO
+	help
+	  Give userspace access to the GPIO pins of the PCIBR Port on the CFV4E processors.
+
+	  If compiled as a module, it will be called mcf_gpio_pcibr.
+
+config MCF_GPIO_PCIBG
+	tristate "MCF 547x/548x GPIO Support - PCIBG Port"
+	depends on MCF_GPIO
+	help
+	  Give userspace access to the GPIO pins of the PCIBG Port on the CFV4E processors.
+
+	  If compiled as a module, it will be called mcf_gpio_pcibg.
+
+config MCF_GPIO_FECI2C
+	tristate "MCF 547x/548x GPIO Support - FECI2C Port"
+	depends on MCF_GPIO
+	help
+	  Give userspace access to the GPIO pins of the FECI2C Port on the CFV4E processors.
+
+	  If compiled as a module, it will be called mcf_gpio_feci2c.
+
+config MCF_GPIO_DSPI
+	tristate "MCF 547x/548x GPIO Support - DSPI Port"
+	depends on MCF_GPIO
+	help
+	  Give userspace access to the GPIO pins of the DSPI Port on the CFV4E processors.
+
+	  If compiled as a module, it will be called mcf_gpio_dspi.
+
+config MCF_GPIO_PSC1PSC0
+	tristate "MCF 547x/548x GPIO Support - PSC1PSC0 Port"
+	depends on MCF_GPIO
+	help
+	  Give userspace access to the GPIO pins of the PSC1PSC0 Port on the CFV4E processors.
+
+	  If compiled as a module, it will be called mcf_gpio_psc1psc0.
+	  
+config MCF_GPIO_PSC3PSC2
+	tristate "MCF 547x/548x GPIO Support - PSC3PSC2 Port"
+	depends on MCF_GPIO
+	help
+	  Give userspace access to the GPIO pins of the PSC3PSC2 Port on the CFV4E processors.
+
+	  If compiled as a module, it will be called mcf_gpio_psc3psc2.
+
 source "drivers/char/pcmcia/Kconfig"
 
 config MWAVE
@@ -1050,4 +1180,3 @@ config DEVPORT
 source "drivers/s390/char/Kconfig"
 
 endmenu
-
