@@ -72,7 +72,11 @@
 #define MMUDR_SZ1M  (0<<MMUDR_SZN)
 #define MMUDR_SZ4K  (1<<MMUDR_SZN)
 #define MMUDR_SZ8K  (2<<MMUDR_SZN)
+#ifdef CONFIG_M5445X
 #define MMUDR_SZ16M (3<<MMUDR_SZN)
+#elif defined(CONFIG_M547X_8X)
+#define MMUDR_SZ1K  (3<<MMUDR_SZN)
+#endif
 #define MMUDR_CMN   6
 #define MMUDR_INC   (2<<MMUDR_CMN)
 #define MMUDR_IC    (0<<MMUDR_CMN)

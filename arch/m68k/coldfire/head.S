@@ -103,7 +103,7 @@
 #define ACR2_DEFAULT	#0x00000000   /* Not mapped */
 #define ACR3_DEFAULT	#0x400FA008   /* SDRAM cached */
 #elif defined(CONFIG_M547X_8X)
-#define ACR0_DEFAULT	#0xF00FA048   /* System Regs */
+#define ACR0_DEFAULT	#(MCF_MBAR + 0x000FA048)   /* System Regs */
 #define ACR1_DEFAULT	#0x000FA048   /* SDRAM uncached */
 #define ACR2_DEFAULT	#0x00000000   /* Not mapped */
 #define ACR3_DEFAULT	#0x000FA008   /* SDRAM cached */
@@ -198,7 +198,8 @@ func_define	putn,1
 	size_code      MMUDR_SZ1M  1 MB
 	               MMUDR_SZ4K  4 KB
 	               MMUDR_SZ8K  8 KB
-	               MMUDR_SZ16M 16 MB
+	               MMUDR_SZ16M 16 MB (on MCF5445x CPUs)
+				   MMUDR_SZ1K  1KB (on MCF547x/MCF548x CPUs)
 	cache_mode     MMUDR_INC   instruction non-cacheable
                        MMUDR_IC    instruction cacheable
                        MMUDR_DWT   data writethrough
@@ -517,30 +518,30 @@ ENTRY(__start)
 		0, 0, %d0
 #elif defined(CONFIG_M547X_8X)
 	/* Map first 4 MB as code */
-	mmu_map (0*1024*1024), (0*1024*1024), MMUOR_ITLB, 0, \
-		MMUTR_SG, MMUDR_SZ1M, MMUDR_IC,  MMUDR_SP, 0, 0, \
+	mmu_map (PHYS_OFFSET+0*1024*1024), (PHYS_OFFSET+0*1024*1024), \
+		MMUOR_ITLB, 0, MMUTR_SG, MMUDR_SZ1M, MMUDR_IC,  MMUDR_SP, 0, 0, \
+		MUDR_X, 0, %d0
+	mmu_map (PHYS_OFFSET+1*1024*1024), (PHYS_OFFSET+1*1024*1024), \
+		MMUOR_ITLB, 0,	MUTR_SG, MMUDR_SZ1M, MMUDR_IC,  MMUDR_SP, 0, 0, \
 		MMUDR_X, 0, %d0
-	mmu_map (1*1024*1024), (1*1024*1024), MMUOR_ITLB, 0, \
-		MMUTR_SG, MMUDR_SZ1M, MMUDR_IC,  MMUDR_SP, 0, 0, \
+	mmu_map (PHYS_OFFSET+2*1024*1024), (PHYS_OFFSET+2*1024*1024), \
+		MMUOR_ITLB, 0,	MUTR_SG, MMUDR_SZ1M, MMUDR_IC,  MMUDR_SP, 0, 0, \
 		MMUDR_X, 0, %d0
-	mmu_map (2*1024*1024), (2*1024*1024), MMUOR_ITLB, 0, \
-		MMUTR_SG, MMUDR_SZ1M, MMUDR_IC,  MMUDR_SP, 0, 0, \
-		MMUDR_X, 0, %d0
-	mmu_map (3*1024*1024), (3*1024*1024), MMUOR_ITLB, 0, \
-		MMUTR_SG, MMUDR_SZ1M, MMUDR_IC,  MMUDR_SP, 0, 0, \
+	mmu_map (PHYS_OFFSET+3*1024*1024), (PHYS_OFFSET+3*1024*1024), \
+		MMUOR_ITLB, 0,	MUTR_SG, MMUDR_SZ1M, MMUDR_IC,  MMUDR_SP, 0, 0, \
 		MMUDR_X, 0, %d0
 
 	/* Map first 4 MB as data too */
-	mmu_map (0*1024*1024), (0*1024*1024), 0, 0, \
+	mmu_map (PHYS_OFFSET+0*1024*1024), (PHYS_OFFSET+0*1024*1024), 0, 0, \
 		MMUTR_SG, MMUDR_SZ1M, MMUDR_DCB, MMUDR_SP, MMUDR_R, \
 		MMUDR_W, 0, 0, %d0
-	mmu_map (1*1024*1024), (1*1024*1024), 0, 0, \
+	mmu_map (PHYS_OFFSET+1*1024*1024), (PHYS_OFFSET+1*1024*1024), 0, 0, \
 		MMUTR_SG, MMUDR_SZ1M, MMUDR_DCB, MMUDR_SP, MMUDR_R, \
 		MMUDR_W, 0, 0, %d0
-	mmu_map (2*1024*1024), (2*1024*1024), 0, 0, \
+	mmu_map (PHYS_OFFSET+2*1024*1024), (PHYS_OFFSET+2*1024*1024), 0, 0, \
 		MMUTR_SG, MMUDR_SZ1M, MMUDR_DCB, MMUDR_SP, MMUDR_R, \
 		MMUDR_W, 0, 0, %d0
-	mmu_map (3*1024*1024), (3*1024*1024), 0, 0, \
+	mmu_map (PHYS_OFFSET+3*1024*1024), (PHYS_OFFSET+3*1024*1024), 0, 0, \
 		MMUTR_SG, MMUDR_SZ1M, MMUDR_DCB, MMUDR_SP, MMUDR_R, \
 		MMUDR_W, 0, 0, %d0
 #endif

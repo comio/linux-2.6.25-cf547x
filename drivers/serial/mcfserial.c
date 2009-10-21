@@ -2118,7 +2118,7 @@ struct console mcfrs_console = {
 	.write		= mcfrs_console_write,
 	.device		= mcfrs_console_device,
 	.setup		= mcfrs_console_setup,
-	.flags		= CON_PRINTBUFFER,
+	.flags		= CON_PRINTBUFFER | CON_CONSDEV,
 	.index		= -1,
 };
 

@@ -158,13 +158,13 @@ asmlinkage void __init cf_early_init(void)
 
 	/* Mask all interrupts */
 #if defined(CONFIG_M5445X)
-	MCF_INTC0_IMRL = 0xFFFFFFFF;
-	MCF_INTC0_IMRH = 0xFFFFFFFF;
-	MCF_INTC1_IMRL = 0xFFFFFFFF;
-	MCF_INTC1_IMRH = 0xFFFFFFFF;
+	MCF_INTC0_IMRL = MCF_INTC_IMRL_INT_MASKALL;
+	MCF_INTC0_IMRH = MCF_INTC_IMRH_INT_MASKALL;
+	MCF_INTC1_IMRL = MCF_INTC_IMRL_INT_MASKALL;
+	MCF_INTC1_IMRH = MCF_INTC_IMRH_INT_MASKALL;
 #elif defined(CONFIG_M547X_8X)
-	MCF_IMRL = 0xFFFFFFFF;
-	MCF_IMRH = 0xFFFFFFFF;
+	MCF_IMRL = MCF_IMRL_MASKALL;
+	MCF_IMRH = MCF_IMRH_MASKALL;
 #endif
 
 #if defined(CONFIG_M5445X)
@@ -385,8 +385,10 @@ void coldfire_reboot(void)
 	    : : : "%d0");
 #elif defined(CONFIG_M547X_8X)
 	/* disable interrupts and enable the watchdog */
-	printk(KERN_INFO "Rebooting\n");
+	printk(KERN_INFO "Rebooting...\n");
 	asm("movew #0x2700, %sr\n");
+	MCF_GPT_GMS0 = 0;
+	MCF_GPT_GCIR0 = MCF_GPT_GCIR_PRE(1) | MCF_GPT_GCIR_CNT(16);
 	MCF_GPT_GMS0 = MCF_GPT_GMS_WDEN | MCF_GPT_GMS_CE | MCF_GPT_GMS_TMS(4);
 #endif
 }

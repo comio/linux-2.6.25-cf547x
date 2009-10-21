@@ -5,7 +5,9 @@
  *
  * Copyright Freescale Semiconductor, Inc. 2007
  *
- * This program is free software; you can redistribute  it and/or modify it
+ * Copyright Industrie Dial Face S.p.A., 2008
+ * Luigi 'Comio' Mantellini luigi
+ *
  * under  the terms of  the GNU General  Public License as published by the
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
@@ -76,7 +78,7 @@
  * M547x/M548x Cache Configuration
  *	- cache line size is 16 bytes
  *	- cache is 4-way set associative
- *	- each cache has 512 sets (128k / 16bytes / 4way)
+ *	- each cache has 512 sets (32k / 16bytes / 4way)
  *	- I-Cache size is 32KB
  *	- D-Cache size is 32KB
  */

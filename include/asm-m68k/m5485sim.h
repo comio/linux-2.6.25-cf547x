@@ -38,6 +38,8 @@
 #define MCF_LnIACK(x) 	MCF_REG08(0x0007E4+((x)*0x004))
 #define MCF_ICR(x)    	MCF_REG08(0x000740+((x)*0x001))
 
+#define MCF_IMRH_MASKALL	(0xffffffff)
+#define MCF_IMRL_MASKALL	(0xffffffff)
 /*
  *	Slice Timers Registers
  */
@@ -80,6 +82,21 @@
 /*
  *	Interrupt level and priorities
  */
+#define ILP_EPFn(x)		(MCF_ICR_IL(6) | MCF_ICR_IP(7-(x)))
+#define ILP_EPF1		(MCF_ICR_IL(6) | MCF_ICR_IP(7))
+#define ILP_EPF2		(MCF_ICR_IL(6) | MCF_ICR_IP(6))
+#define ILP_EPF3		(MCF_ICR_IL(6) | MCF_ICR_IP(5))
+#define ILP_EPF4		(MCF_ICR_IL(6) | MCF_ICR_IP(4))
+#define ILP_EPF5		(MCF_ICR_IL(6) | MCF_ICR_IP(3))
+#define ILP_EPF6		(MCF_ICR_IL(6) | MCF_ICR_IP(2))
+#define ILP_EPF7		(MCF_ICR_IL(6) | MCF_ICR_IP(1))
+
+#define ILP_GPTn(x)		(MCF_ICR_IL(5) | MCF_ICR_IP(7-(x)))
+#define ILP_GPT0		(MCF_ICR_IL(5) | MCF_ICR_IP(7))
+#define ILP_GPT1		(MCF_ICR_IL(5) | MCF_ICR_IP(6))
+#define ILP_GPT2		(MCF_ICR_IL(5) | MCF_ICR_IP(5))
+#define ILP_GPT3		(MCF_ICR_IL(5) | MCF_ICR_IP(4))
+
 #define ILP_TOP			(MCF_ICR_IL(5) | MCF_ICR_IP(3))
 #define ILP_SLT0		(MCF_ICR_IL(5) | MCF_ICR_IP(2))
 #define ILP_SLT1		(MCF_ICR_IL(5) | MCF_ICR_IP(1))
@@ -91,6 +108,7 @@
 #define ILP_PCI_ARB		(MCF_ICR_IL(4) | MCF_ICR_IP(3))
 #define ILP_PCI_CB		(MCF_ICR_IL(4) | MCF_ICR_IP(2))
 #define ILP_I2C			(MCF_ICR_IL(4) | MCF_ICR_IP(1))
+#define ILP_XLB_ARB		(MCF_ICR_IL(4) | MCF_ICR_IP(0))
 
 #define ILP_USB_EPn(x)		(MCF_ICR_IL(3) | MCF_ICR_IP(7-(x)))
 #define ILP_USB_EP0		(MCF_ICR_IL(3) | MCF_ICR_IP(7))
@@ -101,6 +119,7 @@
 #define ILP_USB_EP5		(MCF_ICR_IL(3) | MCF_ICR_IP(2))
 #define ILP_USB_EP6		(MCF_ICR_IL(3) | MCF_ICR_IP(1))
 #define ILP_USB_ISR		(MCF_ICR_IL(3) | MCF_ICR_IP(0))
+#define ILP_USB_OR		(MCF_ICR_IL(3) | MCF_ICR_IP(0))
 
 #define ILP_USB_AISR		(MCF_ICR_IL(2) | MCF_ICR_IP(7))
 #define ILP_DSPI_OVRFW		(MCF_ICR_IL(2) | MCF_ICR_IP(6))

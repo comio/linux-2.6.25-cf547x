@@ -608,10 +608,9 @@ static inline int rt_setup_ucontext(struct ucontext __user *uc,
 
 static inline void push_cache(unsigned long vaddr)
 {
-#if 0 
-// JKM -- need to add into the old cpushl cache stuff
-	cf_cache_push(__pa(vaddr), 8);
-#endif
+/* JKM -- need to add into the old cpushl cache stuff
+	cf_cache_push(__pa(vaddr), 8); */
+	flush_dcache();
 }
 
 static inline void __user *
@@ -750,7 +749,8 @@ static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	err |= __put_user(frame->retcode, &frame->pretcode);
 
 	/* moveq #,d0; andi.l #,D0; trap #0 */
-	err |= __put_user(0x70AD0280, (long *)(frame->retcode + 0));
+	err |= __put_user(0x70000280 | + (__NR_rt_sigreturn << 16),
+	                 (long *)(frame->retcode + 0));
 	err |= __put_user(0x000000ff, (long *)(frame->retcode + 4));
 	err |= __put_user(0x4e400000, (long *)(frame->retcode + 8));
 

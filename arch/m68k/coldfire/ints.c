@@ -6,6 +6,9 @@
  *                     Kenneth Albanowski <kjahds@kjahds.com>,
  * Copyright (C) 2000  Lineo Inc. (www.lineo.com)
  *
+ * Copyright (C) 2008  Industrie Dial Face S.p.A.
+ * Luigi 'Comio' Mantellini <luigi.mantellini@idf-hit.com>
+ *
  * Copyright Freescale Semiconductor, Inc. 2007, 2008
  * 	Kurt Mahan kmahan@freescale.com
  * 	Matt Waddel Matt.Waddel@freescale.com
@@ -76,6 +79,77 @@ static struct irq_node *get_irq_node(void);
 /* The number of spurious interrupts */
 unsigned int num_spurious;
 asmlinkage void handle_badint(struct pt_regs *regs);
+
+
+#ifdef CONFIG_M547X_8X
+static unsigned char intc_ilp[64] = {
+	0,				//  0: Reserved
+	ILP_EPFn(1),	//  1: Edge port flag 1
+	ILP_EPFn(2),	//  2: Edge port flag 2
+	ILP_EPFn(3),	//  3: Edge port flag 3
+	ILP_EPFn(4),	//  4: Edge port flag 4
+	ILP_EPFn(5),	//  5: Edge port flag 5
+	ILP_EPFn(6),	//  6: Edge port flag 6
+	ILP_EPFn(7),	//  7: Edge port flag 7
+	0,				//  8: Not Used
+	0,				//  9: Not Used
+	0,				// 10: Not Used
+	0,				// 11: Not Used
+	0,				// 12: Not Used
+	0,				// 13: Not Used
+	0,				// 14: Not Used
+	ILP_USB_EPn(0),	// 15: Endpoint 0 interrupt
+	ILP_USB_EPn(1),	// 16: Endpoint 1 interrupt
+	ILP_USB_EPn(2),	// 17: Endpoint 2 interrupt
+	ILP_USB_EPn(3),	// 18: Endpoint 3 interrupt
+	ILP_USB_EPn(4),	// 19: Endpoint 4 interrupt
+	ILP_USB_EPn(5),	// 20: Endpoint 5 interrupt
+	ILP_USB_EPn(6),	// 21: Endpoint 6 interrupt
+	ILP_USB_ISR,	// 22: USB 2.0 general interrupt
+	ILP_USB_AISR,	// 23: USB 2.0 core interrupt
+	ILP_USB_OR,		// 24: OR of all USB interrupts
+	ILP_DSPI_OVRFW,	// 25: DSPI overflow or underflow
+	ILP_DSPI_RFOF,	// 26: Receive FIFO overflow interrupt
+	ILP_DSPI_RFDF,	// 27: Receive FIFO drain interrupt
+	ILP_DSPI_TFUF,	// 28: Transmit FIFO underflow interrupt
+	ILP_DSPI_TCF,	// 29: Transfer complete interrupt
+	ILP_DSPI_TFFF,	// 30: Transfer FIFO fill interrupt
+	ILP_DSPI_EOQF,	// 31: End of queue interrupt
+	ILP_PSCn(3),	// 32: PSC3 interrupt
+	ILP_PSCn(2),	// 33: PSC2 interrupt
+	ILP_PSCn(1),	// 34: PSC1 interrupt
+	ILP_PSCn(0),	// 35: PSC0 interrupt
+	ILP_COMM_TIM,	// 36: Combined interrupts from comm timers
+	ILP_SEC,		// 37: SEC interrupt
+	ILP_FEC1,	// 38: FEC1 interrupt
+	ILP_FEC0,	// 39: FEC0 interrupt
+	ILP_I2C,		// 40: I2C interrupt
+	ILP_PCI_ARB,	// 41: PCI arbiter interrupt
+	ILP_PCI_CB,		// 42: Comm bus PCI interrupt
+	ILP_PCI_XLB,	// 43: XLB PCI interrupt
+	0,				// 44: Not Used
+	0,				// 45: Not Used
+	0,				// 46: Not Used
+	ILP_XLB_ARB,	// 47: XLBARB to CPU interrupt
+	ILP_DMA,		// 48: Multichannel DMA interrupt
+	0,				// 49: Not Used
+	0,				// 50: Not Used
+	0,				// 51: Not Used
+	0,				// 52: Not Used
+	ILP_SLT1,		// 53: Slice timer 1 interrupt
+	ILP_SLT0,		// 54: Slice timer 1 interrupt
+	0,				// 55: Not Used
+	0,				// 56: Not Used
+	0,				// 57: Not Used
+	0,				// 58: Not Used
+	ILP_GPTn(3),	// 59: GPT3 interrupt
+	ILP_GPTn(2),	// 60: GPT2 interrupt
+	ILP_GPTn(1),	// 61: GPT1 interrupt
+	ILP_GPTn(0),	// 62: GPT0 interrupt
+	0,				// 63: Not Used
+};
+#endif
+
 
 /*
  * void init_IRQ(void)
@@ -430,11 +504,12 @@ void m547x_8x_irq_enable(unsigned int irq)
 
 	if (irq < 32) {
 		/* *grumble* don't set low bit of IMRL */
-		MCF_IMRL &= (~(1 << irq) & 0xfffffffe);
+		MCF_IMRL &= (~(1 << irq));
 	}
 	else {
 		MCF_IMRH &= ~(1 << (irq - 32));
 	}
+	MCF_ICR(irq) = intc_ilp[irq];
 }
 
 void m547x_8x_irq_disable(unsigned int irq)
@@ -455,9 +530,12 @@ void m547x_8x_irq_disable(unsigned int irq)
 	}
 #endif
 
-	if (irq < 32)
+	if (irq < 32) {
 		MCF_IMRL |= (1 << irq);
-	else
+	}
+	else {
 		MCF_IMRH |= (1 << (irq - 32));
+	}
+	MCF_ICR(irq) = 0;
 }
 #endif

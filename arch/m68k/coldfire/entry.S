@@ -78,6 +78,8 @@ sw_usp:
 .globl ret_from_interrupt
 .globl inthandler
 
+#define CONFIG_COLDFIRE_FOO
+
 ENTRY(buserr)
 #ifdef CONFIG_COLDFIRE_FOO
 	movew	#0x2700,%sr		/* lock interrupts */

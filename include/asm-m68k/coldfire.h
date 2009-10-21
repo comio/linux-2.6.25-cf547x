@@ -8,13 +8,15 @@
  * is a problem that needs to be resolved.  Currently head.S
  * disables SRAM/RAMBAR1.
  */
-#define MCF_RAMBAR1 	0x40000000
+#define MCF_RAMBAR1 0x40000000
 #define MCF_SRAM	0x40000000
+#define MCF_VBASE	(MCF_RAMBAR1)
 #elif defined(CONFIG_M547X_8X)
-#define MCF_MBAR	0xF0000000
-#define MCF_MMUBAR	0xF1000000
-#define MCF_RAMBAR0	0xF3000000
-#define MCF_RAMBAR1	0xF3001000
+#define MCF_MBAR	(0xF0000000)
+#define MCF_MMUBAR	(MCF_MBAR + 0x01000000)
+#define MCF_RAMBAR0	(MCF_MBAR + 0x03000000)
+#define MCF_RAMBAR1	(MCF_MBAR + 0x03001000)
+#define MCF_VBASE	(MCF_RAMBAR0)
 #endif
 
 #define MCF_CLK     	CONFIG_MCFCLK
@@ -36,6 +38,7 @@
 void cacr_set(unsigned long);
 unsigned long cacr_get(void);
 
+#if defined(CONFIG_M5445X)
 #define coldfire_enable_irq0(irq)	MCF_INTC0_CIMR = (irq);
 
 #define coldfire_enable_irq1(irq)	MCF_INTC1_CIMR = (irq);
@@ -43,7 +46,8 @@ unsigned long cacr_get(void);
 #define coldfire_disable_irq0(irq)	MCF_INTC0_SIMR = (irq);
 
 #define coldfire_disable_irq1(irq)	MCF_INTC1_SIMR = (irq);
-
+#elif defined(CONFIG_M547X_8X)
+#endif
 #define getiprh()			MCF_INTC0_IPRH
 
 #endif /* __ASSEMBLY__ */

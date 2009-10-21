@@ -448,7 +448,7 @@ config SDRAM_BASE
 	default 0x00000000 if M547X_8X
 
 config SDRAM_SIZE
-	hex
+	hex "SDRAM size"
 	depends on COLDFIRE
 	default 0x08000000 if M54451EVB
 	default 0x10000000 if M54455EVB

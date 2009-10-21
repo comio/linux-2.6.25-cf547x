@@ -353,6 +353,9 @@ asmlinkage void trap_c(struct frame *fp)
 	case VEC_TRAP12:
 	case VEC_TRAP13:
 	case VEC_TRAP14:
+#ifdef CONFIG_M547X_8X
+		fp->ptregs.pc -= 2;
+#endif
 		info.si_code = ILL_ILLTRP;
 		sig = SIGILL;
 		break;
@@ -392,6 +395,9 @@ asmlinkage void trap_c(struct frame *fp)
 		sig = SIGTRAP;
 		break;
 	case VEC_TRAP15:		/* breakpoint */
+#ifdef CONFIG_M547X_8X
+		fp->ptregs.pc -= 2;
+#endif
 		info.si_code = TRAP_BRKPT;
 		sig = SIGTRAP;
 		break;
@@ -402,6 +408,9 @@ asmlinkage void trap_c(struct frame *fp)
 	}
 	info.si_signo = sig;
 	info.si_errno = 0;
+#ifdef CONFIG_M547X_8X
+	info.si_addr = (void *) fp->ptregs.pc;
+#else
 	switch (fp->ptregs.format) {
 	default:
 		info.si_addr = (void *) fp->ptregs.pc;
@@ -422,6 +431,7 @@ asmlinkage void trap_c(struct frame *fp)
 		info.si_addr = (void *) fp->un.fmtb.daddr;
 		break;
 	}
+#endif
 	force_sig_info(sig, &info, current);
 }
 

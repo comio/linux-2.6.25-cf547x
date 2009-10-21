@@ -133,7 +133,7 @@ void __init paging_init(void)
         zones_size[ZONE_DMA] = (32*1024*1024) >> PAGE_SHIFT;
 
 	/* allocate the rest to NORMAL - head.S marks them CACHE */
-	zones_size[ZONE_NORMAL] = (((unsigned long)high_memory - PAGE_OFFSET) >> PAGE_SHIFT) - zones_size[0];
+	zones_size[ZONE_NORMAL] = (((unsigned long)high_memory - PAGE_OFFSET) >> PAGE_SHIFT) - zones_size[ZONE_DMA];
 
 	free_area_init(zones_size);
 }
