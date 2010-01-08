@@ -28,16 +28,16 @@
   unsigned long end_set;					\
 								\
   start_set = 0;						\
-  end_set = (unsigned long)LAST_DCACHE_ADDR;			\
+  end_set = (unsigned long)LAST_ICACHE_ADDR;			\
     								\
-  for (set = start_set; set <= end_set; set += (0x10 - 3)) {	\
+  for (set = start_set; set <= end_set; set += (CACHE_LINE_SIZE - 3)) {	\
     asm volatile("cpushl %%ic,(%0)\n"				\
                  "\taddq%.l #1,%0\n"				\
                  "\tcpushl %%ic,(%0)\n"				\
                  "\taddq%.l #1,%0\n"				\
                  "\tcpushl %%ic,(%0)\n"				\
                  "\taddq%.l #1,%0\n"				\
-                 "\tcpushl %%ic,(%0)" : "=a" (set) : "a" (set));		\
+                 "\tcpushl %%ic,(%0)" : "=a" (set) : "0" (set));		\
   }								\
 })
 
@@ -50,14 +50,14 @@
   start_set = 0;						\
   end_set = (unsigned long)LAST_DCACHE_ADDR;			\
     								\
-  for (set = start_set; set <= end_set; set += (0x10 - 3)) {	\
+  for (set = start_set; set <= end_set; set += (CACHE_LINE_SIZE - 3)) {	\
     asm volatile("cpushl %%dc,(%0)\n"				\
                  "\taddq%.l #1,%0\n"				\
                  "\tcpushl %%dc,(%0)\n"				\
                  "\taddq%.l #1,%0\n"				\
                  "\tcpushl %%dc,(%0)\n"				\
                  "\taddq%.l #1,%0\n"				\
-                 "\tcpushl %%dc,(%0)" : "=a" (set) : "a" (set));		\
+                 "\tcpushl %%dc,(%0)" : "=a" (set) : "0" (set));		\
   }								\
 })
 
@@ -70,16 +70,214 @@
   start_set = 0;						\
   end_set = (unsigned long)LAST_DCACHE_ADDR;			\
     								\
-  for (set = start_set; set <= end_set; set += (0x10 - 3)) {	\
+  for (set = start_set; set <= end_set; set += (CACHE_LINE_SIZE - 3)) {	\
     asm volatile("cpushl %%bc,(%0)\n"				\
                  "\taddq%.l #1,%0\n"				\
                  "\tcpushl %%bc,(%0)\n"				\
                  "\taddq%.l #1,%0\n"				\
                  "\tcpushl %%bc,(%0)\n"				\
                  "\taddq%.l #1,%0\n"				\
-                 "\tcpushl %%bc,(%0)" : "=a" (set) : "a" (set));		\
+                 "\tcpushl %%bc,(%0)" : "=a" (set) : "0" (set));		\
   }								\
 })
+
+/**
+ * cf_cache_flush - Push dirty cache out and invalidate
+ * @paddr: starting physical address
+ * @len: number of bytes
+ *
+ * Push the any dirty lines starting at paddr for len bytes and
+ * invalidate those lines.
+ */
+static inline void cf_cache_flush(unsigned long paddr, int len)
+{
+        unsigned long start_line;
+        unsigned long end_line;
+        unsigned long sets;
+        unsigned long i;
+
+	if (len == 0)
+		return;
+
+        if (len > DCACHE_WAY_SIZE) {
+                len = DCACHE_WAY_SIZE;
+        }
+        
+        end_line = ((paddr & (DCACHE_WAY_SIZE - 1)) + len + (CACHE_LINE_SIZE - 1)) & ~CACHE_LINE_SIZE;
+        start_line = paddr & _DCACHE_SET_MASK;
+        sets = (end_line - start_line) / CACHE_LINE_SIZE;
+
+        for (i = 0; i < sets; i++ , start_line = (start_line + (CACHE_LINE_SIZE - 3)) & _DCACHE_SET_MASK) {
+                asm volatile("cpushl %%bc,(%0)\n"
+                             "addq%.l #1,%0\n"
+                             "cpushl %%bc,(%0)\n"
+                             "addq%.l #1,%0\n"
+                             "cpushl %%bc,(%0)\n"
+                             "addq%.l #1,%0\n"
+                             "cpushl %%bc,(%0)" : "=a" (start_line) : "0" (start_line));
+        }
+
+#if 0
+        unsigned long set;
+        unsigned long start_set;
+        unsigned long end_set;
+
+        start_set = paddr & _DCACHE_SET_MASK;
+        end_set = (start_set + len - 1) & _DCACHE_SET_MASK;
+
+        if (start_set > end_set) {
+                /* from the begining to the lowest address */
+                for (set = 0; set <= end_set; set += (CACHE_LINE_SIZE - 3)) {
+                        asm volatile("cpushl %%bc,(%0)\n"
+                                     "addq%.l #1,%0\n"
+                                     "cpushl %%bc,(%0)\n"
+                                     "addq%.l #1,%0\n"
+                                     "cpushl %%bc,(%0)\n"
+                                     "addq%.l #1,%0\n"
+                                     "cpushl %%bc,(%0)" : "=a" (set) : "0" (set));
+                }
+                /* next loop will finish the cache ie pass the hole */
+                end_set = LAST_DCACHE_ADDR;    
+        }
+
+        for (set = start_set; set <= end_set; set += (CACHE_LINE_SIZE - 3)) {
+                asm volatile("cpushl %%bc,(%0)\n"
+                             "addq%.l #1,%0\n"
+                             "cpushl %%bc,(%0)\n"
+                             "addq%.l #1,%0\n"
+                             "cpushl %%bc,(%0)\n"
+                             "addq%.l #1,%0\n"
+                             "cpushl %%bc,(%0)" : "=a" (set) : "0" (set));
+        }
+#endif
+}
+
+/**
+ * cf_cache_push - Push dirty cache out with no invalidate
+ * @paddr: starting physical address
+ * @len: number of bytes
+ *
+ * Push the any dirty lines starting at paddr for len bytes.
+ * Those lines are not invalidated.
+ */
+static inline void cf_cache_push(unsigned long paddr, int len)
+{
+	asm volatile("nop\n"
+		     "move%.l   %0,%%d0\n"
+		     "or%.l	%1,%%d0\n"
+		     "movec	%%d0,%%cacr\n"
+                     : : "r" (shadow_cacr),
+			 "i" (CF_CACR_DPI+CF_CACR_IDPI)
+		     : "d0");
+
+        cf_cache_flush(paddr , len);
+
+	asm volatile("nop\n"
+		     "movec	%0,%%cacr\n"
+                     : : "r" (shadow_cacr));
+
+}
+
+/**
+ * cf_cache_clear - invalidate cache
+ * @paddr: starting physical address
+ * @len: number of bytes
+ *
+ * Invalidate cache lines starting at paddr for len bytes.
+ * Those lines are not pushed (a lie for 547x).
+ */
+static inline void cf_cache_clear(unsigned long paddr, int len)
+{
+  cf_cache_flush(paddr , len);
+}
+
+/**
+ * cf_cache_flush_range - Push dirty data/inst cache in range out and invalidate
+ * @vstart - starting virtual address
+ * @vend: ending virtual address
+ */
+static inline void cf_cache_flush_range(unsigned long vstart, unsigned long vend)
+{
+	vend = PAGE_ALIGN(vend);
+
+        cf_cache_flush(__pa(vstart) , vend - vstart);
+}
+
+/**
+ * cf_dcache_flush_range - Push dirty data cache in range out and invalidate
+ * @vstart - starting virtual address
+ * @vend: ending virtual address
+ */
+static inline void cf_dcache_flush_range(unsigned long vstart, unsigned long vend)
+{
+        unsigned long start_line;
+        unsigned long end_line;
+        unsigned long sets;
+        unsigned long i;
+        unsigned long paddr = __pa(vstart);
+        unsigned long len = vend - vstart;
+
+	if (len == 0)
+		return;
+
+        if (len > DCACHE_WAY_SIZE) {
+                len = DCACHE_WAY_SIZE;
+        }
+        
+        end_line = ((paddr & (DCACHE_WAY_SIZE - 1)) + len + (CACHE_LINE_SIZE - 1)) & ~CACHE_LINE_SIZE;
+        start_line = paddr & _DCACHE_SET_MASK;
+        sets = (end_line - start_line) / CACHE_LINE_SIZE;
+
+        for (i = 0; i < sets; i++ , start_line = (start_line + (CACHE_LINE_SIZE - 3)) & _DCACHE_SET_MASK) {
+                asm volatile("cpushl %%dc,(%0)\n"
+                             "addq%.l #1,%0\n"
+                             "cpushl %%dc,(%0)\n"
+                             "addq%.l #1,%0\n"
+                             "cpushl %%dc,(%0)\n"
+                             "addq%.l #1,%0\n"
+                             "cpushl %%dc,(%0)" : "=a" (start_line) : "0" (start_line));
+        }
+}
+
+/**
+ * cf_icache_flush_range - Push dirty inst cache in range out and invalidate
+ * @vstart - starting virtual address
+ * @vend: ending virtual address
+ *
+ * Push the any dirty instr lines starting at paddr for len bytes and
+ * invalidate those lines.  This should just be an invalidate since you
+ * shouldn't be able to have dirty instruction cache.
+ */
+static inline void cf_icache_flush_range(unsigned long vstart, unsigned long vend)
+{
+        unsigned long start_line;
+        unsigned long end_line;
+        unsigned long sets;
+        unsigned long i;
+        unsigned long paddr = __pa(vstart);
+        unsigned long len = vend - vstart;
+
+	if (len == 0)
+		return;
+
+        if (len > ICACHE_WAY_SIZE) {
+                len = ICACHE_WAY_SIZE;
+        }
+        
+        end_line = ((paddr & (ICACHE_WAY_SIZE - 1)) + len + (CACHE_LINE_SIZE - 1)) & ~CACHE_LINE_SIZE;
+        start_line = paddr & _ICACHE_SET_MASK;
+        sets = (end_line - start_line) / CACHE_LINE_SIZE;
+
+        for (i = 0; i < sets; i++ , start_line = (start_line + (CACHE_LINE_SIZE - 3)) & _ICACHE_SET_MASK) {
+                asm volatile("cpushl %%ic,(%0)\n"
+                             "addq%.l #1,%0\n"
+                             "cpushl %%ic,(%0)\n"
+                             "addq%.l #1,%0\n"
+                             "cpushl %%ic,(%0)\n"
+                             "addq%.l #1,%0\n"
+                             "cpushl %%ic,(%0)" : "=a" (start_line) : "0" (start_line));
+        }
+}
 
 /*
  * invalidate the cache for the specified memory range.
@@ -130,8 +328,7 @@ static inline void flush_cache_range(struct vm_area_struct *vma,
 	unsigned long start, unsigned long end)
 {
 	if (vma->vm_mm == current->mm)
-		flush_bcache();
-//		cf_cache_flush_range(start, end);
+                cf_cache_flush_range(start, end);
 }
 
 /**
@@ -147,8 +344,7 @@ static inline void flush_cache_page(struct vm_area_struct *vma,
 	unsigned long vmaddr, unsigned long pfn)
 {
 	if (vma->vm_mm == current->mm)
-		flush_bcache();
-//		cf_cache_flush_range(vmaddr, vmaddr+PAGE_SIZE);
+		cf_cache_flush_range(vmaddr, vmaddr+PAGE_SIZE);
 }
 
 /* Push the page at kernel virtual address and clear the icache */
@@ -156,39 +352,11 @@ static inline void flush_cache_page(struct vm_area_struct *vma,
 #define flush_page_to_ram(page) __flush_page_to_ram((void *) page_address(page))
 extern inline void __flush_page_to_ram(void *address)
 {
-  unsigned long set;
-  unsigned long start_set;
-  unsigned long end_set;
-  unsigned long addr = (unsigned long) address;
+        unsigned long addr = (unsigned long)address;
 
-  addr &= ~(PAGE_SIZE - 1); /* round down to page start address */
-
-  start_set = addr & _ICACHE_SET_MASK;
-  end_set = (addr + PAGE_SIZE-1) & _ICACHE_SET_MASK;
-
-  if (start_set > end_set) {
-    /* from the begining to the lowest address */
-    for (set = 0; set <= end_set; set += (0x10 - 3)) {
-      asm volatile("cpushl %%bc,(%0)\n"
-                   "\taddq%.l #1,%0\n"
-                   "\tcpushl %%bc,(%0)\n"
-                   "\taddq%.l #1,%0\n"
-                   "\tcpushl %%bc,(%0)\n"
-                   "\taddq%.l #1,%0\n"
-                   "\tcpushl %%bc,(%0)" : "=a" (set) : "a" (set));
-    }
-    /* next loop will finish the cache ie pass the hole */
-    end_set = LAST_ICACHE_ADDR;    
-  }
-  for (set = start_set; set <= end_set; set += (0x10 - 3)) {
-    asm volatile("cpushl %%bc,(%0)\n"
-                 "\taddq%.l #1,%0\n"
-                 "\tcpushl %%bc,(%0)\n"
-                 "\taddq%.l #1,%0\n"
-                 "\tcpushl %%bc,(%0)\n"
-                 "\taddq%.l #1,%0\n"
-                 "\tcpushl %%bc,(%0)" : "=a" (set) : "a" (set));
-  }
+        addr &= ~(PAGE_SIZE - 1); /* round down to page start address */
+        
+        cf_cache_flush_range(addr , addr + PAGE_SIZE);
 }
 
 /* Use __flush_page_to_ram() for flush_dcache_page all values are same - MW */
@@ -201,53 +369,21 @@ extern inline void __flush_page_to_ram(void *address)
 #define flush_icache_user_page(vma,page,addr,len)	do { } while (0)
 
 /* Push n pages at kernel virtual address and clear the icache */
-/* RZ: use cpush %bc instead of cpush %dc, cinv %ic */
-extern inline void flush_icache_range (unsigned long address,
-				       unsigned long endaddr)
-{
-  unsigned long set;
-  unsigned long start_set;
-  unsigned long end_set;
-
-  start_set = address & _ICACHE_SET_MASK;
-  end_set = endaddr & _ICACHE_SET_MASK;
-
-  if (start_set > end_set) {
-    /* from the begining to the lowest address */
-    for (set = 0; set <= end_set; set += (0x10 - 3)) {
-      asm volatile("cpushl %%ic,(%0)\n"
-                   "\taddq%.l #1,%0\n"
-                   "\tcpushl %%ic,(%0)\n"
-                   "\taddq%.l #1,%0\n"
-                   "\tcpushl %%ic,(%0)\n"
-                   "\taddq%.l #1,%0\n"
-                   "\tcpushl %%ic,(%0)" : "=a" (set) : "a" (set));
-    }
-    /* next loop will finish the cache ie pass the hole */
-    end_set = LAST_ICACHE_ADDR;    
-  }
-  for (set = start_set; set <= end_set; set += (0x10 - 3)) {
-    asm volatile("cpushl %%ic,(%0)\n"
-                 "\taddq%.l #1,%0\n"
-                 "\tcpushl %%ic,(%0)\n"
-                 "\taddq%.l #1,%0\n"
-                 "\tcpushl %%ic,(%0)\n"
-                 "\taddq%.l #1,%0\n"
-                 "\tcpushl %%ic,(%0)" : "=a" (set) : "a" (set));
-  }
-}
+extern void flush_icache_range (unsigned long address,
+                                unsigned long endaddr);
 
 static inline void copy_to_user_page(struct vm_area_struct *vma,
 				     struct page *page, unsigned long vaddr,
 				     void *dst, void *src, int len)
 {
 	memcpy(dst, src, len);
-	flush_icache_user_page(vma, page, vaddr, len);
+	cf_cache_flush(page_to_phys(page), PAGE_SIZE);
 }
 static inline void copy_from_user_page(struct vm_area_struct *vma,
 				       struct page *page, unsigned long vaddr,
 				       void *dst, void *src, int len)
 {
+	cf_cache_flush(page_to_phys(page), PAGE_SIZE);
 	memcpy(dst, src, len);
 }
 

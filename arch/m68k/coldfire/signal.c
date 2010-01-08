@@ -606,11 +606,20 @@ static inline int rt_setup_ucontext(struct ucontext __user *uc,
 	return err;
 }
 
-static inline void push_cache(unsigned long vaddr)
+static inline void push_cache(unsigned long vaddr , unsigned len)
 {
-/* JKM -- need to add into the old cpushl cache stuff
-	cf_cache_push(__pa(vaddr), 8); */
-	flush_dcache();
+  pgd_t *dir;
+  pmd_t *pmdp;
+  pte_t *ptep;
+  unsigned long paddr;
+
+  // Translate vaddr into phys address
+  dir = pgd_offset(current->mm , vaddr);
+  pmdp = pmd_offset(dir , vaddr);
+  ptep = pte_offset_map(pmdp, vaddr);
+  paddr = (pte_val(*ptep) & PAGE_MASK) | (vaddr & ~PAGE_MASK);
+
+  cf_cache_flush(paddr , len);
 }
 
 static inline void __user *
@@ -673,7 +682,7 @@ static void setup_frame(int sig, struct k_sigaction *ka,
 	if (err)
 		goto give_sigsegv;
 
-	push_cache((unsigned long) &frame->retcode);
+	push_cache((unsigned long) &frame->retcode , 4);
 
 	/* Set up registers for signal handler */
 	wrusp((unsigned long) frame);
@@ -749,15 +758,14 @@ static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	err |= __put_user(frame->retcode, &frame->pretcode);
 
 	/* moveq #,d0; andi.l #,D0; trap #0 */
-	err |= __put_user(0x70000280 | + (__NR_rt_sigreturn << 16),
-	                 (long *)(frame->retcode + 0));
+	err |= __put_user(0x70000280 + (__NR_rt_sigreturn << 16), (long *)(frame->retcode + 0));
 	err |= __put_user(0x000000ff, (long *)(frame->retcode + 4));
 	err |= __put_user(0x4e400000, (long *)(frame->retcode + 8));
 
 	if (err)
 		goto give_sigsegv;
 
-	push_cache((unsigned long) &frame->retcode);
+	push_cache((unsigned long) &frame->retcode , 12);
 
 	/* Set up registers for signal handler */
 	wrusp((unsigned long) frame);
