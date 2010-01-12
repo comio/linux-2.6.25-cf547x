@@ -208,6 +208,7 @@
 #define MCF_PAR_DSPI               MCF_REG16(0x000A50)
 #define MCF_PAR_TIMER              MCF_REG08(0X000A52)
 #define MCF_EPPAR       	   MCF_REG16(0x000F00)
+#define MCF_EPDDR                  MCF_REG08(0x000F04)
 #define MCF_EPIER       	   MCF_REG08(0x000F05)
 #define MCF_EPFR       	   	   MCF_REG08(0x000F0C)
 

@@ -415,7 +415,7 @@ choice
 endchoice
 
 config MCFCLK
-	int
+	int "CPU clock speed"
 	default 266666666 if M54455EVB
 	default 240000000 if M54451EVB
 	default 266000000 if M547X

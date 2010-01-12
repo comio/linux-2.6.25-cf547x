@@ -72,16 +72,10 @@ void pci_raw_outl(unsigned long  val, long addr);
 #define raw_inb in_8
 #define raw_inw in_be16
 #define raw_inl in_be32
-#define __raw_readb in_8
-#define __raw_readw in_be16
-#define __raw_readl in_be32
 
 #define raw_outb(val,port) out_8((port),(val))
 #define raw_outw(val,port) out_be16((port),(val))
 #define raw_outl(val,port) out_be32((port),(val))
-#define __raw_writeb(val,addr) out_8((addr),(val))
-#define __raw_writew(val,addr) out_be16((addr),(val))
-#define __raw_writel(val,addr) out_be32((addr),(val))
 
 #define swap_inw(port) in_le16((port))
 #define swap_outw(val,port) out_le16((port),(val))

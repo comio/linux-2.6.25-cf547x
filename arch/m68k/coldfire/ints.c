@@ -494,9 +494,9 @@ void m547x_8x_irq_enable(unsigned int irq)
 	/* check for eport */
 	if ((irq > 0) && (irq < 8)) {
 		/* enable eport */
-		MCF_EPORT_EPPAR &= ~(3 << (irq*2));	/* level */
-		MCF_EPORT_EPDDR &= ~(1 << irq);		/* input */
-		MCF_EPORT_EPIER |= 1 << irq;		/* irq enabled */
+		MCF_EPPAR &= ~(3 << (irq*2));	/* level */
+		MCF_EPDDR &= ~(1 << irq);	/* input */
+		MCF_EPIER |= 1 << irq;		/* irq enabled */
 
                 /* Configure pin as input of external irq */
                 switch (irq) {
@@ -552,7 +552,7 @@ void m547x_8x_irq_disable(unsigned int irq)
 	/* check for eport */
 	if ((irq > 0) && (irq < 8)) {
 		/* disable eport */
-		MCF_EPORT_EPIER &= ~(1 << irq);
+		MCF_EPIER &= ~(1 << irq);
 
                 /* Restore default assignment of external irq pin */
                 switch (irq) {

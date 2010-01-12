@@ -144,15 +144,7 @@ void __iomem *__ioremap(unsigned long physaddr, unsigned long size, int cachefla
 	}
 #endif
 
-#ifdef CONFIG_M547X_8X
-	if (physaddr >= 0xf0000000) {
-		/*
-	 	 * On the M547x/M548x processors an ACR is setup to map
-		 * the 0xF0000000 range into kernel memory as
-		 * non-cacheable.
-		 */
-		return (void __iomem *)physaddr;
-	}
+#if defined(CONFIG_M547X_8X) && defined(CONFIG_PCI)
         if ((physaddr >= 0xd0000000) && (physaddr + size < 0xd800ffff)) {
                 printk("ioremap:PCI 0x%lx,0x%lx(%d) - PCI area hit\n", physaddr, size, cacheflag);
                 return (void *)physaddr;
@@ -288,7 +280,7 @@ void __iounmap(void *addr, unsigned long size)
 	pgd_t *pgd_dir;
 	pmd_t *pmd_dir;
 	pte_t *pte_dir;
-#ifdef CONFIG_M547X_8X
+#if defined(CONFIG_M547X_8X) && defined(CONFIG_PCI)
         if ((addr >= (void*)0xd0000000) && (addr + size < (void*)0xd800ffff)) {
                 printk("%s: PCI address\n",__FUNCTION__);
                 return;
