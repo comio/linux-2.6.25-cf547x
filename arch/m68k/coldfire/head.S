@@ -104,9 +104,13 @@
 #define ACR3_DEFAULT	#0x400FA008   /* SDRAM cached */
 #elif defined(CONFIG_M547X_8X)
 #define ACR0_DEFAULT	#(MCF_MBAR + 0x000FA048)   /* System Regs */
-#define ACR1_DEFAULT	#0x000FA048   /* SDRAM uncached */
+#ifdef CONFIG_PCI
+#define ACR1_DEFAULT	#(CONFIG_SDRAM_BASE + 0x000FA048)       /* SDRAM uncached */
+#else
+#define ACR1_DEFAULT	#(CONFIG_SDRAM_BASE + 0x000FA008)       /* SDRAM write-through cached */
+#endif
 #define ACR2_DEFAULT	#0x00000000   /* Not mapped */
-#define ACR3_DEFAULT	#0x000FA008   /* SDRAM cached */
+#define ACR3_DEFAULT	#(CONFIG_SDRAM_BASE + 0x000FA008)       /* SDRAM cached */
 #endif
 #endif
 
@@ -272,7 +276,7 @@ ENTRY(_stext)
 	.long	BOOTINFOV_MAGIC
 	.long	0
 #if CONFIG_SDRAM_BASE != PAGE_OFFSET
-1:	jmp	__start-(0xc0000000-CONFIG_SDRAM_BASE)
+1:	jmp	__start-(PAGE_OFFSET-CONFIG_SDRAM_BASE)
 #else
 1:	jmp	__start
 #endif
@@ -302,9 +306,9 @@ ENTRY(__start)
 #elif defined(CONFIG_M547X_8X)
 	movel   #MCF_MBAR, %d0
 	movec   %d0, %mbar
-	move.l  #(MCF_RAMBAR0 + 0x21), %d0
+	move.l  #(MCF_RAMBAR0 + 0x17), %d0
 	movec   %d0, %rambar0
-	move.l  #(MCF_RAMBAR1 + 0x21), %d0
+	move.l  #(MCF_RAMBAR1 + 0), %d0
 	movec   %d0, %rambar1
 #endif
 
