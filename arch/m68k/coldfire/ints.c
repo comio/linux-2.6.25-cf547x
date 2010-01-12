@@ -491,16 +491,44 @@ void m547x_8x_irq_enable(unsigned int irq)
 	/* adjust past non-hardware ints */
 	irq -= 64;
 
-/* JKM -- re-add EPORT later */
-#if 0
 	/* check for eport */
 	if ((irq > 0) && (irq < 8)) {
 		/* enable eport */
 		MCF_EPORT_EPPAR &= ~(3 << (irq*2));	/* level */
 		MCF_EPORT_EPDDR &= ~(1 << irq);		/* input */
 		MCF_EPORT_EPIER |= 1 << irq;		/* irq enabled */
+
+                /* Configure pin as input of external irq */
+                switch (irq) {
+                case 1:
+                        MCF_GPIO_PAR_DMA = (MCF_GPIO_PAR_DMA & ~0x0c) | 0x04;
+                        break;
+
+                case 2:
+                        MCF_GPIO_PAR_TIMER = (MCF_GPIO_PAR_TIMER & ~0x06) | 0x04;
+                        break;
+
+                case 3:
+                        MCF_GPIO_PAR_TIMER = (MCF_GPIO_PAR_TIMER & ~0x30) | 0x20;
+                        break;
+
+                case 4:
+                        MCF_GPIO_PAR_PCIBR = (MCF_GPIO_PAR_PCIBR & ~0x0300) | 0x0200;
+                        break;
+
+                case 5:
+                        MCF_GPIO_PAR_FECI2CIRQ |= 0x0001;
+                        break;
+
+                case 6:
+                        MCF_GPIO_PAR_FECI2CIRQ |= 0x0002;
+                        break;
+
+                case 7:
+                        /* IRQ7 is always enabled */
+                        break;
+                }
 	}
-#endif
 
 	if (irq < 32) {
 		/* *grumble* don't set low bit of IMRL */
@@ -521,14 +549,42 @@ void m547x_8x_irq_disable(unsigned int irq)
 	/* adjust past non-hardware ints */
 	irq -= 64;
 
-/* JKM -- re-add EPORT later */
-#if 0
 	/* check for eport */
 	if ((irq > 0) && (irq < 8)) {
 		/* disable eport */
 		MCF_EPORT_EPIER &= ~(1 << irq);
+
+                /* Restore default assignment of external irq pin */
+                switch (irq) {
+                case 1:
+                        MCF_GPIO_PAR_DMA &= ~0x0c;
+                        break;
+
+                case 2:
+                        MCF_GPIO_PAR_TIMER |= 0x06;
+                        break;
+
+                case 3:
+                        MCF_GPIO_PAR_TIMER |= 0x30;
+                        break;
+
+                case 4:
+                        MCF_GPIO_PAR_PCIBR &= ~0x0300;
+                        break;
+
+                case 5:
+                        MCF_GPIO_PAR_FECI2CIRQ |= 0x0001;
+                        break;
+
+                case 6:
+                        MCF_GPIO_PAR_FECI2CIRQ |= 0x0002;
+                        break;
+
+                case 7:
+                        /* IRQ7 is always enabled */
+                        break;
+                }
 	}
-#endif
 
 	if (irq < 32) {
 		MCF_IMRL |= (1 << irq);
