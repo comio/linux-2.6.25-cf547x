@@ -103,7 +103,7 @@ static inline void cf_cache_flush(unsigned long paddr, int len)
                 len = DCACHE_WAY_SIZE;
         }
         
-        end_line = ((paddr & (DCACHE_WAY_SIZE - 1)) + len + (CACHE_LINE_SIZE - 1)) & ~CACHE_LINE_SIZE;
+        end_line = ((paddr & (DCACHE_WAY_SIZE - 1)) + len + (CACHE_LINE_SIZE - 1)) & ~(CACHE_LINE_SIZE - 1);
         start_line = paddr & _DCACHE_SET_MASK;
         sets = (end_line - start_line) / CACHE_LINE_SIZE;
 
@@ -224,7 +224,7 @@ static inline void cf_dcache_flush_range(unsigned long vstart, unsigned long ven
                 len = DCACHE_WAY_SIZE;
         }
         
-        end_line = ((paddr & (DCACHE_WAY_SIZE - 1)) + len + (CACHE_LINE_SIZE - 1)) & ~CACHE_LINE_SIZE;
+        end_line = ((paddr & (DCACHE_WAY_SIZE - 1)) + len + (CACHE_LINE_SIZE - 1)) & ~(CACHE_LINE_SIZE - 1);
         start_line = paddr & _DCACHE_SET_MASK;
         sets = (end_line - start_line) / CACHE_LINE_SIZE;
 
@@ -264,7 +264,7 @@ static inline void cf_icache_flush_range(unsigned long vstart, unsigned long ven
                 len = ICACHE_WAY_SIZE;
         }
         
-        end_line = ((paddr & (ICACHE_WAY_SIZE - 1)) + len + (CACHE_LINE_SIZE - 1)) & ~CACHE_LINE_SIZE;
+        end_line = ((paddr & (ICACHE_WAY_SIZE - 1)) + len + (CACHE_LINE_SIZE - 1)) & ~(CACHE_LINE_SIZE - 1);
         start_line = paddr & _ICACHE_SET_MASK;
         sets = (end_line - start_line) / CACHE_LINE_SIZE;
 
