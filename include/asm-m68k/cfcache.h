@@ -101,11 +101,18 @@
 				 CF_CACR_BCINVA+	\
 				 CF_CACR_ICINVA)
 
+#ifndef CONFIG_NO_BRANCH_CACHE
 #define CACHE_INITIAL_MODE 	(CF_CACR_DEC+		\
 				 CF_CACR_BEC+		\
 				 CF_CACR_IEC+		\
 				 CF_CACR_DESB+		\
 				 CF_CACR_EUSP)
+#else
+#define CACHE_INITIAL_MODE 	(CF_CACR_DEC+		\
+				 CF_CACR_IEC+		\
+				 CF_CACR_DESB+		\
+				 CF_CACR_EUSP)
+#endif
 #endif /* CONFIG_M547X_8X */
 
 #ifndef __ASSEMBLY__
