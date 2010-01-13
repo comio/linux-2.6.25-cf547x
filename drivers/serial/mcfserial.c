@@ -1976,6 +1976,11 @@ void mcfrs_init_console(void)
 	volatile unsigned char	*uartp;
 	unsigned int		clk;
 
+#ifdef CONFIG_M547X_8X
+        /* Enable serial line signals */
+        MCF_PAR_PSCn(mcfrs_console_port) = MCF_PAR_PSC_TXD | MCF_PAR_PSC_RXD;
+#endif
+
 	/*
 	 *	Reset UART, get it into known state...
 	 */
