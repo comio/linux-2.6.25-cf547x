@@ -350,7 +350,7 @@ static inline void flush_cache_page(struct vm_area_struct *vma,
 /* Push the page at kernel virtual address and clear the icache */
 /* RZ: use cpush %bc instead of cpush %dc, cinv %ic */
 #define flush_page_to_ram(page) __flush_page_to_ram((void *) page_address(page))
-extern inline void __flush_page_to_ram(void *address)
+static inline void __flush_page_to_ram(void *address)
 {
         unsigned long addr = (unsigned long)address;
 
