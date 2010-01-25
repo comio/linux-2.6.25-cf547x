@@ -34,18 +34,18 @@ typedef struct siginfo {
 		struct {
 			__kernel_pid_t _pid;	/* sender's pid */
 			__kernel_uid_t _uid;	/* backwards compatibility */
-			sigval_t _sigval;
 			__kernel_uid32_t _uid32; /* sender's uid */
+			sigval_t _sigval;
 		} _rt;
 
 		/* SIGCHLD */
 		struct {
 			__kernel_pid_t _pid;	/* which child */
 			__kernel_uid_t _uid;	/* backwards compatibility */
-			int _status;		/* exit code */
+			__kernel_uid32_t _uid32; /* sender's uid */
 			clock_t _utime;
 			clock_t _stime;
-			__kernel_uid32_t _uid32; /* sender's uid */
+			int _status;		/* exit code */
 		} _sigchld;
 
 		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS */

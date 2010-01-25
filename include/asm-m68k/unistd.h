@@ -326,9 +326,14 @@
 #define __NR_timerfd_settime	321
 #define __NR_timerfd_gettime	322
 
+#define __NR_read_tp		333
+#define __NR_write_tp		334
+#define __NR_atomic_cmpxchg_32	335
+#define __NR_atomic_barrier	336
+
 #ifdef __KERNEL__
 
-#define NR_syscalls		323
+#define NR_syscalls		337
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR

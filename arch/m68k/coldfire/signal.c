@@ -167,7 +167,7 @@ struct sigframe
 	int sig;
 	int code;
 	struct sigcontext __user *psc;
-	char retcode[16];
+	char retcode[8];
 	unsigned long extramask[_NSIG_WORDS-1];
 	struct sigcontext sc;
 };
@@ -178,7 +178,7 @@ struct rt_sigframe
 	int sig;
 	struct siginfo __user *pinfo;
 	void __user *puc;
-	char retcode[16];
+	char retcode[8];
 	struct siginfo info;
 	struct ucontext uc;
 };
@@ -757,15 +757,14 @@ static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	/* Set up to return from userspace.  */
 	err |= __put_user(frame->retcode, &frame->pretcode);
 
-	/* moveq #,d0; andi.l #,D0; trap #0 */
-	err |= __put_user(0x70000280 + (__NR_rt_sigreturn << 16), (long *)(frame->retcode + 0));
-	err |= __put_user(0x000000ff, (long *)(frame->retcode + 4));
-	err |= __put_user(0x4e400000, (long *)(frame->retcode + 8));
+	/* movel #__NR_rt_sigreturn(0xAD),d0; trap #0 */
+	err |= __put_user(0x203c0000, (long *)(frame->retcode + 0));
+	err |= __put_user(0x00004e40 + (__NR_rt_sigreturn << 16), (long *)(frame->retcode + 4));
 
 	if (err)
 		goto give_sigsegv;
 
-	push_cache((unsigned long) &frame->retcode , 12);
+	push_cache((unsigned long) &frame->retcode , 8);
 
 	/* Set up registers for signal handler */
 	wrusp((unsigned long) frame);
