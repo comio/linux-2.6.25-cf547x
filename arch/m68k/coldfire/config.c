@@ -103,7 +103,7 @@ void coldfire_sort_memrec(void)
 int __init uboot_commandline(char *bootargs)
 {
 	int len = 0, cmd_line_len;
-	static struct uboot_record uboot_info;
+	struct uboot_record *uboot_info;
 	u32 offset = PAGE_OFFSET_RAW - PHYS_OFFSET;
 
 	extern unsigned long uboot_info_stk;
@@ -113,21 +113,35 @@ int __init uboot_commandline(char *bootargs)
 	    (uboot_info_stk >= (PAGE_OFFSET_RAW + CONFIG_SDRAM_SIZE)))
 		return 0;
 
+        uboot_info = (struct uboot_record *)uboot_info_stk;
+
 	/* Add offset to get post-remapped kernel memory location */
-	uboot_info.bdi = (struct bd_info *)((*(u32 *)(uboot_info_stk)) + offset);
-	uboot_info.initrd_start = (*(u32 *)(uboot_info_stk+4)) + offset;
-	uboot_info.initrd_end = (*(u32 *)(uboot_info_stk+8)) + offset;
-	uboot_info.cmd_line_start = (*(u32 *)(uboot_info_stk+12)) + offset;
-	uboot_info.cmd_line_stop = (*(u32 *)(uboot_info_stk+16)) + offset;
+        if (uboot_info->bdi != NULL) {
+                uboot_info->bdi = (struct bd_info *)((u32)uboot_info->bdi + offset);
+        }
+        if (uboot_info->initrd_start != 0) {
+                uboot_info->initrd_start += offset;
+        }
+        if (uboot_info->initrd_end != 0) {
+                uboot_info->initrd_end += offset;
+        }
+        if (uboot_info->cmd_line_start != 0) {
+                uboot_info->cmd_line_start += offset;
+        }
+        if (uboot_info->cmd_line_stop != 0) {
+                uboot_info->cmd_line_stop += offset;
+        }
 
 	/* copy over mac addresses */
-	memcpy(uboot_enet0, uboot_info.bdi->bi_enet0addr, 6);
-	memcpy(uboot_enet1, uboot_info.bdi->bi_enet1addr, 6);
+        if (uboot_info->bdi != NULL) {
+                memcpy(uboot_enet0, uboot_info->bdi->bi_enet0addr, 6);
+                memcpy(uboot_enet1, uboot_info->bdi->bi_enet1addr, 6);
+        }
 
 	/* copy command line */
-	cmd_line_len = uboot_info.cmd_line_stop - uboot_info.cmd_line_start;
+	cmd_line_len = uboot_info->cmd_line_stop - uboot_info->cmd_line_start;
 	if ((cmd_line_len > 0) && (cmd_line_len < CL_SIZE-1))
-		len = (int)strncpy(bootargs, (char *)uboot_info.cmd_line_start,\
+		len = (int)strncpy(bootargs, (char *)uboot_info->cmd_line_start,\
 				   cmd_line_len);
 
 	return len;
