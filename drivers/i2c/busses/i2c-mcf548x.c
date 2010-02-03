@@ -21,6 +21,8 @@
 #include <asm/m5485sim.h>
 #include <asm/m5485i2c.h>
 
+#define PRINTK_DEBUG(...)
+
 #define get_clock(adap) (clock)
 #define get_own(adap) 	(own)
 
@@ -259,8 +261,8 @@ mcf_sendbytes(
 	MCF_I2CR |= MCF_I2CR_MTX;
 
 	for (i = 0; i < count; ++i) {
-		printk(KERN_DEBUG "i2c-algo-mcf: %s i2c_write: writing %2.2X\n",
-		      i2c_adap->name, buf[i]&0xff);
+		PRINTK_DEBUG("i2c-algo-mcf: %s i2c_write: writing %2.2X\n",
+                             i2c_adap->name, buf[i]&0xff);
 		ret = i2c_outb(i2c_adap, buf[i]);
 		if (ret < 0)
 			return ret;
@@ -300,7 +302,7 @@ mcf_readbytes(
 		if (wait_xfer_done(adap)) {
 			i2c_stop(adap);
 			wait_for_bb(adap);
-			printk(KERN_DEBUG
+			PRINTK_DEBUG(
 			    "i2c-algo-mcf: mcf_readbytes timed out.\n");
 			return (-1);
 		}
@@ -312,7 +314,7 @@ mcf_readbytes(
 	if (wait_xfer_done(adap)) {
 		i2c_stop(adap);
 		wait_for_bb(adap);
-		printk(KERN_DEBUG "i2c-algo-mcf: mcf_readbytes timed out.\n");
+		PRINTK_DEBUG("i2c-algo-mcf: mcf_readbytes timed out.\n");
 		return (-1);
 	}
 
@@ -322,7 +324,7 @@ mcf_readbytes(
 	if (wait_xfer_done(adap)) {
 		i2c_stop(adap);
 		wait_for_bb(adap);
-		printk(KERN_DEBUG "i2c-algo-mcf: mcf_readbytes timed out.\n");
+		PRINTK_DEBUG("i2c-algo-mcf: mcf_readbytes timed out.\n");
 		return (-1);
 	}
 
@@ -403,7 +405,7 @@ mcf_xfer(
 
 		pmsg = &msgs[i];
 
-		printk(KERN_DEBUG "i2c-algo-mcf: Doing %s %d bytes "
+		PRINTK_DEBUG("i2c-algo-mcf: Doing %s %d bytes "
 			"to 0x%02x - %d of %d messages\n",
 			pmsg->flags & I2C_M_RD ? "read" : "write",
 			pmsg->len, pmsg->addr, i + 1, num);
@@ -428,12 +430,12 @@ mcf_xfer(
 		if (!i2c_getack(adap)) {
 			i2c_stop(adap);
 			wait_for_bb(adap);
-			printk(KERN_DEBUG "i2c-algo-mcf: No ack after "
+			PRINTK_DEBUG("i2c-algo-mcf: No ack after "
 				    "send address in mcf_xfer\n");
 			return (-EREMOTEIO);
 		}
 
-		printk(KERN_DEBUG "i2c-algo-mcf: Msg %d, "
+		PRINTK_DEBUG("i2c-algo-mcf: Msg %d, "
 				  "addr = 0x%x, flags = 0x%x, len = %d\n",
 				i, msgs[i].addr, msgs[i].flags, msgs[i].len);
 		/* Read */
@@ -443,10 +445,10 @@ mcf_xfer(
 						(i + 1 == num));
 
 			if (ret != pmsg->len) {
-				printk(KERN_DEBUG "i2c-algo-mcf: fail: "
+				PRINTK_DEBUG("i2c-algo-mcf: fail: "
 					    "only read %d bytes.\n", ret);
 			} else {
-				printk(KERN_DEBUG "i2c-algo-mcf: "
+				PRINTK_DEBUG("i2c-algo-mcf: "
 						  "read %d bytes.\n", ret);
 			}
 		} else {
@@ -454,10 +456,10 @@ mcf_xfer(
 			ret = mcf_sendbytes(i2c_adap, pmsg->buf, pmsg->len,
 						(i + 1 == num));
 			if (ret != pmsg->len) {
-				printk(KERN_DEBUG "i2c-algo-mcf: fail: "
+				PRINTK_DEBUG("i2c-algo-mcf: fail: "
 					    "only wrote %d bytes.\n", ret);
 			} else {
-				printk(KERN_DEBUG "i2c-algo-mcf: wrote"
+				PRINTK_DEBUG("i2c-algo-mcf: wrote"
 					"%d bytes.\n", ret);
 			}
 		}
