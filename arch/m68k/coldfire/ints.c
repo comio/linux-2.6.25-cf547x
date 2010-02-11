@@ -532,7 +532,7 @@ void m547x_8x_irq_enable(unsigned int irq)
 
 	if (irq < 32) {
 		/* *grumble* don't set low bit of IMRL */
-		MCF_IMRL &= (~(1 << irq));
+		MCF_IMRL &= (~(1 << irq) & ~1);
 	}
 	else {
 		MCF_IMRH &= ~(1 << (irq - 32));

@@ -39,7 +39,7 @@
 #define MCF_ICR(x)    	MCF_REG08(0x000740+((x)*0x001))
 
 #define MCF_IMRH_MASKALL	(0xffffffff)
-#define MCF_IMRL_MASKALL	(0xffffffff)
+#define MCF_IMRL_MASKALL	(0xfffffffe)
 /*
  *	Slice Timers Registers
  */
