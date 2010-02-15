@@ -977,7 +977,7 @@ void fec_interrupt_fec_rx_handler(struct net_device *dev)
     		    /* flush data cache before initializing the descriptor and starting DMA */
 //		    DcacheFlushInvalidateCacheBlock((void*)virt_to_phys(fp->askb_rx[fp->fecpriv_current_rx]->tail), fp->askb_rx[fp->fecpriv_current_rx]->len);
                         /* Make sure CPU is not going to read cached data instead of actual packet data */
-                        cf_dcache_flush_range((unsigned)(fp->askb_rx[fp->fecpriv_current_rx]->tail) , (unsigned)(fp->askb_rx[fp->fecpriv_current_rx]->tail) + fp->askb_rx[fp->fecpriv_current_rx]->len);
+                        cf_dcache_flush_range((unsigned)(fp->askb_rx[fp->fecpriv_current_rx]->tail) , (unsigned)(fp->askb_rx[fp->fecpriv_current_rx]->tail) + fp->fecpriv_rxdesc[fp->fecpriv_current_rx].length);
 
     			skb_put(skb, fp->fecpriv_rxdesc[fp->fecpriv_current_rx].length - 4);
     			skb->protocol = eth_type_trans(skb, dev);
