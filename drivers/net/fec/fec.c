@@ -36,6 +36,8 @@
 #include "fec.h"
 #include "ks8721.h"
 
+#define FU_TEST
+
 #ifdef	CONFIG_FEC_548x_ENABLE_FEC2
 #define	FEC_MAX_PORTS	2
 #define	FEC_2
@@ -1035,6 +1037,9 @@ irqreturn_t fec_interrupt_handler(int irq, void *dev_id)
 	/* Read and clear the events */
 	events = FEC_EIR(base_addr) & FEC_EIMR(base_addr);
 
+#ifdef FU_TEST
+        printk(KERN_INFO "FEC: events=%08x\n" , events);
+#endif
 	if (events & FEC_EIR_HBERR) {
 		fp->fecpriv_stat.tx_heartbeat_errors++;
 		FEC_EIR(base_addr) = FEC_EIR_HBERR;
@@ -1042,6 +1047,9 @@ irqreturn_t fec_interrupt_handler(int irq, void *dev_id)
 
 	/* receive/transmit FIFO error */
     	if (((events & FEC_EIR_RFERR) != 0) || ((events & FEC_EIR_XFERR) != 0)) {
+#ifdef FU_TEST
+                printk(KERN_INFO "FEC: FECRFSR=%08x FECTFSR=%08x\n" , FEC_FECRFSR(base_addr) , FEC_FECTFSR(base_addr));
+#endif
         	/* kill DMA receive channel */
         	MCD_killDma (fp->fecpriv_fec_rx_channel);
 
