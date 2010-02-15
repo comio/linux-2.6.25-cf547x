@@ -25,6 +25,7 @@
 
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
+#include <asm/cf_cacheflush.h>
 
 #include <asm/dma.h>
 #include <asm/MCD_dma.h>
@@ -505,6 +506,7 @@ int fec_open(struct net_device *dev)
 	fp->fecpriv_current_rx = 0;
 
 	/* flush entire data cache before restarting the DMA */
+        /* FU: not needed, DMA is not running yet, cache is writethrough and we are just writing */
 #if 0
 /* JKM -- currently running with cache turned off */
 	DcacheFlushInvalidate();
@@ -755,6 +757,7 @@ int fec_tx(struct sk_buff *skb, struct net_device *dev)
 	memcpy(data_aligned, skb->data, skb->len);
 
 	/* flush data cache before initializing the descriptor and starting DMA */
+        /* FU: not needed, packet was just written to DRAM and cache is writethrough */
 #if 0
 /* JKM -- currently running with cache turned off */
 	DcacheFlushInvalidateCacheBlock((void*)virt_to_phys(data_aligned), skb->len);
@@ -971,6 +974,8 @@ void fec_interrupt_fec_rx_handler(struct net_device *dev)
     		else {
     		    /* flush data cache before initializing the descriptor and starting DMA */
 //		    DcacheFlushInvalidateCacheBlock((void*)virt_to_phys(fp->askb_rx[fp->fecpriv_current_rx]->tail), fp->askb_rx[fp->fecpriv_current_rx]->len);
+                        /* Make sure CPU is not going to read cached data instead of actual packet data */
+                        cf_dcache_flush_range((unsigned)(fp->askb_rx[fp->fecpriv_current_rx]->tail) , (unsigned)(fp->askb_rx[fp->fecpriv_current_rx]->tail) + fp->askb_rx[fp->fecpriv_current_rx]->len);
 
     			skb_put(skb, fp->fecpriv_rxdesc[fp->fecpriv_current_rx].length - 4);
     			skb->protocol = eth_type_trans(skb, dev);
@@ -989,6 +994,7 @@ void fec_interrupt_fec_rx_handler(struct net_device *dev)
 			fp->askb_rx[fp->fecpriv_current_rx]->dev = dev;
 
 			/* flush data cache before initializing the descriptor and starting DMA */
+                        /* FU: not needed, cache is writethrough and we are just writing */
 #if 0
 /* JKM -- currently running with cache turned off */
 			DcacheFlushInvalidateCacheBlock((void*)virt_to_phys(fp->askb_rx[fp->fecpriv_current_rx]->tail), FEC_MAXBUF_SIZE);
@@ -999,6 +1005,7 @@ void fec_interrupt_fec_rx_handler(struct net_device *dev)
 		fp->fecpriv_rxdesc[fp->fecpriv_current_rx].statCtrl |= MCD_FEC_BUF_READY;
 
     		    // flush data cache before initializing the descriptor and starting DMA
+                /* FU: not needed, cache is writethrough and we are just writing */
 //		    DcacheFlushInvalidateCacheBlock((void*)virt_to_phys(fp->askb_rx[fp->fecpriv_current_rx]->tail), FEC_MAXBUF_SIZE);
     	    }
         }
@@ -1139,6 +1146,7 @@ void fec_interrupt_fec_reinit(unsigned long data)
 	fp->fecpriv_current_tx = fp->fecpriv_next_tx = 0;
 
 	/* flush entire data cache before restarting the DMA */
+        /* FU: not needed, DMA is not running, cache is writethrough and we are just writing */
 #if 0
 /* JKM -- currently running with cache turned off */
 	DcacheFlushInvalidate();
