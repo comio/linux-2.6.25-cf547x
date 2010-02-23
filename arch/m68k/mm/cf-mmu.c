@@ -191,7 +191,7 @@ int cf_tlb_miss(struct pt_regs *regs, int write, int dtlb, int extension_word)
 	
         set_pte(pte, pte_mkyoung(*pte));
         asid = mm->context & 0xff;
-        if (!pte_dirty(*pte) && !KMAPAREA(mmuar))
+        if (!pte_dirty(*pte) && !KMAPAREA(mmuar) && !(pte_val(*pte) & CF_PAGE_NOCACHE))
     	    set_pte(pte, pte_wrprotect(*pte));
 
         *MMUTR = (mmuar & PAGE_MASK) | (asid << CF_ASID_MMU_SHIFT)
