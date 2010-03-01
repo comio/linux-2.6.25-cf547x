@@ -65,8 +65,8 @@ static int irq_enable[NR_IRQS];
 unsigned long num_pages;
 
 /* ethernet mac addresses from uboot */
-unsigned char uboot_enet0[6];
-unsigned char uboot_enet1[6];
+unsigned char uboot_enet0[6] = { 0, 0, 0, 0, 0, 0 };
+unsigned char uboot_enet1[6] = { 0, 0, 0, 0, 0, 0 };
 
 void coldfire_sort_memrec(void)
 {
@@ -133,10 +133,10 @@ int __init uboot_commandline(char *bootargs)
         }
 
 	/* copy over mac addresses */
-        if (uboot_info->bdi != NULL) {
-                memcpy(uboot_enet0, uboot_info->bdi->bi_enet0addr, 6);
-                memcpy(uboot_enet1, uboot_info->bdi->bi_enet1addr, 6);
-        }
+/*         if (uboot_info->bdi != NULL) { */
+/*                 memcpy(uboot_enet0, uboot_info->bdi->bi_enet0addr, 6); */
+/*                 memcpy(uboot_enet1, uboot_info->bdi->bi_enet1addr, 6); */
+/*         } */
 
 	/* copy command line */
 	cmd_line_len = uboot_info->cmd_line_stop - uboot_info->cmd_line_start;

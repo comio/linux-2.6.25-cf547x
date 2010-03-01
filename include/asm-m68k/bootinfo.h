@@ -32,9 +32,9 @@
 /*
  * UBoot Support
  *
- * bd_info structure from uboot1.3.2/include/asm-m68k/u-boot.h
+ * bd_info structure from uBoot-v2009.11/include/asm-m68k/u-boot.h
  */
-struct bd_info {
+typedef struct bd_info {
 	unsigned long bi_memstart;	/* start of DRAM memory */
 	unsigned long bi_memsize;	/* size  of DRAM memory in bytes */
 	unsigned long bi_flashstart;	/* start of FLASH memory */
@@ -46,7 +46,6 @@ struct bd_info {
 	unsigned long bi_bootflags;	/* boot / reboot flag (for LynxOS) */
 	unsigned long bi_boot_params;	/* where this board expects params */
 	unsigned long bi_ip_addr;	/* IP Address */
-	unsigned char bi_enet0addr[6];	/* Ethernet 0 mac address */
 	unsigned short bi_ethspeed;	/* Ethernet speed in Mbps */
 	unsigned long bi_intfreq;	/* Internal Freq, in MHz */
 	unsigned long bi_busfreq;	/* Bus Freq, in MHz */
@@ -59,10 +58,7 @@ struct bd_info {
 	unsigned long bi_flbfreq;	/* Flexbus Freq in MHz */
 #endif
 	unsigned long bi_baudrate;	/* Console Baudrate */
-	unsigned char bi_enet1addr[6];	/* eth1 mac address */
-	unsigned char bi_enet2addr[6];	/* eth2 mac address */
-	unsigned char bi_enet3addr[6];	/* eth3 mac address */
-};
+} bd_t;
 
 struct uboot_record {
 	struct bd_info *bdi;
