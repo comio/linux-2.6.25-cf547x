@@ -287,7 +287,7 @@ int mcf_gpio_add(gpio_port_descr_t *port, int major) {
 		goto undo_malloc;
 	}
 	
-	dev_info(&newport->pdev->dev, "MCF GPIO Driver Initializing\n");
+	printk(KERN_NOTICE MCF_GPIO_PREFIX "port %s initializing\n", port->name);
 	
 	if (major) {
         	devid = MKDEV(major, 0);
