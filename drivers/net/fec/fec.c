@@ -22,6 +22,7 @@
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 #include <linux/bitops.h>
+#include <linux/phy.h>
 
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
@@ -30,6 +31,7 @@
 #include <asm/dma.h>
 #include <asm/MCD_dma.h>
 #include <asm/m5485sram.h>
+#include <asm/m5485gpio.h>
 #include <asm/virtconvert.h>
 #include <asm/irq.h>
 
@@ -46,34 +48,7 @@
 #undef	FEC_2
 #endif
 
-#define VERSION "0.20"
 MODULE_DESCRIPTION( "DMA Fast Ethernet Controller driver ver " VERSION);
-
-/* fec private */
-struct fec_priv {
-	struct net_device *netdev;		/* owning net device */
-	void* fecpriv_txbuf[FEC_TX_BUF_NUMBER];	/* tx buffer ptrs */
-	MCD_bufDescFec *fecpriv_txdesc;		/* tx descriptor ptrs */
-	volatile unsigned int fecpriv_current_tx; /* current tx desc index */
-	volatile unsigned int fecpriv_next_tx;	/* next tx desc index */
-	unsigned int fecpriv_current_rx;	/* current rx desc index */
-	MCD_bufDescFec *fecpriv_rxdesc;		/* rx descriptor ptrs */
-	struct sk_buff *askb_rx[FEC_RX_BUF_NUMBER]; /* rx SKB ptrs */
-	unsigned int fecpriv_initiator_rx;	/* rx dma initiator */
-	unsigned int fecpriv_initiator_tx;	/* tx dma initiator */
-	int fecpriv_fec_rx_channel;		/* rx dma channel */
-	int fecpriv_fec_tx_channel;		/* tx dma channel */
-	int fecpriv_rx_requestor;		/* rx dma requestor */
-	int fecpriv_tx_requestor;		/* tx dma requestor */
-	void *fecpriv_interrupt_fec_rx_handler;	/* dma rx handler */
-	void *fecpriv_interrupt_fec_tx_handler;	/* dma tx handler */
-	unsigned char *fecpriv_mac_addr;	/* private fec mac addr */
-	struct net_device_stats fecpriv_stat;	/* stats ptr */
-	spinlock_t fecpriv_lock;
-	int fecpriv_rxflag;
-	struct tasklet_struct fecpriv_tasklet_reinit;
-	int index;				/* fec hw number */
-};
 
 struct net_device *fec_dev[FEC_MAX_PORTS];
 
@@ -82,6 +57,7 @@ int __init fec_init(void);
 struct net_device_stats *fec_get_stat(struct net_device *dev);
 int fec_open(struct net_device *dev);
 int fec_close(struct net_device *nd);
+int fec_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 int fec_tx(struct sk_buff *skb, struct net_device *dev);
 void fec_set_multicast_list(struct net_device *nd);
 int fec_set_mac_address(struct net_device *dev, void *p);
@@ -101,9 +77,6 @@ unsigned char fec_mac_addr_fec0[6] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x50 };
 unsigned char fec_mac_addr_fec1[6] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x51 };
 #endif
 
-extern unsigned char uboot_enet0[];
-extern unsigned char uboot_enet1[];
-
 #ifndef MODULE
 int fec_str_to_mac( char *str_mac, unsigned char* addr);
 int __init fec_mac_setup0 (char *s);
@@ -118,9 +91,6 @@ void fec_interrupt_fec_rx_handler_fec1(void);
 #ifndef MODULE
 int __init fec_mac_setup1 (char *s);
 #endif
-
-int fec_read_mii(unsigned int base_addr, unsigned int pa, unsigned int ra, unsigned int *data);
-int fec_write_mii(unsigned int base_addr, unsigned int pa, unsigned int ra, unsigned int data);
 
 module_init(fec_init);
 /* module_exit(fec_cleanup); */
@@ -178,12 +148,6 @@ int fec_enet_init(struct net_device *dev)
 		fp->fecpriv_rxdesc = (void*)FEC_RX_DESC_FEC0;
 
 		/* mac addr */
-		if (uboot_enet0[0] || uboot_enet0[1] || uboot_enet0[2] ||
-		    uboot_enet0[3] || uboot_enet0[4] || uboot_enet0[5]) {
-			/* use uboot enet 0 addr */
-			memcpy(fec_mac_addr_fec0, uboot_enet0, 6);
-		}
-
 		fp->fecpriv_mac_addr = fec_mac_addr_fec0;
 	}
 	else {
@@ -220,11 +184,6 @@ int fec_enet_init(struct net_device *dev)
 		fp->fecpriv_rxdesc = (void*)FEC_RX_DESC_FEC1;
 
 		/* mac addr */
-		if (uboot_enet1[0] || uboot_enet1[1] || uboot_enet1[2] ||
-		    uboot_enet1[3] || uboot_enet1[4] || uboot_enet1[5]) {
-			/* use uboot enet 1 addr */
-			memcpy(fec_mac_addr_fec1, uboot_enet1, 6);
-		}
 		fp->fecpriv_mac_addr = fec_mac_addr_fec1;
 #endif
 	}
@@ -257,6 +216,7 @@ int fec_enet_init(struct net_device *dev)
 
 	dev->open = fec_open;
 	dev->stop = fec_close;
+	dev->do_ioctl = fec_ioctl;
 	dev->hard_start_xmit = fec_tx;
 	dev->get_stats = fec_get_stat;
 	dev->set_multicast_list = fec_set_multicast_list;
@@ -281,6 +241,8 @@ int fec_enet_init(struct net_device *dev)
  */
 int __init fec_init(void)
 {
+	struct fec_priv *priv;
+	struct phy_device * phy;
 	struct net_device *dev;
 	int i;
 	int err;
@@ -301,6 +263,9 @@ int __init fec_init(void)
 			free_netdev(dev);
 			return -EIO;
 		}
+
+		fec_set_ethtool(dev);
+		fec_mdio_setup(dev);
 
 		printk(KERN_INFO "%s: ethernet %s\n",
 		       dev->name, print_mac(mac, dev->dev_addr));
@@ -473,6 +438,8 @@ int fec_open(struct net_device *dev)
 	/* Enable FEC */
 	FEC_ECR(base_addr) |= FEC_ECR_ETHEREN;
 
+	fec_reset_mii(base_addr);
+
 	/* Initialize tx descriptors and start DMA for the transmission */
 	for (i = 0; i < FEC_TX_BUF_NUMBER; i++)
 		fp->fecpriv_txdesc[i].statCtrl = MCD_FEC_INTERRUPT;
@@ -602,6 +569,18 @@ int fec_close(struct net_device *dev)
 
 	return 0;
 }
+
+int fec_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+{
+	struct fec_priv *priv = (struct fec_priv *)dev->priv;
+
+	if (!netif_running(dev)) return -EINVAL;
+
+	if (!priv->phy) return -EINVAL;
+
+	return phy_mii_ioctl(priv->phy, if_mii(rq), cmd);
+}
+
 
 /************************************************************************
 * +NAME: fec_get_stat
@@ -845,9 +824,11 @@ void fec_tx_timeout(struct net_device *dev)
 *
 * RETURNS: If no error occurs, this function returns zero.
 *************************************************************************/
-int fec_read_mii(unsigned int base_addr, unsigned int pa, unsigned int ra, unsigned int *data)
+int fec_read_mii(unsigned int base_addr, unsigned int pa, unsigned int ra, int *data)
 {
-	unsigned long time;
+	int i;
+
+	*data = 0x0000ffff;
 
 	/* Clear the MII interrupt bit */
 	FEC_EIR(base_addr) = FEC_EIR_MII;
@@ -855,14 +836,14 @@ int fec_read_mii(unsigned int base_addr, unsigned int pa, unsigned int ra, unsig
 	/* Write to the MII management frame register */
 	FEC_MMFR(base_addr) = FEC_MMFR_READ | (pa << 23) | (ra << 18);
 
-	time = jiffies;
-
 	/* Wait for the reading */
-	while (!(FEC_EIR(base_addr) & FEC_EIR_MII)) {
-		if (jiffies - time > FEC_MII_TIMEOUT * HZ)
-			return -ETIME;
-		schedule();
+	for (i=0; i < 10000; i++) {
+		if (FEC_EIR(base_addr) & FEC_EIR_MII)
+			break;
 	}
+
+	if (!(FEC_EIR(base_addr) & FEC_EIR_MII))
+		return -ETIME;
 
 	/* Clear the MII interrupt bit */
 	FEC_EIR(base_addr) = FEC_EIR_MII;
@@ -879,30 +860,49 @@ int fec_read_mii(unsigned int base_addr, unsigned int pa, unsigned int ra, unsig
 *
 * RETURNS: If no error occurs, this function returns zero.
 *************************************************************************/
-int fec_write_mii(unsigned int base_addr, unsigned int pa, unsigned int ra, unsigned int data)
+int fec_write_mii(unsigned int base_addr, unsigned int pa, unsigned int ra, int data)
 {
-	unsigned long time;
+	int i;
 
 	/* Clear the MII interrupt bit */
 	FEC_EIR(base_addr) = FEC_EIR_MII;
 
 	/* Write to the MII management frame register */
-	FEC_MMFR(base_addr) = FEC_MMFR_WRITE | (pa << 23) | (ra << 18) | data;
+	FEC_MMFR(base_addr) = FEC_MMFR_WRITE | (pa << 23) | (ra << 18) | ( data & 0x0000ffff );
 
-	time = jiffies;
-
-	/* Wait for the writing */
-	while (!(FEC_EIR(base_addr) & FEC_EIR_MII)) {
-		if (jiffies - time > FEC_MII_TIMEOUT * HZ)
-			return -ETIME;
-		schedule();
+	for (i=0; i < 10000; i++) {
+		if (FEC_EIR(base_addr) & FEC_EIR_MII)
+			break;
 	}
 
+	if (!(FEC_EIR(base_addr) & FEC_EIR_MII))
+		return -ETIME;
+	
 	/* Clear the MII interrupt bit */
 	FEC_EIR(base_addr) = FEC_EIR_MII;
 
 	return 0;
 }
+
+/************************************************************************
+* NAME: fec_reset_mii
+*
+* DESCRIPTION: This function reset the MII registers
+*
+* RETURNS: If no error occurs, this function returns zero.
+*************************************************************************/
+int fec_reset_mii(unsigned int base_addr)
+{
+	FEC_MSCR(base_addr) = 20 << 1;
+
+	if (base_addr == FEC_BASE_ADDR_FEC0)
+		MCF_GPIO_PAR_FECI2CIRQ |= 0xF000;
+	else
+		MCF_GPIO_PAR_FECI2CIRQ |= 0x0FC0;
+
+	return 0;
+}
+
 
 /************************************************************************
 * NAME: fec_interrupt_tx_handler
@@ -1176,7 +1176,8 @@ void fec_interrupt_fec_reinit(unsigned long data)
 
 	/* Enable FEC */
 	FEC_ECR(base_addr) |= FEC_ECR_ETHEREN;
-
+	fec_reset_mii(base_addr);
+	
 	netif_wake_queue(dev);
 }
 

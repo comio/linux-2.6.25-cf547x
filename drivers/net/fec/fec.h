@@ -1,3 +1,12 @@
+#ifndef __FEC_H__
+#define __FEC_H__
+
+#include <linux/netdevice.h>
+#include <linux/etherdevice.h>
+#include <linux/mii.h>
+#include <linux/ethtool.h>
+
+#include <asm/MCD_dma.h>
 
 #define   FEC_BASE_ADDR_FEC0                ((unsigned int)MCF_MBAR + 0x9000)
 #define   FEC_BASE_ADDR_FEC1                ((unsigned int)MCF_MBAR + 0x9800)
@@ -154,9 +163,51 @@
 #define   FEC_SW_RST                        0x2000000
 #define   FEC_RST_CTL                       0x1000000
 
+
+/* fec private */
+struct fec_priv {
+	struct net_device *netdev;		/* owning net device */
+	void* fecpriv_txbuf[FEC_TX_BUF_NUMBER];	/* tx buffer ptrs */
+	MCD_bufDescFec *fecpriv_txdesc;		/* tx descriptor ptrs */
+	volatile unsigned int fecpriv_current_tx; /* current tx desc index */
+	volatile unsigned int fecpriv_next_tx;	/* next tx desc index */
+	unsigned int fecpriv_current_rx;	/* current rx desc index */
+	MCD_bufDescFec *fecpriv_rxdesc;		/* rx descriptor ptrs */
+	struct sk_buff *askb_rx[FEC_RX_BUF_NUMBER]; /* rx SKB ptrs */
+	unsigned int fecpriv_initiator_rx;	/* rx dma initiator */
+	unsigned int fecpriv_initiator_tx;	/* tx dma initiator */
+	int fecpriv_fec_rx_channel;		/* rx dma channel */
+	int fecpriv_fec_tx_channel;		/* tx dma channel */
+	int fecpriv_rx_requestor;		/* rx dma requestor */
+	int fecpriv_tx_requestor;		/* tx dma requestor */
+	void *fecpriv_interrupt_fec_rx_handler;	/* dma rx handler */
+	void *fecpriv_interrupt_fec_tx_handler;	/* dma tx handler */
+	unsigned char *fecpriv_mac_addr;	/* private fec mac addr */
+	struct net_device_stats fecpriv_stat;	/* stats ptr */
+	spinlock_t fecpriv_lock;
+	int fecpriv_rxflag;
+	struct mii_bus *mdio;
+	struct phy_device *phy;
+	struct tasklet_struct fecpriv_tasklet_reinit;
+	int index;				/* fec hw number */
+};
+
+
 int fec_read_mii(unsigned int base_addr, unsigned int pa, unsigned int ra,
-		 unsigned int *data);
+		 int *data);
 int fec_write_mii(unsigned int base_addr, unsigned int pa, unsigned int ra,
-		  unsigned int data);
+		 int data);
+int fec_reset_mii(unsigned int base_addr);
 
 #define init_transceiver ks8721_init_transceiver
+
+#define VERSION "0.20"
+#define FEC_DRV_NAME "FEC"
+#define FEC_DRV_VERSION VERSION
+
+extern const struct ethtool_ops *fec_set_ethtool(struct net_device *dev);
+
+extern int fec_mdio_setup(struct net_device *dev);
+extern int fec_mdio_remove(struct net_device *dev);
+
+#endif
