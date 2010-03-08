@@ -68,7 +68,7 @@ struct phy_device* phy_device_create(struct mii_bus *bus, int addr, int phy_id)
 	dev->speed = 0;
 	dev->duplex = -1;
 	dev->pause = dev->asym_pause = 0;
-	dev->link = 1;
+	dev->link = 0;
 	dev->interface = PHY_INTERFACE_MODE_GMII;
 
 	dev->autoneg = AUTONEG_ENABLE;
@@ -475,10 +475,15 @@ int genphy_update_link(struct phy_device *phydev)
 	if (status < 0)
 		return status;
 
-	if ((status & BMSR_LSTATUS) == 0)
+	if ((status & BMSR_LSTATUS) == 0) {
+		if (phydev->link == 0)
+			return 1;
 		phydev->link = 0;
-	else
+	} else {
+		if (phydev->link == 1)
+			return 1;
 		phydev->link = 1;
+	}
 
 	return 0;
 }

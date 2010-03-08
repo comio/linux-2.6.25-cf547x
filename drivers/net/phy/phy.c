@@ -916,9 +916,8 @@ static void phy_state_machine(struct work_struct *work)
 		case PHY_RUNNING:
 			/* Only register a CHANGE if we are
 			 * polling */
-			if (PHY_POLL == phydev->irq)
-				phydev->state = PHY_CHANGELINK;
-			break;
+			if (PHY_POLL != phydev->irq)
+			    break;
 		case PHY_CHANGELINK:
 			err = phy_read_status(phydev);
 
