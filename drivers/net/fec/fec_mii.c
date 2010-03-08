@@ -117,10 +117,6 @@ struct mii_bus *fec_create_miibus(struct net_device *netdev)
 	return new_bus;
 }
 
-static void phy_handler(struct net_device *dev)
-{
-}
-
 int fec_mdio_setup(struct net_device *dev)
 {
 	int err;
@@ -161,7 +157,7 @@ int fec_mdio_setup(struct net_device *dev)
 	priv->phy = NULL;
 
 	if (phy) {
-		phy = phy_connect(dev, phy_id, phy_handler, 0, PHY_INTERFACE_MODE_MII);
+		phy = phy_connect(dev, phy_id, &fec_adjust_link, 0, PHY_INTERFACE_MODE_MII);
 
 		if (phy) {
 			phy->supported &= (SUPPORTED_10baseT_Half

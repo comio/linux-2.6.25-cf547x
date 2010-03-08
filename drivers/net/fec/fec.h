@@ -22,7 +22,7 @@
 
 #define   FEC_ECR_DISABLE                   (0x00000000)
 
-#define   FEC_ECR(x)                        *(volatile unsigned int *)(x + 0x024)
+#define   FEC_ECR(x)                        *(volatile unsigned int*)(x + 0x024)
 #define   FEC_EIR(x)                        *(volatile unsigned int*)(x + 0x004)
 #define   FEC_PALR(x)                       *(volatile unsigned int*)(x + 0x0E4)
 #define   FEC_PAUR(x)                       *(volatile unsigned int*)(x + 0x0E8)
@@ -78,19 +78,26 @@
 #define   FEC_EIR_CLEAR                     (0xFFFFFFFF)
 #define   FEC_EIR_RL                        (0x00100000)
 #define   FEC_EIR_HBERR                     (0x80000000)
-#define   FEC_EIR_BABR						(0x40000000)   // babbling receive error
-#define   FEC_EIR_BABT						(0x20000000)   // babbling transmit error
-#define   FEC_EIR_TXF		              	(0x08000000)   // transmit frame interrupt
-#define   FEC_EIR_MII						(0x00800000)   // MII interrupt
-#define   FEC_EIR_LC						(0x00200000)   // late collision
-#define   FEC_EIR_XFUN						(0x00080000)   // transmit FIFO underrun
-#define   FEC_EIR_XFERR						(0x00040000)   // transmit FIFO error
-#define   FEC_EIR_RFERR						(0x00020000)   // receive FIFO error
+#define   FEC_EIR_BABR						(0x40000000)	// babbling receive error
+#define   FEC_EIR_BABT						(0x20000000)	// babbling transmit error
+#define   FEC_EIR_TXF		              	(0x08000000)	// transmit frame interrupt
+#define   FEC_EIR_MII						(0x00800000)	// MII interrupt
+#define   FEC_EIR_LC						(0x00200000)	// late collision
+#define   FEC_EIR_XFUN						(0x00080000)	// transmit FIFO underrun
+#define   FEC_EIR_XFERR						(0x00040000)	// transmit FIFO error
+#define   FEC_EIR_RFERR						(0x00020000)	// receive FIFO error
 #define   FEC_RCR_MAX_FRM_SIZE              (FEC_MAX_FRM_SIZE << 16)
+#define   FEC_RCR_FCE                       (0x00000020)
+#define   FEC_RCR_BC_REJ                    (0x00000010)
+#define   FEC_RCR_PROM                      (0x00000008)
 #define   FEC_RCR_MII                       (0x00000004)
-#define   FEC_FECRFCR_FAE					(0x00400000)   // frame accept error
-#define   FEC_FECRFCR_RXW					(0x00200000)   // receive wait condition
-#define   FEC_FECRFCR_UF					(0x00100000)   // receive FIFO underflow
+#define   FEC_RCR_MII                       (0x00000004)
+#define   FEC_RCR_DRT                       (0x00000002)
+#define   FEC_RCR_LOOP                      (0x00000001)
+
+#define   FEC_FECRFCR_FAE					(0x00400000)	// frame accept error
+#define   FEC_FECRFCR_RXW					(0x00200000)	// receive wait condition
+#define   FEC_FECRFCR_UF					(0x00100000)	// receive FIFO underflow
 #define   FEC_FECRFCR_FRM                   (0x08000000)
 #define   FEC_FECRFCR_GR                    (0x7 << 24)
 
@@ -99,24 +106,24 @@
 #define   FEC_FECRFAR_ALARM                 (0x300)
 #define   FEC_FECTFCR_FRM                   (0x08000000)
 #define   FEC_FECTFCR_GR                    (0x7 << 24)
-#define   FEC_FECTFCR_FAE					(0x00400000)   // frame accept error
-#define   FEC_FECTFCR_TXW					(0x00040000)   // transmit wait condition
-#define   FEC_FECTFCR_UF					(0x00100000)   // transmit FIFO underflow
-#define   FEC_FECTFCR_OF					(0x00080000)   // transmit FIFO overflow
+#define   FEC_FECTFCR_FAE					(0x00400000)	// frame accept error
+#define   FEC_FECTFCR_TXW					(0x00040000)	// transmit wait condition
+#define   FEC_FECTFCR_UF					(0x00100000)	// transmit FIFO underflow
+#define   FEC_FECTFCR_OF					(0x00080000)	// transmit FIFO overflow
 
 #define   FEC_FECTFAR_ALARM                 (0x100)
 #define   FEC_FECTFWR_XWMRK                 (0x00000000)
 
 #define   FEC_FECTFSR_MSK                   (0xC0B00000)
-#define   FEC_FECTFSR_TXW                   (0x40000000)   // transmit wait condition
-#define   FEC_FECTFSR_FAE                   (0x00800000)   // frame accept error
-#define   FEC_FECTFSR_UF                    (0x00200000)   // transmit FIFO underflow
-#define   FEC_FECTFSR_OF                    (0x00100000)   // transmit FIFO overflow
+#define   FEC_FECTFSR_TXW                   (0x40000000)	// transmit wait condition
+#define   FEC_FECTFSR_FAE                   (0x00800000)	// frame accept error
+#define   FEC_FECTFSR_UF                    (0x00200000)	// transmit FIFO underflow
+#define   FEC_FECTFSR_OF                    (0x00100000)	// transmit FIFO overflow
 
 #define   FEC_FECRFSR_MSK                   (0x80F00000)
-#define   FEC_FECRFSR_FAE                   (0x00800000)   // frame accept error
-#define   FEC_FECRFSR_RXW                   (0x00400000)   // receive wait condition
-#define   FEC_FECRFSR_UF                    (0x00200000)   // receive FIFO underflow
+#define   FEC_FECRFSR_FAE                   (0x00800000)	// frame accept error
+#define   FEC_FECRFSR_RXW                   (0x00400000)	// receive wait condition
+#define   FEC_FECRFSR_UF                    (0x00200000)	// receive FIFO underflow
 
 #define   FEC_CTCWR_TFCW_CRC                (0x03000000)
 #define   FEC_TCR_FDEN                      (0x00000004)
@@ -163,23 +170,25 @@
 #define   FEC_SW_RST                        0x2000000
 #define   FEC_RST_CTL                       0x1000000
 
+typedef struct fecregs {
+} fecregs_t;
 
 /* fec private */
 struct fec_priv {
-	struct net_device *netdev;		/* owning net device */
-	void* fecpriv_txbuf[FEC_TX_BUF_NUMBER];	/* tx buffer ptrs */
-	MCD_bufDescFec *fecpriv_txdesc;		/* tx descriptor ptrs */
-	volatile unsigned int fecpriv_current_tx; /* current tx desc index */
+	struct net_device *netdev;	/* owning net device */
+	void *fecpriv_txbuf[FEC_TX_BUF_NUMBER];	/* tx buffer ptrs */
+	MCD_bufDescFec *fecpriv_txdesc;	/* tx descriptor ptrs */
+	volatile unsigned int fecpriv_current_tx;	/* current tx desc index */
 	volatile unsigned int fecpriv_next_tx;	/* next tx desc index */
 	unsigned int fecpriv_current_rx;	/* current rx desc index */
-	MCD_bufDescFec *fecpriv_rxdesc;		/* rx descriptor ptrs */
-	struct sk_buff *askb_rx[FEC_RX_BUF_NUMBER]; /* rx SKB ptrs */
+	MCD_bufDescFec *fecpriv_rxdesc;	/* rx descriptor ptrs */
+	struct sk_buff *askb_rx[FEC_RX_BUF_NUMBER];	/* rx SKB ptrs */
 	unsigned int fecpriv_initiator_rx;	/* rx dma initiator */
 	unsigned int fecpriv_initiator_tx;	/* tx dma initiator */
-	int fecpriv_fec_rx_channel;		/* rx dma channel */
-	int fecpriv_fec_tx_channel;		/* tx dma channel */
-	int fecpriv_rx_requestor;		/* rx dma requestor */
-	int fecpriv_tx_requestor;		/* tx dma requestor */
+	int fecpriv_fec_rx_channel;	/* rx dma channel */
+	int fecpriv_fec_tx_channel;	/* tx dma channel */
+	int fecpriv_rx_requestor;	/* rx dma requestor */
+	int fecpriv_tx_requestor;	/* tx dma requestor */
 	void *fecpriv_interrupt_fec_rx_handler;	/* dma rx handler */
 	void *fecpriv_interrupt_fec_tx_handler;	/* dma tx handler */
 	unsigned char *fecpriv_mac_addr;	/* private fec mac addr */
@@ -188,15 +197,17 @@ struct fec_priv {
 	int fecpriv_rxflag;
 	struct mii_bus *mdio;
 	struct phy_device *phy;
+	int oldduplex;
+	int oldspeed;
+	int oldlink;
 	struct tasklet_struct fecpriv_tasklet_reinit;
-	int index;				/* fec hw number */
+	int index;		/* fec hw number */
 };
 
-
 int fec_read_mii(unsigned int base_addr, unsigned int pa, unsigned int ra,
-		 int *data);
+		int *data);
 int fec_write_mii(unsigned int base_addr, unsigned int pa, unsigned int ra,
-		 int data);
+		int data);
 int fec_reset_mii(unsigned int base_addr);
 
 #define init_transceiver ks8721_init_transceiver
@@ -205,6 +216,7 @@ int fec_reset_mii(unsigned int base_addr);
 #define FEC_DRV_NAME "FEC"
 #define FEC_DRV_VERSION VERSION
 
+extern void fec_adjust_link(struct net_device *dev);
 extern const struct ethtool_ops *fec_set_ethtool(struct net_device *dev);
 
 extern int fec_mdio_setup(struct net_device *dev);
