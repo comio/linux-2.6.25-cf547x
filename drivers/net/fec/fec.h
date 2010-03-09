@@ -170,55 +170,143 @@
 #define   FEC_SW_RST                        0x2000000
 #define   FEC_RST_CTL                       0x1000000
 
-typedef struct fecregs {
-} fecregs_t;
+struct fec_rmon {
+	u32 rmon_t_drop;		/* 0x200 Count of frames not counted correctly */
+	u32 rmon_t_packets;		/* 0x204 RMON Tx packet count */
+	u32 rmon_t_bc_pkt;		/* 0x208 RMON Tx Broadcast Packets */
+	u32 rmon_t_mc_pkt;		/* 0x20C RMON Tx Multicast Packets */
+	u32 rmon_t_crc_align;	/* 0x210 RMON Tx Packets w CRC/Align error */
+	u32 rmon_t_undersize;	/* 0x214 RMON Tx Packets < 64 bytes, good crc */
+	u32 rmon_t_oversize;	/* 0x218 RMON Tx Packets > MAX_FL bytes, good crc */
+	u32 rmon_t_frag;		/* 0x21C RMON Tx Packets < 64 bytes, bad crc */
+	u32 rmon_t_jab;			/* 0x220 RMON Tx Packets > MAX_FL bytes, bad crc */
+	u32 rmon_t_col;			/* 0x224 RMON Tx collision count */
+	u32 rmon_t_p64;			/* 0x228 RMON Tx 64 byte packets */
+	u32 rmon_t_p65to127;	/* 0x22C RMON Tx 65 to 127 byte packets */
+	u32 rmon_t_p128to255;	/* 0x230 RMON Tx 128 to 255 byte packets */
+	u32 rmon_t_p256to511;	/* 0x234 RMON Tx 256 to 511 byte packets */
+	u32 rmon_t_p512to1023;	/* 0x238 RMON Tx 512 to 1023 byte packets */
+	u32 rmon_t_p1024to2047;	/* 0x23C RMON Tx 1024 to 2047 byte packets */
+	u32 rmon_t_p_gte2048;	/* 0x240 RMON Tx packets w > 2048 bytes */
+	u32 rmon_t_octets;		/* 0x244 RMON Tx Octets */
+	u32 ieee_t_drop;		/* 0x248 Count of frames not counted correctly */
+	u32 ieee_t_frame_ok;	/* 0x24C Frames Transmitted OK */
+	u32 ieee_t_1col;		/* 0x250 Frames Transmitted with Single Collision */
+	u32 ieee_t_mcol;		/* 0x254 Frames Transmitted with Multiple Collisions */
+	u32 ieee_t_def;			/* 0x258 Frames Transmitted after Deferral Delay */
+	u32 ieee_t_lcol;		/* 0x25c Frames Transmitted with Late Collision */
+	u32 ieee_t_excol;		/* 0x260 Frames Transmitted with Excessive Collisions */
+	u32 ieee_t_macerr;		/* 0x264 Frames Transmitted with Tx FIFO Underrun */
+	u32 ieee_t_cserr;		/* 0x268 Frames Transmitted with Carrier Sense Error */
+	u32 ieee_t_sqe;			/* 0x26C Frames Transmitted with SQE Error */
+	u32 ieee_t_fdxfc;		/* 0x270 Flow Control Pause frames transmitted */
+	u32 ieee_t_octets_ok;	/* 0x274 Octet count for Frames Transmitted w/o Error */
+};
+
+struct fecregs {
+	u8  resv1[4];	/* 0x000 Reserved */
+	u32 eir;		/* 0x004 Ethernet Interrupt Event Register */
+	u32 eimr;		/* 0x008 Ethernet Interrupt Mask Register */
+	u8  resv2[24];	/* 0x00C Reserved */
+	u32 ecr;		/* 0x024 Ethernet Control Register */
+	u8  resv3[24];	/* 0x028 Reserved */
+	u32 mdata;		/* 0x040 MII Data Register */
+	u32 mscr;		/* 0x044 MII Speed Control Register */
+	u8  resv4[28];	/* 0x048 Reserved */
+	u32 mibc;		/* 0x064 MIB Control/Status Register */
+	u8  resv5[28];	/* 0x068 Reserved */
+	u32 rcr;		/* 0x084 Receive Control Register */
+	u32 rhr;		/* 0x088 Receive Hash Register */
+	u32 resv6[56];	/* 0x08C Reserved */
+	u32 tcr;		/* 0x0C4 Transmit Control Register */
+	u8  resv7[28];	/* 0x0C8 Reserved */
+	u32 palr;		/* 0x0E4 Physical Address Low Register */
+	u32 pahr;		/* 0x0E8 Physical Address High Register */
+	u32 opd;		/* 0x0EC Opcode / Pause Duration Register */
+	u8  resv8[40];	/* 0x0F0 Reserved */
+	u32 iaur;		/* 0x118 Individual Address Upper Register */
+	u32 ialr;		/* 0x11C Individual Address Lower Register */
+	u32 gaur;		/* 0x120 Group Address Upper Register */
+	u32 galr;		/* 0x124 Group Address Lower Register */
+	u32 resv9[28];	/* 0x128 Reserved */
+	u32 fectfw;		/* 0x144 FEC Transmit FIFO Watermark*/
+	u32 resv10[60];	/* 0x148 Reserved */
+	u32 fecrfdr;	/* 0x184 FEC Receive FIFO Data Register*/
+	u32 fecrfsr;	/* 0x188 FEC Receive FIFO Status Register*/
+	u32 fecrcr;		/* 0x18C FEC Receive FIFO Control Register */
+	u32 fecrlrfp;	/* 0x190 FEC Receive FIFO Last Read Frame Pointer*/
+	u32 fecrlwfp;	/* 0x194 FEC Receive FIFO Last Write Frame Pointer*/
+	u32 fecrfar;	/* 0x198 FEC Receive FIFO Alarm Register*/
+	u32 fecrfrp;	/* 0x19C FEC Receive FIFO Read Pointer Register*/
+	u32 fecrfwp;	/* 0x1A0 FEC Receive FIFO Write Pointer Register*/
+	u32 fectfdr;	/* 0x1A4 FEC Transmit FIFO Data Register*/
+	u32 fectfsr;	/* 0x1A8 FEC Transmit FIFO Status Register*/
+	u32 fectfcr;	/* 0x1AC FEC Transmit FIFO Control Register*/
+	u32 fectlrfp;	/* 0x1B0 FEC Transmit FIFO Last Read Frame Pointer*/
+	u32 fectlwfp;	/* 0x1B4 FEC Transmit FIFO Last Write Frame Pointer*/
+	u32 fectfar;	/* 0x1B8 FEC Transmit FIFO Alarm Register*/
+	u32 fectfrp;	/* 0x1BC FEC Transmit FIFO Read Pointer Register*/
+	u32 fectfwp;	/* 0x1C0 FEC Transmit FIFO Write Pointer Register*/
+	u32 fecfrst;	/* 0x1C4 FIFO Reset Register*/
+	u32 fecctcwr;	/* 0x1C8 CRC and Transmit Frame Control Word Register*/
+	u8  resv11[52]; /* 0x1CC Reserved */
+	struct fec_rmon rmon; /* 0x200 RMON values */
+};
 
 /* fec private */
 struct fec_priv {
-	struct net_device *netdev;	/* owning net device */
-	void *fecpriv_txbuf[FEC_TX_BUF_NUMBER];	/* tx buffer ptrs */
-	MCD_bufDescFec *fecpriv_txdesc;	/* tx descriptor ptrs */
+	int index;									/* fec hw number */
+	volatile struct fecregs *regs;				/* FEC Registers */
+	struct net_device *netdev;					/* owning net device */
+	/* TX */
 	volatile unsigned int fecpriv_current_tx;	/* current tx desc index */
-	volatile unsigned int fecpriv_next_tx;	/* next tx desc index */
-	unsigned int fecpriv_current_rx;	/* current rx desc index */
-	MCD_bufDescFec *fecpriv_rxdesc;	/* rx descriptor ptrs */
+	volatile unsigned int fecpriv_next_tx;		/* next tx desc index */
+	void *fecpriv_txbuf[FEC_TX_BUF_NUMBER];		/* tx buffer ptrs */
+	MCD_bufDescFec *fecpriv_txdesc;				/* tx descriptor ptrs */
+	/* RX */
+	unsigned int fecpriv_current_rx;			/* current rx desc index */
 	struct sk_buff *askb_rx[FEC_RX_BUF_NUMBER];	/* rx SKB ptrs */
-	unsigned int fecpriv_initiator_rx;	/* rx dma initiator */
-	unsigned int fecpriv_initiator_tx;	/* tx dma initiator */
-	int fecpriv_fec_rx_channel;	/* rx dma channel */
-	int fecpriv_fec_tx_channel;	/* tx dma channel */
-	int fecpriv_rx_requestor;	/* rx dma requestor */
-	int fecpriv_tx_requestor;	/* tx dma requestor */
-	void *fecpriv_interrupt_fec_rx_handler;	/* dma rx handler */
-	void *fecpriv_interrupt_fec_tx_handler;	/* dma tx handler */
+	MCD_bufDescFec *fecpriv_rxdesc;				/* rx descriptor ptrs */
+	/* NAPI */
+	struct napi_struct napi;
+
+	/* DMA */
+	unsigned int fecpriv_initiator_rx;			/* rx dma initiator */
+	unsigned int fecpriv_initiator_tx;			/* tx dma initiator */
+	int fecpriv_fec_rx_channel;					/* rx dma channel */
+	int fecpriv_fec_tx_channel;					/* tx dma channel */
+	int fecpriv_rx_requestor;					/* rx dma requestor */
+	int fecpriv_tx_requestor;					/* tx dma requestor */
+	void *fecpriv_interrupt_fec_rx_handler;		/* dma rx handler */
+	void *fecpriv_interrupt_fec_tx_handler;		/* dma tx handler */
 	unsigned char *fecpriv_mac_addr;	/* private fec mac addr */
 	struct net_device_stats fecpriv_stat;	/* stats ptr */
-	spinlock_t fecpriv_lock;
+	spinlock_t rx_lock;
+	spinlock_t tx_lock;
 	int fecpriv_rxflag;
+	/* MDIO and PHY **/
 	struct mii_bus *mdio;
 	struct phy_device *phy;
 	int oldduplex;
 	int oldspeed;
 	int oldlink;
 	struct tasklet_struct fecpriv_tasklet_reinit;
-	int index;		/* fec hw number */
 };
 
-int fec_read_mii(unsigned int base_addr, unsigned int pa, unsigned int ra,
-		int *data);
-int fec_write_mii(unsigned int base_addr, unsigned int pa, unsigned int ra,
-		int data);
-int fec_reset_mii(unsigned int base_addr);
-
-#define init_transceiver ks8721_init_transceiver
+#define fecpriv_lock rx_lock
 
 #define VERSION "0.20"
 #define FEC_DRV_NAME "FEC"
 #define FEC_DRV_VERSION VERSION
 
+/* Low level MII functions */
+extern int fec_read_mii(unsigned int base_addr, unsigned int pa, unsigned int ra, int *data);
+extern int fec_write_mii(unsigned int base_addr, unsigned int pa, unsigned int ra, int data);
+extern int fec_reset_mii(unsigned int base_addr);
+
+/* Phylib support functions */
 extern void fec_adjust_link(struct net_device *dev);
 extern const struct ethtool_ops *fec_set_ethtool(struct net_device *dev);
-
 extern int fec_mdio_setup(struct net_device *dev);
 extern int fec_mdio_remove(struct net_device *dev);
 
