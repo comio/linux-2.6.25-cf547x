@@ -36,7 +36,6 @@
 #include <asm/irq.h>
 
 #include "fec.h"
-#include "ks8721.h"
 
 #define FU_TEST
 
@@ -269,6 +268,8 @@ int __init fec_init(void)
 
 		fec_set_ethtool(dev);
 		fec_mdio_setup(dev);
+
+		fec_adjust_link(dev);
 
 		printk(KERN_INFO "%s: ethernet %s\n",
 			dev->name, print_mac(mac, dev->dev_addr));
@@ -920,6 +921,9 @@ void fec_adjust_link(struct net_device *dev)
 	int new_state = 0;
 	unsigned long int base_addr = dev->base_addr;
 
+	if (!dev||!dev->priv||!priv->phy)
+		return;
+
 	spin_lock_irqsave(&priv->fecpriv_lock, flags);
 	if (phydev->link) {
 
@@ -1156,6 +1160,7 @@ irqreturn_t fec_interrupt_handler(int irq, void *dev_id)
 	if (events & FEC_EIR_HBERR) {
 		fp->fecpriv_stat.tx_heartbeat_errors++;
 		FEC_EIR(base_addr) = FEC_EIR_HBERR;
+		dev->stats.tx_dropped++;
 	}
 
 	/* receive/transmit FIFO error */
@@ -1199,6 +1204,7 @@ irqreturn_t fec_interrupt_handler(int irq, void *dev_id)
 		/* reset XFUN event */
 		FEC_EIR(base_addr) = FEC_EIR_XFUN;
 		fp->fecpriv_stat.tx_aborted_errors++;
+		dev->stats.tx_dropped++;
 	}
 
 	/* late collision */
@@ -1206,6 +1212,7 @@ irqreturn_t fec_interrupt_handler(int irq, void *dev_id)
 		/* reset LC event */
 		FEC_EIR(base_addr) = FEC_EIR_LC;
 		fp->fecpriv_stat.tx_aborted_errors++;
+		dev->stats.tx_window_errors++;
 	}
 
 	/* collision retry limit */
@@ -1213,7 +1220,9 @@ irqreturn_t fec_interrupt_handler(int irq, void *dev_id)
 		/* reset RL event */
 		FEC_EIR(base_addr) = FEC_EIR_RL;
 		fp->fecpriv_stat.tx_aborted_errors++;
+		dev->stats.tx_aborted_errors++;
 	}
+
 	return 0;
 }
 
@@ -1292,6 +1301,11 @@ void fec_interrupt_fec_reinit(unsigned long data)
 	/* Enable FEC */
 	FEC_ECR(base_addr) |= FEC_ECR_ETHEREN;
 	fec_reset_mii(base_addr);
+
+	fp->oldlink = 0;
+	fp->oldspeed = 0;
+	fp->oldduplex = -1;
+	fec_adjust_link(dev);
 
 	netif_wake_queue(dev);
 }
