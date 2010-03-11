@@ -1,12 +1,20 @@
 config FEC_548x
 	tristate "MCF547x/MCF548x Fast Ethernet Controller support"
 	depends on M547X_8X
- 	help
+	select PHYLIB
+	select CRC32
+	help
 	  The MCF547x and MCF548x have a built-in Fast Ethernet Controller.
 	  Saying Y here will include support for this device in the kernel.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called fecm.
+
+config FEC_548x_NAPI
+	bool "Enable NAPI support"
+	depends on FEC_548x
+	help
+	  Say Y here if you want to use the NAPI.
 
 config FEC_548x_AUTO_NEGOTIATION
 	bool "Enable Auto-Negotiation"

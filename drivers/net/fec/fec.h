@@ -217,7 +217,7 @@ struct fecregs {
 	u8  resv5[28];	/* 0x068 Reserved */
 	u32 rcr;		/* 0x084 Receive Control Register */
 	u32 rhr;		/* 0x088 Receive Hash Register */
-	u32 resv6[56];	/* 0x08C Reserved */
+	u8  resv6[56];	/* 0x08C Reserved */
 	u32 tcr;		/* 0x0C4 Transmit Control Register */
 	u8  resv7[28];	/* 0x0C8 Reserved */
 	u32 palr;		/* 0x0E4 Physical Address Low Register */
@@ -228,9 +228,9 @@ struct fecregs {
 	u32 ialr;		/* 0x11C Individual Address Lower Register */
 	u32 gaur;		/* 0x120 Group Address Upper Register */
 	u32 galr;		/* 0x124 Group Address Lower Register */
-	u32 resv9[28];	/* 0x128 Reserved */
+	u8  resv9[28];	/* 0x128 Reserved */
 	u32 fectfw;		/* 0x144 FEC Transmit FIFO Watermark*/
-	u32 resv10[60];	/* 0x148 Reserved */
+	u8  resv10[60];	/* 0x148 Reserved */
 	u32 fecrfdr;	/* 0x184 FEC Receive FIFO Data Register*/
 	u32 fecrfsr;	/* 0x188 FEC Receive FIFO Status Register*/
 	u32 fecrcr;		/* 0x18C FEC Receive FIFO Control Register */
@@ -267,8 +267,10 @@ struct fec_priv {
 	unsigned int fecpriv_current_rx;			/* current rx desc index */
 	struct sk_buff *askb_rx[FEC_RX_BUF_NUMBER];	/* rx SKB ptrs */
 	MCD_bufDescFec *fecpriv_rxdesc;				/* rx descriptor ptrs */
+#ifdef CONFIG_FEC_NAPI
 	/* NAPI */
 	struct napi_struct napi;
+#endif
 
 	/* DMA */
 	unsigned int fecpriv_initiator_rx;			/* rx dma initiator */

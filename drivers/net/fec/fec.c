@@ -292,11 +292,19 @@ void fec_stop(struct net_device *dev)
 {
 	struct fec_priv *fp = netdev_priv(dev);
 
-	dma_remove_initiator(fp->fecpriv_initiator_tx);
-	dma_remove_initiator(fp->fecpriv_initiator_rx);
+	/* napi_disable(&fp->napi); */
 
-	if (dev->irq)
+	spin_lock_irq(&fp->tx_lock);
+	dma_remove_initiator(fp->fecpriv_initiator_tx);
+	spin_unlock_irq(&fp->tx_lock);
+
+	spin_lock_irq(&fp->rx_lock);
+	dma_remove_initiator(fp->fecpriv_initiator_rx);
+	spin_unlock_irq(&fp->rx_lock);
+
+	if (dev->irq) {
 		free_irq(dev->irq, dev);
+	}
 }
 
 /************************************************************************
@@ -316,28 +324,34 @@ int fec_open(struct net_device *dev)
 	int channel;
 	int error_code = -EBUSY;
 
+	/* napi_enable(&fp->napi); */
+
 	/* Receive the DMA channels */
+	spin_lock_irq(&fp->rx_lock);
 	channel = dma_set_channel_fec(fp->fecpriv_rx_requestor);
 
 	if (channel == -1) {
 		printk("Dma channel cannot be reserved\n");
+		spin_unlock_irq(&fp->rx_lock);
 		goto ERRORS;
 	}
 
 	fp->fecpriv_fec_rx_channel = channel;
-
 	dma_connect(channel, (int)fp->fecpriv_interrupt_fec_rx_handler);
+	spin_unlock_irq(&fp->rx_lock);
 
+	spin_lock_irq(&fp->tx_lock);
 	channel = dma_set_channel_fec(fp->fecpriv_tx_requestor);
 
 	if (channel == -1) {
 		printk("Dma channel cannot be reserved\n");
+		spin_unlock_irq(&fp->tx_lock);
 		goto ERRORS;
 	}
 
 	fp->fecpriv_fec_tx_channel = channel;
-
 	dma_connect(channel, (int)fp->fecpriv_interrupt_fec_tx_handler);
+	spin_unlock_irq(&fp->tx_lock);
 
 	/* init tasklet for controller reinitialization */
 	tasklet_init(&fp->fecpriv_tasklet_reinit, fec_interrupt_fec_reinit,
@@ -496,7 +510,8 @@ int fec_open(struct net_device *dev)
 	netif_start_queue(dev);
 	return 0;
 
-	ERRORS:
+ERRORS:
+	/* napi_disable(&fp->napi); */
 
 	/* Remove the channels and return with the error code */
 	if (fp->fecpriv_fec_rx_channel != -1) {
