@@ -201,6 +201,32 @@ struct fec_rmon {
 	u32 ieee_t_sqe;			/* 0x26C Frames Transmitted with SQE Error */
 	u32 ieee_t_fdxfc;		/* 0x270 Flow Control Pause frames transmitted */
 	u32 ieee_t_octets_ok;	/* 0x274 Octet count for Frames Transmitted w/o Error */
+	u8  rsv[8];				/* 0x278 Reserved */
+	u32 rmon_r_drop;		/* 0x280 Count of frames not counted correctly */
+	u32 rmon_r_packets;		/* 0x284 RMON Rx packet count */
+	u32 rmon_r_bc_pkt;		/* 0x288 RMON Rx Broadcast Packets */
+	u32 rmon_r_mc_pkt;		/* 0x28C RMON Rx Multicast Packets */
+	u32 rmon_r_crc_align;	/* 0x290 RMON Rx Packets w CRC/Align error */
+	u32 rmon_r_undersize;	/* 0x294 RMON Rx Packets < 64 bytes, good crc */
+	u32 rmon_r_oversize;	/* 0x298 RMON Rx Packets > MAX_FL bytes, good crc */
+	u32 rmon_r_frag;		/* 0x29C RMON Rx Packets < 64 bytes, bad crc */
+	u32 rmon_r_jab;			/* 0x2A0 RMON Rx Packets > MAX_FL bytes, bad crc */
+	u32 rmon_r_resvd_0;		/* 0x2A4 Reserved */
+	u32 rmon_r_p64;			/* 0x2A8 RMON Rx 64 byte packets */
+	u32 rmon_r_p65to127;	/* 0x2AC RMON Rx 65 to 127 byte packets */
+	u32 rmon_r_p128to255;	/* 0x2B0 RMON Rx 128 to 255 byte packets */
+	u32 rmon_r_p256to511;	/* 0x2B4 RMON Rx 256 to 511 byte packets */
+	u32 rmon_r_p512to1023;	/* 0x2B8 RMON Rx 512 to 1023 byte packets */
+	u32 rmon_r_p1024to2047;	/* 0x2BC RMON Rx 1024 to 2047 byte packets */
+	u32 rmon_r_p_gte2048;	/* 0x2C0 RMON Rx packets w > 2048 bytes */
+	u32 rmon_r_octets;		/* 0x2C4 RMON Rx Octets */
+	u32 ieee_r_drop;		/* 0x2C8 Count of frames not counted correctly */
+	u32 ieee_r_frame_ok;	/* 0x2CC Frames Received OK */
+	u32 ieee_r_crc;			/* 0x2D0 Frames Received with CRC Error */
+	u32 ieee_r_align;		/* 0x2D4 Frames Received with Alignment Error */
+	u32 ieee_r_macerr;		/* 0x2D8 Receive Fifo Overflow count */
+	u32 ieee_r_fdxfc;		/* 0x2DC Flow Control Pause frames received */
+	u32 ieee_r_octets_ok;	/* 0x2E0 Octet count for Frames Rcvd w/o Error */
 };
 
 struct fecregs {
