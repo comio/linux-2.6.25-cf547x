@@ -42,7 +42,7 @@
 #define MACH_SUN3X   11
 #define MACH_CFMMU   12
 
-#define COMMAND_LINE_SIZE 256
+#define COMMAND_LINE_SIZE 1024
 
 #ifdef __KERNEL__
 
