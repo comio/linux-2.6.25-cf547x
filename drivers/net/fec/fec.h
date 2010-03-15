@@ -142,11 +142,17 @@
 #define FEC_RX_DMA_PRI                      (6)
 #define FEC_TX_DMA_PRI                      (6)
 
-#define   FEC_TX_BUF_NUMBER                 (8)
-#define   FEC_RX_BUF_NUMBER                 (64)
+#define   FEC_TX_BUF_NUMBER_SHIFT           (4)
+#define   FEC_RX_BUF_NUMBER_SHIFT           (6)
+#define   FEC_TX_BUF_NUMBER                 (1 << FEC_TX_BUF_NUMBER_SHIFT)
+#define   FEC_RX_BUF_NUMBER                 (1 << FEC_RX_BUF_NUMBER_SHIFT)
 
-#define   FEC_TX_INDEX_MASK                 (0x7)
-#define   FEC_RX_INDEX_MASK                 (0x3f)
+#define   FEC_TX_INDEX_MASK                 (FEC_TX_BUF_NUMBER - 1)
+#define   FEC_RX_INDEX_MASK                 (FEC_RX_BUF_NUMBER - 1)
+
+#if (FEC_TX_BUF_NUMBER + FEC_RX_BUF_NUMBER > 128)
+#error "FEC Buffer should be less or equal to 128"
+#endif
 
 #define   FEC_RX_DESC_FEC0                  SYS_SRAM_FEC_START
 #define   FEC_TX_DESC_FEC0                  FEC_RX_DESC_FEC0 + FEC_RX_BUF_NUMBER * sizeof(MCD_bufDescFec)
@@ -287,7 +293,9 @@ struct fec_priv {
 	/* TX */
 	volatile unsigned int fecpriv_current_tx;	/* current tx desc index */
 	volatile unsigned int fecpriv_next_tx;		/* next tx desc index */
+	int  fecpriv_txfree[FEC_TX_BUF_NUMBER];		/* tx buffer available (1) */
 	void *fecpriv_txbuf[FEC_TX_BUF_NUMBER];		/* tx buffer ptrs */
+	void *fecpriv_txbuf_na[FEC_TX_BUF_NUMBER];	/* tx buffer ptrs (not aligned)*/
 	MCD_bufDescFec *fecpriv_txdesc;				/* tx descriptor ptrs */
 	/* RX */
 	unsigned int fecpriv_current_rx;			/* current rx desc index */

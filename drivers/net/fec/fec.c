@@ -175,10 +175,8 @@ int fec_enet_init(struct net_device *dev)
 		fp->fecpriv_tx_requestor = DMA_FEC1_TX;
 
 		/* fec1 handlers */
-		fp->fecpriv_interrupt_fec_rx_handler =
-			fec_interrupt_fec_rx_handler_fec1;
-		fp->fecpriv_interrupt_fec_tx_handler =
-			fec_interrupt_fec_tx_handler_fec1;
+		fp->fecpriv_interrupt_fec_rx_handler = fec_interrupt_fec_rx_handler_fec1;
+		fp->fecpriv_interrupt_fec_tx_handler = fec_interrupt_fec_tx_handler_fec1;
 
 		/* tx descriptors */
 		fp->fecpriv_txdesc = (void *)FEC_TX_DESC_FEC1;
@@ -215,8 +213,11 @@ int fec_enet_init(struct net_device *dev)
 		fp->askb_rx[i] = NULL;
 
 	/* initialize the pointers to the socket buffers */
-	for (i = 0; i < FEC_TX_BUF_NUMBER; i++)
+	for (i = 0; i < FEC_TX_BUF_NUMBER; i++) {
+		fp->fecpriv_txbuf_na[i] = NULL;
 		fp->fecpriv_txbuf[i] = NULL;
+		fp->fecpriv_txfree[i] = 0;
+	}
 
 	ether_setup(dev);
 
@@ -460,8 +461,14 @@ int fec_open(struct net_device *dev)
 	fec_reset_mii(base_addr);
 
 	/* Initialize tx descriptors and start DMA for the transmission */
-	for (i = 0; i < FEC_TX_BUF_NUMBER; i++)
+	for (i = 0; i < FEC_TX_BUF_NUMBER; i++) {
+		void *ptr = kmalloc(FEC_MAXBUF_SIZE + 15, GFP_DMA | GFP_ATOMIC);
+		fp->fecpriv_txbuf_na[i] = ptr;
+		fp->fecpriv_txbuf[i] = (void *)(((unsigned long)ptr + 0xful) & ~0xful);
 		fp->fecpriv_txdesc[i].statCtrl = MCD_FEC_INTERRUPT;
+		fp->fecpriv_txdesc[i].dataPointer = (unsigned int)virt_to_phys(fp->fecpriv_txbuf[i]);
+		fp->fecpriv_txfree[i] = 1;
+	}
 
 	fp->fecpriv_txdesc[i - 1].statCtrl |= MCD_FEC_WRAP;
 
@@ -483,10 +490,8 @@ int fec_open(struct net_device *dev)
 		} else {
 			skb_reserve(fp->askb_rx[i], 16);
 			fp->askb_rx[i]->dev = dev;
-			fp->fecpriv_rxdesc[i].dataPointer =
-				(unsigned int)virt_to_phys(fp->askb_rx[i]->tail);
-			fp->fecpriv_rxdesc[i].statCtrl =
-				MCD_FEC_BUF_READY | MCD_FEC_INTERRUPT;
+			fp->fecpriv_rxdesc[i].dataPointer = (unsigned int)virt_to_phys(fp->askb_rx[i]->tail);
+			fp->fecpriv_rxdesc[i].statCtrl = MCD_FEC_BUF_READY | MCD_FEC_INTERRUPT;
 			fp->fecpriv_rxdesc[i].length = FEC_MAXBUF_SIZE;
 		}
 	}
@@ -562,22 +567,23 @@ int fec_close(struct net_device *dev)
 	/* Reset the DMA channels */
 	spin_lock_irq(&fp->tx_lock);
 	MCD_killDma(fp->fecpriv_fec_tx_channel);
-	spin_unlock_irq(&fp->tx_lock);
 
 	dma_remove_channel_by_number(fp->fecpriv_fec_tx_channel);
 	dma_disconnect(fp->fecpriv_fec_tx_channel);
 	fp->fecpriv_fec_tx_channel = -1;
 
 	for (i = 0; i < FEC_TX_BUF_NUMBER; i++) {
-		if (fp->fecpriv_txbuf[i]) {
-			kfree(fp->fecpriv_txbuf[i]);
+		if (fp->fecpriv_txbuf_na[i]) {
+			kfree(fp->fecpriv_txbuf_na[i]);
+			fp->fecpriv_txbuf_na[i] = NULL;
 			fp->fecpriv_txbuf[i] = NULL;
+			fp->fecpriv_txfree[i] = 0;
 		}
 	}
+	spin_unlock_irq(&fp->tx_lock);
 
 	spin_lock_irq(&fp->rx_lock);
 	MCD_killDma(fp->fecpriv_fec_rx_channel);
-	spin_unlock_irq(&fp->rx_lock);
 
 	dma_remove_channel_by_number(fp->fecpriv_fec_rx_channel);
 	dma_disconnect(fp->fecpriv_fec_rx_channel);
@@ -589,6 +595,7 @@ int fec_close(struct net_device *dev)
 			fp->askb_rx[i] = NULL;
 		}
 	}
+	spin_unlock_irq(&fp->rx_lock);
 
 	return 0;
 }
@@ -747,21 +754,8 @@ int fec_set_mac_address(struct net_device *dev, void *p)
 int fec_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct fec_priv *fp = netdev_priv(dev);
-	void *data, *data_aligned;
+	void *data;
 	int offset;
-
-	data = kmalloc(skb->len + 15, GFP_DMA | GFP_ATOMIC);
-
-	if (!data) {
-		fp->fecpriv_stat.tx_dropped++;
-		dev_kfree_skb(skb);
-		return 0;
-	}
-
-	offset = (((unsigned long)virt_to_phys(data) + 15) & 0xFFFFFFF0) -
-		(unsigned long)virt_to_phys(data);
-	data_aligned = (void *)((unsigned long)data + offset);
-	memcpy(data_aligned, skb->data, skb->len);
 
 	/* flush data cache before initializing the descriptor and starting DMA */
 	/* FU: not needed, packet was just written to DRAM and cache is writethrough */
@@ -774,8 +768,10 @@ int fec_tx(struct sk_buff *skb, struct net_device *dev)
 	spin_lock_irq(&fp->tx_lock);
 
 	/* Initialize the descriptor */
-	fp->fecpriv_txbuf[fp->fecpriv_next_tx] = data;
-	fp->fecpriv_txdesc[fp->fecpriv_next_tx].dataPointer = (unsigned int)virt_to_phys(data_aligned);
+	data = fp->fecpriv_txbuf[fp->fecpriv_next_tx];
+	memcpy(data, skb->data, skb->len);
+
+	fp->fecpriv_txfree[fp->fecpriv_next_tx] = 0;
 	fp->fecpriv_txdesc[fp->fecpriv_next_tx].length = skb->len;
 	fp->fecpriv_txdesc[fp->fecpriv_next_tx].statCtrl |= (MCD_FEC_END_FRAME | MCD_FEC_BUF_READY);
 	fp->fecpriv_next_tx = (fp->fecpriv_next_tx + 1) & FEC_TX_INDEX_MASK;
@@ -813,10 +809,7 @@ void fec_tx_timeout(struct net_device *dev)
 
 	MCD_killDma(fp->fecpriv_fec_tx_channel);
 	for (i = 0; i < FEC_TX_BUF_NUMBER; i++) {
-		if (fp->fecpriv_txbuf[i]) {
-			kfree(fp->fecpriv_txbuf[i]);
-			fp->fecpriv_txbuf[i] = NULL;
-		}
+		fp->fecpriv_txfree[i] = 1;
 		fp->fecpriv_txdesc[i].statCtrl = MCD_FEC_INTERRUPT;
 	}
 	fp->fecpriv_txdesc[i - 1].statCtrl |= MCD_FEC_WRAP;
@@ -1009,23 +1002,9 @@ void fec_interrupt_fec_tx_handler(struct net_device *dev)
 	struct fec_priv *fp = netdev_priv(dev);
 
 	spin_lock_irq(&fp->tx_lock);
-	
-	/* Release the socket buffer */
-	if (fp->fecpriv_txbuf[fp->fecpriv_current_tx]) {
-		kfree(fp->fecpriv_txbuf[fp->fecpriv_current_tx]);
-		fp->fecpriv_txbuf[fp->fecpriv_current_tx] = NULL;
-	}
-	fp->fecpriv_current_tx = (fp->fecpriv_current_tx + 1) & FEC_TX_INDEX_MASK;
 
-	if (MCD_dmaStatus(fp->fecpriv_fec_tx_channel) == MCD_DONE) {
-		for (; fp->fecpriv_current_tx != fp->fecpriv_next_tx;
-			fp->fecpriv_current_tx = (fp->fecpriv_current_tx + 1) & FEC_TX_INDEX_MASK) {
-			if (fp->fecpriv_txbuf[fp->fecpriv_current_tx]) {
-				kfree(fp->fecpriv_txbuf[fp->fecpriv_current_tx]);
-				fp->fecpriv_txbuf[fp->fecpriv_current_tx] = NULL;
-			}
-		}
-	}
+	fp->fecpriv_txfree[fp->fecpriv_current_tx] = 1;
+	fp->fecpriv_current_tx = (fp->fecpriv_current_tx + 1) & FEC_TX_INDEX_MASK;
 
 	spin_unlock_irq(&fp->tx_lock);
 
@@ -1258,9 +1237,7 @@ void fec_interrupt_fec_reinit(unsigned long data)
 
 	/* restart frame transmission */
 	for (i = 0; i < FEC_TX_BUF_NUMBER; i++) {
-		if (fp->fecpriv_txbuf[i]) {
-			kfree(fp->fecpriv_txbuf[i]);
-			fp->fecpriv_txbuf[i] = NULL;
+		if (fp->fecpriv_txfree[i]) {
 			fp->fecpriv_stat.tx_dropped++;
 		}
 		fp->fecpriv_txdesc[i].statCtrl = MCD_FEC_INTERRUPT;
