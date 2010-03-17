@@ -407,6 +407,11 @@ void coldfire_reboot(void)
 #endif
 }
 
+void machine_emergency_restart(void)
+{
+    coldfire_reboot();
+}
+
 static void coldfire_get_model(char *model)
 {
 	sprintf(model, "Version 4 ColdFire");
@@ -496,4 +501,5 @@ void __init config_coldfire(void)
 	 */
 	register_console(&mcfrs_console);
 #endif
+	panic_timeout=10;
 }
