@@ -756,6 +756,7 @@ int fec_tx(struct sk_buff *skb, struct net_device *dev)
 	struct fec_priv *fp = netdev_priv(dev);
 	void *data;
 	int offset;
+        unsigned long flags;
 
 	/* flush data cache before initializing the descriptor and starting DMA */
 	/* FU: not needed, packet was just written to DRAM and cache is writethrough */
@@ -765,7 +766,7 @@ int fec_tx(struct sk_buff *skb, struct net_device *dev)
 					skb->len);
 #endif
 
-	spin_lock_irq(&fp->tx_lock);
+	spin_lock_irqsave(&fp->tx_lock , flags);
 
 	/* Initialize the descriptor */
 	data = fp->fecpriv_txbuf[fp->fecpriv_next_tx];
@@ -779,7 +780,7 @@ int fec_tx(struct sk_buff *skb, struct net_device *dev)
 	if (fp->fecpriv_txbuf[fp->fecpriv_current_tx] && fp->fecpriv_current_tx == fp->fecpriv_next_tx)
 		netif_stop_queue(dev);
 
-	spin_unlock_irq(&fp->tx_lock);
+	spin_unlock_irqrestore(&fp->tx_lock , flags);
 
 	/* Tell the DMA to continue the transmission */
 	MCD_continDma(fp->fecpriv_fec_tx_channel);
@@ -804,8 +805,9 @@ void fec_tx_timeout(struct net_device *dev)
 	int i;
 	struct fec_priv *fp = netdev_priv(dev);
 	unsigned long base_addr = (unsigned long)dev->base_addr;
+        unsigned long flags;
 
-	spin_lock_irq(&fp->tx_lock);
+	spin_lock_irqsave(&fp->tx_lock , flags);
 
 	MCD_killDma(fp->fecpriv_fec_tx_channel);
 	for (i = 0; i < FEC_TX_BUF_NUMBER; i++) {
@@ -832,7 +834,7 @@ void fec_tx_timeout(struct net_device *dev)
 			FEC_TX_DMA_PRI, MCD_FECTX_DMA | MCD_INTERRUPT,
 			MCD_NO_CSUM | MCD_NO_BYTE_SWAP);
 
-	spin_unlock_irq(&fp->tx_lock);
+	spin_unlock_irqrestore(&fp->tx_lock , flags);
 
 	netif_wake_queue(dev);
 }
@@ -1000,13 +1002,14 @@ void fec_adjust_link(struct net_device *dev)
 void fec_interrupt_fec_tx_handler(struct net_device *dev)
 {
 	struct fec_priv *fp = netdev_priv(dev);
+        unsigned long flags;
 
-	spin_lock_irq(&fp->tx_lock);
+	spin_lock_irqsave(&fp->tx_lock , flags);
 
 	fp->fecpriv_txfree[fp->fecpriv_current_tx] = 1;
 	fp->fecpriv_current_tx = (fp->fecpriv_current_tx + 1) & FEC_TX_INDEX_MASK;
 
-	spin_unlock_irq(&fp->tx_lock);
+	spin_unlock_irqrestore(&fp->tx_lock , flags);
 
 	if (netif_queue_stopped(dev))
 		netif_wake_queue(dev);
@@ -1024,8 +1027,9 @@ void fec_interrupt_fec_rx_handler(struct net_device *dev)
 	struct fec_priv *fp = netdev_priv(dev);
 	struct sk_buff *skb;
 	int i;
+        unsigned long flags;
 
-	spin_lock_irq(&fp->rx_lock);
+	spin_lock_irqsave(&fp->rx_lock , flags);
 	fp->fecpriv_rxflag = 1;
 	// Some buffers can be missed
 	if (!(fp->fecpriv_rxdesc[fp->fecpriv_current_rx].statCtrl & MCD_FEC_END_FRAME)) {
@@ -1099,7 +1103,7 @@ void fec_interrupt_fec_rx_handler(struct net_device *dev)
 			}
 		}
 	}
-	spin_unlock_irq(&fp->rx_lock);
+	spin_unlock_irqrestore(&fp->rx_lock , flags);
 
 	/* Tell the DMA to continue the reception */
 	MCD_continDma(fp->fecpriv_fec_rx_channel);
