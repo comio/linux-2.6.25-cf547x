@@ -53,6 +53,7 @@ MODULE_DESCRIPTION("DMA Fast Ethernet Controller driver ver " VERSION);
 
 struct net_device *fec_dev[FEC_MAX_PORTS];
 
+
 /* FEC functions */
 int __init fec_init(void);
 static struct net_device_stats *fec_get_stat(struct net_device *dev);
@@ -63,11 +64,9 @@ static int fec_tx(struct sk_buff *skb, struct net_device *dev);
 static void fec_set_multicast_list(struct net_device *nd);
 static int fec_set_mac_address(struct net_device *dev, void *p);
 static void fec_tx_timeout(struct net_device *dev);
-static void fec_interrupt_fec_tx_handler(struct net_device *dev);
-static void fec_interrupt_fec_rx_handler(struct net_device *dev);
+static void fec_interrupt_tx_handler(void *priv);
+static void fec_interrupt_rx_handler(void *priv);
 static irqreturn_t fec_interrupt_handler(int irq, void *dev_id);
-static void fec_interrupt_fec_tx_handler_fec0(void);
-static void fec_interrupt_fec_rx_handler_fec0(void);
 static void fec_interrupt_fec_reinit(unsigned long data);
 static int  fec_poll(struct napi_struct *napi, int budget);
 
@@ -84,11 +83,6 @@ int fec_str_to_mac(char *str_mac, unsigned char *addr);
 int __init fec_mac_setup0(char *s);
 #endif
 
-#ifdef   FEC_2
-void fec_interrupt_fec_tx_handler_fec1(void);
-void fec_interrupt_fec_rx_handler_fec1(void);
-#endif
-
 #ifndef MODULE
 int __init fec_mac_setup1(char *s);
 #endif
@@ -102,6 +96,51 @@ __setup("mac0=", fec_mac_setup0);
 __setup("mac1=", fec_mac_setup1);
 #endif
 
+/* tx ring support functions */
+/* WARNING: THESE FUNCTIONS DON'T LOCK */
+static void fec_init_tx_ring(struct fec_priv *);
+static void fec_clear_tx_ring(struct fec_priv *);
+static void fec_reset_tx_ring(struct fec_priv *);
+
+static void fec_init_tx_ring(struct fec_priv *fp)
+{
+	int i;
+
+	/* Initialize tx descriptors and start DMA for the transmission */
+	for (i = 0; i < FEC_TX_BUF_NUMBER; i++) {
+		void *ptr = kmalloc(FEC_MAXBUF_SIZE + 15, GFP_DMA | GFP_ATOMIC);
+		fp->txbuf_na[i] = ptr;
+		fp->txbuf[i] = (void *)(((unsigned long)ptr + 0xful) & ~0xful);
+		fp->tx_dma.desc[i].dataPointer = (unsigned int)virt_to_phys(fp->txbuf[i]);
+	}
+	fec_reset_tx_ring(fp);
+}
+
+static void fec_clear_tx_ring(struct fec_priv *fp)
+{
+	int i;
+
+	for (i = 0; i < FEC_TX_BUF_NUMBER; i++) {
+		if (fp->txbuf_na[i]) {
+			kfree(fp->txbuf_na[i]);
+			fp->txbuf_na[i] = NULL;
+		}
+		fp->txbuf[i] = NULL;
+		fp->txfree[i] = FEC_BUFFER_BUSY;
+	}
+}
+
+static void fec_reset_tx_ring(struct fec_priv *fp)
+{
+	int i;
+
+	for (i = 0; i < FEC_TX_BUF_NUMBER; i++) {
+		fp->txfree[i] = FEC_BUFFER_FREE;
+		fp->tx_dma.desc[i].statCtrl = MCD_FEC_INTERRUPT;
+	}
+	fp->tx_dma.desc[i - 1].statCtrl |= MCD_FEC_WRAP;
+	fp->current_tx = fp->next_tx = 0;
+}
 /*
 * Initialize a FEC device
 */
@@ -136,21 +175,21 @@ int fec_enet_init(struct net_device *dev)
 		dev->base_addr = FEC_BASE_ADDR_FEC0;
 
 		/* requestor numbers */
-		fp->fecpriv_rx_requestor = DMA_FEC0_RX;
-		fp->fecpriv_tx_requestor = DMA_FEC0_TX;
+		fp->rx_dma.requestor = DMA_FEC0_RX;
+		fp->tx_dma.requestor = DMA_FEC0_TX;
 
 		/* fec0 handlers */
-		fp->fecpriv_interrupt_fec_rx_handler = fec_interrupt_fec_rx_handler_fec0;
-		fp->fecpriv_interrupt_fec_tx_handler = fec_interrupt_fec_tx_handler_fec0;
+		fp->rx_dma.interrupt_handler = fec_interrupt_rx_handler;
+		fp->tx_dma.interrupt_handler = fec_interrupt_tx_handler;
 
 		/* tx descriptors */
-		fp->fecpriv_txdesc = (void *)FEC_TX_DESC_FEC0;
+		fp->tx_dma.desc = (void *)FEC_TX_DESC_FEC0;
 
 		/* rx descriptors */
-		fp->fecpriv_rxdesc = (void *)FEC_RX_DESC_FEC0;
+		fp->rx_dma.desc = (void *)FEC_RX_DESC_FEC0;
 
 		/* mac addr */
-		fp->fecpriv_mac_addr = fec_mac_addr_fec0;
+		fp->mac_addr = fec_mac_addr_fec0;
 	} else {
 		/* disable fec1 */
 		FEC_ECR(FEC_BASE_ADDR_FEC1) = FEC_ECR_DISABLE;
@@ -171,21 +210,21 @@ int fec_enet_init(struct net_device *dev)
 		fp->regs = (struct fecregs *)FEC_BASE_ADDR_FEC1;
 
 		/* requestor numbers */
-		fp->fecpriv_rx_requestor = DMA_FEC1_RX;
-		fp->fecpriv_tx_requestor = DMA_FEC1_TX;
+		fp->rx_dma.requestor = DMA_FEC1_RX;
+		fp->tx_dma.requestor = DMA_FEC1_TX;
 
 		/* fec1 handlers */
-		fp->fecpriv_interrupt_fec_rx_handler = fec_interrupt_fec_rx_handler_fec1;
-		fp->fecpriv_interrupt_fec_tx_handler = fec_interrupt_fec_tx_handler_fec1;
+		fp->rx_dma.interrupt_handler = fec_interrupt_rx_handler;
+		fp->tx_dma.interrupt_handler = fec_interrupt_tx_handler;
 
 		/* tx descriptors */
-		fp->fecpriv_txdesc = (void *)FEC_TX_DESC_FEC1;
+		fp->tx_dma.desc = (void *)FEC_TX_DESC_FEC1;
 
 		/* rx descriptors */
-		fp->fecpriv_rxdesc = (void *)FEC_RX_DESC_FEC1;
+		fp->rx_dma.desc = (void *)FEC_RX_DESC_FEC1;
 
 		/* mac addr */
-		fp->fecpriv_mac_addr = fec_mac_addr_fec1;
+		fp->mac_addr = fec_mac_addr_fec1;
 #endif
 	}
 
@@ -197,26 +236,26 @@ int fec_enet_init(struct net_device *dev)
 	memset((void *)(&fp->regs->rmon), 0, sizeof(fp->regs->rmon));
 
 	/* clear the statistics structure */
-	memset((void *)&(fp->fecpriv_stat), 0, sizeof(struct net_device_stats));
+	memset((void *)&(fp->stat), 0, sizeof(struct net_device_stats));
 
 	/* grab the FEC initiators */
-	dma_set_initiator(fp->fecpriv_tx_requestor);
-	fp->fecpriv_initiator_tx = dma_get_initiator(fp->fecpriv_tx_requestor);
-	dma_set_initiator(fp->fecpriv_rx_requestor);
-	fp->fecpriv_initiator_rx = dma_get_initiator(fp->fecpriv_rx_requestor);
+	dma_set_initiator(fp->tx_dma.requestor);
+	fp->tx_dma.initiator = dma_get_initiator(fp->tx_dma.requestor);
+	dma_set_initiator(fp->rx_dma.requestor);
+	fp->rx_dma.initiator = dma_get_initiator(fp->rx_dma.requestor);
 
 	/* reset the DMA channels */
-	fp->fecpriv_fec_rx_channel = -1;
-	fp->fecpriv_fec_tx_channel = -1;
+	fp->rx_dma.channel = -1;
+	fp->tx_dma.channel = -1;
 
 	for (i = 0; i < FEC_RX_BUF_NUMBER; i++)
 		fp->askb_rx[i] = NULL;
 
 	/* initialize the pointers to the socket buffers */
 	for (i = 0; i < FEC_TX_BUF_NUMBER; i++) {
-		fp->fecpriv_txbuf_na[i] = NULL;
-		fp->fecpriv_txbuf[i] = NULL;
-		fp->fecpriv_txfree[i] = 0;
+		fp->txbuf_na[i] = NULL;
+		fp->txbuf[i] = NULL;
+		fp->txfree[i] = 0;
 	}
 
 	ether_setup(dev);
@@ -232,14 +271,16 @@ int fec_enet_init(struct net_device *dev)
 	dev->watchdog_timeo = FEC_TX_TIMEOUT * HZ;
 	/* netif_napi_add(dev, &priv->napi, fec_poll, FEC_DEV_WEIGHT); */
 
-	memcpy(dev->dev_addr, fp->fecpriv_mac_addr, ETH_ALEN);
+	memcpy(dev->dev_addr, fp->mac_addr, ETH_ALEN);
 
 	fp->oldlink = 0;
 	fp->oldspeed = 0;
 	fp->oldduplex = -1;
 
+	/* Initialize spinlocks */
 	spin_lock_init(&fp->rx_lock);
 	spin_lock_init(&fp->tx_lock);
+	spin_lock_init(&fp->mii_lock);
 
 	// Initialize FEC/I2C/IRQ Pin Assignment Register
 	FEC_GPIO_PAR_FECI2CIRQ &= 0xF;
@@ -296,11 +337,11 @@ void fec_stop(struct net_device *dev)
 	/* napi_disable(&fp->napi); */
 
 	spin_lock_irq(&fp->tx_lock);
-	dma_remove_initiator(fp->fecpriv_initiator_tx);
+	dma_remove_initiator(fp->tx_dma.initiator);
 	spin_unlock_irq(&fp->tx_lock);
 
 	spin_lock_irq(&fp->rx_lock);
-	dma_remove_initiator(fp->fecpriv_initiator_rx);
+	dma_remove_initiator(fp->rx_dma.initiator);
 	spin_unlock_irq(&fp->rx_lock);
 
 	if (dev->irq) {
@@ -320,16 +361,14 @@ int fec_open(struct net_device *dev)
 {
 	struct fec_priv *fp = netdev_priv(dev);
 	unsigned long base_addr = (unsigned long)dev->base_addr;
-	int fduplex;
-	int i;
 	int channel;
 	int error_code = -EBUSY;
+	int i;
 
-	/* napi_enable(&fp->napi); */
-
-	/* Receive the DMA channels */
+	/* RX Setup*/
 	spin_lock_irq(&fp->rx_lock);
-	channel = dma_set_channel_fec(fp->fecpriv_rx_requestor);
+
+	channel = dma_set_channel_fec(fp->rx_dma.requestor);
 
 	if (channel == -1) {
 		printk("Dma channel cannot be reserved\n");
@@ -337,12 +376,15 @@ int fec_open(struct net_device *dev)
 		goto ERRORS;
 	}
 
-	fp->fecpriv_fec_rx_channel = channel;
-	dma_connect(channel, (int)fp->fecpriv_interrupt_fec_rx_handler);
+	fp->rx_dma.channel = channel;
+	dma_connect(channel, fp->rx_dma.interrupt_handler, dev);
+
 	spin_unlock_irq(&fp->rx_lock);
 
+	/* TX Setup */
 	spin_lock_irq(&fp->tx_lock);
-	channel = dma_set_channel_fec(fp->fecpriv_tx_requestor);
+
+	channel = dma_set_channel_fec(fp->tx_dma.requestor);
 
 	if (channel == -1) {
 		printk("Dma channel cannot be reserved\n");
@@ -350,12 +392,12 @@ int fec_open(struct net_device *dev)
 		goto ERRORS;
 	}
 
-	fp->fecpriv_fec_tx_channel = channel;
-	dma_connect(channel, (int)fp->fecpriv_interrupt_fec_tx_handler);
+	fp->tx_dma.channel = channel;
+	dma_connect(channel, fp->tx_dma.interrupt_handler, dev);
 	spin_unlock_irq(&fp->tx_lock);
 
 	/* init tasklet for controller reinitialization */
-	tasklet_init(&fp->fecpriv_tasklet_reinit, fec_interrupt_fec_reinit,
+	tasklet_init(&fp->tasklet_reinit, fec_interrupt_fec_reinit,
 			(unsigned long)dev);
 
 	/* Reset FIFOs */
@@ -375,11 +417,11 @@ int fec_open(struct net_device *dev)
 	FEC_FECRFSR(base_addr) = FEC_FECRFSR_MSK;
 
 	/* Set the default address */
-	FEC_PALR(base_addr) = (fp->fecpriv_mac_addr[0] << 24) |
-		(fp->fecpriv_mac_addr[1] << 16) |
-		(fp->fecpriv_mac_addr[2] << 8) | fp->fecpriv_mac_addr[3];
-	FEC_PAUR(base_addr) = (fp->fecpriv_mac_addr[4] << 24) |
-		(fp->fecpriv_mac_addr[5] << 16) | 0x8808;
+	FEC_PALR(base_addr) = (fp->mac_addr[0] << 24) |
+		(fp->mac_addr[1] << 16) |
+		(fp->mac_addr[2] << 8) | fp->mac_addr[3];
+	FEC_PAUR(base_addr) = (fp->mac_addr[4] << 24) |
+		(fp->mac_addr[5] << 16) | 0x8808;
 
 	/* Reset the group address descriptor */
 	FEC_GALR(base_addr) = 0x00000000;
@@ -393,7 +435,6 @@ int fec_open(struct net_device *dev)
 	FEC_RCR(base_addr) = FEC_RCR_MAX_FRM_SIZE | FEC_RCR_MII;
 
 	/* Set the receive FIFO control register */
-//      FEC_FECRFCR(base_addr) = FEC_FECRFCR_FRM | FEC_FECRFCR_GR | FEC_FECRFCR_MSK;
 	FEC_FECRFCR(base_addr) = FEC_FECRFCR_FRM | FEC_FECRFCR_GR | (FEC_FECRFCR_MSK	// disable all but ...
 									& ~FEC_FECRFCR_FAE	// enable frame accept error
 									& ~FEC_FECRFCR_RXW	// enable receive wait condition
@@ -404,7 +445,6 @@ int fec_open(struct net_device *dev)
 	FEC_FECRFAR(base_addr) = FEC_FECRFAR_ALARM;
 
 	/* Set the transmit FIFO control register */
-//      FEC_FECTFCR(base_addr) = FEC_FECTFCR_FRM | FEC_FECTFCR_GR | FEC_FECTFCR_MSK;
 	FEC_FECTFCR(base_addr) = FEC_FECTFCR_FRM | FEC_FECTFCR_GR | (FEC_FECTFCR_MSK	// disable all but ...
 									& ~FEC_FECTFCR_FAE	// enable frame accept error
 //                                & ~FEC_FECTFCR_TXW  // enable transmit wait condition
@@ -427,30 +467,6 @@ int fec_open(struct net_device *dev)
 		| FEC_EIR_RL
 		| FEC_EIR_HBERR | FEC_EIR_XFUN | FEC_EIR_XFERR | FEC_EIR_RFERR;
 
-/*
-* JKM --
-*
-* There's a problem with the PHY initialization code --
-* for now assume uboot left it in an initialized state.
-*/
-// printk(KERN_INFO "FECOPEN: starting auto-negotiation\n");
-// #ifdef   CONFIG_FEC_548x_AUTO_NEGOTIATION
-#if 0
-	if ((error_code = init_transceiver(base_addr, &fduplex)) != 0) {
-		printk("Initialization of the transceiver is failed\n");
-		goto ERRORS;
-	}
-#else
-	fduplex = 1;
-#endif
-// printk(KERN_INFO "FECOPEN: done with auto-negotiation\n");
-
-	if (fduplex)
-		/* Enable the full duplex mode */
-		FEC_TCR(base_addr) = FEC_TCR_FDEN | FEC_TCR_HBC;
-	else
-		/* Disable reception of frames while transmitting */
-		FEC_RCR(base_addr) |= FEC_RCR_DRT;
 
 	/* Enable MIB */
 	FEC_MIBC(base_addr) = FEC_MIBC_ENABLE;
@@ -460,23 +476,11 @@ int fec_open(struct net_device *dev)
 
 	fec_reset_mii(base_addr);
 
-	/* Initialize tx descriptors and start DMA for the transmission */
-	for (i = 0; i < FEC_TX_BUF_NUMBER; i++) {
-		void *ptr = kmalloc(FEC_MAXBUF_SIZE + 15, GFP_DMA | GFP_ATOMIC);
-		fp->fecpriv_txbuf_na[i] = ptr;
-		fp->fecpriv_txbuf[i] = (void *)(((unsigned long)ptr + 0xful) & ~0xful);
-		fp->fecpriv_txdesc[i].statCtrl = MCD_FEC_INTERRUPT;
-		fp->fecpriv_txdesc[i].dataPointer = (unsigned int)virt_to_phys(fp->fecpriv_txbuf[i]);
-		fp->fecpriv_txfree[i] = 1;
-	}
+	fec_init_tx_ring(fp);
 
-	fp->fecpriv_txdesc[i - 1].statCtrl |= MCD_FEC_WRAP;
-
-	fp->fecpriv_current_tx = fp->fecpriv_next_tx = 0;
-
-	MCD_startDma(fp->fecpriv_fec_tx_channel, (char *)fp->fecpriv_txdesc, 0,
+	MCD_startDma(fp->tx_dma.channel, (char *)fp->tx_dma.desc, 0,
 			(unsigned char *)&(FEC_FECTFDR(base_addr)), 0,
-			FEC_MAX_FRM_SIZE, 0, fp->fecpriv_initiator_tx,
+			FEC_MAX_FRM_SIZE, 0, fp->tx_dma.initiator,
 			FEC_TX_DMA_PRI, MCD_FECTX_DMA | MCD_INTERRUPT,
 			MCD_NO_CSUM | MCD_NO_BYTE_SWAP);
 
@@ -484,31 +488,24 @@ int fec_open(struct net_device *dev)
 	for (i = 0; i < FEC_RX_BUF_NUMBER; i++) {
 		fp->askb_rx[i] = alloc_skb(FEC_MAXBUF_SIZE + 16, GFP_DMA);
 		if (!fp->askb_rx[i]) {
-			fp->fecpriv_rxdesc[i].dataPointer = 0;
-			fp->fecpriv_rxdesc[i].statCtrl = 0;
-			fp->fecpriv_rxdesc[i].length = 0;
+			fp->rx_dma.desc[i].dataPointer = 0;
+			fp->rx_dma.desc[i].statCtrl = 0;
+			fp->rx_dma.desc[i].length = 0;
 		} else {
 			skb_reserve(fp->askb_rx[i], 16);
 			fp->askb_rx[i]->dev = dev;
-			fp->fecpriv_rxdesc[i].dataPointer = (unsigned int)virt_to_phys(fp->askb_rx[i]->tail);
-			fp->fecpriv_rxdesc[i].statCtrl = MCD_FEC_BUF_READY | MCD_FEC_INTERRUPT;
-			fp->fecpriv_rxdesc[i].length = FEC_MAXBUF_SIZE;
+			fp->rx_dma.desc[i].dataPointer = (unsigned int)virt_to_phys(fp->askb_rx[i]->tail);
+			fp->rx_dma.desc[i].statCtrl = MCD_FEC_BUF_READY | MCD_FEC_INTERRUPT;
+			fp->rx_dma.desc[i].length = FEC_MAXBUF_SIZE;
 		}
 	}
 
-	fp->fecpriv_rxdesc[i - 1].statCtrl |= MCD_FEC_WRAP;
-	fp->fecpriv_current_rx = 0;
+	fp->rx_dma.desc[i - 1].statCtrl |= MCD_FEC_WRAP;
+	fp->current_rx = 0;
 
-	/* flush entire data cache before restarting the DMA */
-	/* FU: not needed, DMA is not running yet, cache is writethrough and we are just writing */
-#if 0
-/* JKM -- currently running with cache turned off */
-	DcacheFlushInvalidate();
-#endif
-
-	MCD_startDma(fp->fecpriv_fec_rx_channel, (char *)fp->fecpriv_rxdesc, 0,
+	MCD_startDma(fp->rx_dma.channel, (char *)fp->rx_dma.desc, 0,
 			(unsigned char *)&(FEC_FECRFDR(base_addr)), 0,
-			FEC_MAX_FRM_SIZE, 0, fp->fecpriv_initiator_rx,
+			FEC_MAX_FRM_SIZE, 0, fp->rx_dma.initiator,
 			FEC_RX_DMA_PRI, MCD_FECRX_DMA | MCD_INTERRUPT,
 			MCD_NO_CSUM | MCD_NO_BYTE_SWAP);
 
@@ -516,19 +513,18 @@ int fec_open(struct net_device *dev)
 	return 0;
 
 ERRORS:
-	/* napi_disable(&fp->napi); */
 
 	/* Remove the channels and return with the error code */
-	if (fp->fecpriv_fec_rx_channel != -1) {
-		dma_disconnect(fp->fecpriv_fec_rx_channel);
-		dma_remove_channel_by_number(fp->fecpriv_fec_rx_channel);
-		fp->fecpriv_fec_rx_channel = -1;
+	if (fp->rx_dma.channel != -1) {
+		dma_disconnect(fp->rx_dma.channel);
+		dma_remove_channel_by_number(fp->rx_dma.channel);
+		fp->rx_dma.channel = -1;
 	}
 
-	if (fp->fecpriv_fec_tx_channel != -1) {
-		dma_disconnect(fp->fecpriv_fec_tx_channel);
-		dma_remove_channel_by_number(fp->fecpriv_fec_tx_channel);
-		fp->fecpriv_fec_tx_channel = -1;
+	if (fp->tx_dma.channel != -1) {
+		dma_disconnect(fp->tx_dma.channel);
+		dma_remove_channel_by_number(fp->tx_dma.channel);
+		fp->tx_dma.channel = -1;
 	}
 
 	return error_code;
@@ -566,28 +562,22 @@ int fec_close(struct net_device *dev)
 
 	/* Reset the DMA channels */
 	spin_lock_irq(&fp->tx_lock);
-	MCD_killDma(fp->fecpriv_fec_tx_channel);
+	MCD_killDma(fp->tx_dma.channel);
 
-	dma_remove_channel_by_number(fp->fecpriv_fec_tx_channel);
-	dma_disconnect(fp->fecpriv_fec_tx_channel);
-	fp->fecpriv_fec_tx_channel = -1;
+	dma_remove_channel_by_number(fp->tx_dma.channel);
+	dma_disconnect(fp->tx_dma.channel);
+	fp->tx_dma.channel = -1;
 
-	for (i = 0; i < FEC_TX_BUF_NUMBER; i++) {
-		if (fp->fecpriv_txbuf_na[i]) {
-			kfree(fp->fecpriv_txbuf_na[i]);
-			fp->fecpriv_txbuf_na[i] = NULL;
-			fp->fecpriv_txbuf[i] = NULL;
-			fp->fecpriv_txfree[i] = 0;
-		}
-	}
+	fec_clear_tx_ring(fp);
+
 	spin_unlock_irq(&fp->tx_lock);
 
 	spin_lock_irq(&fp->rx_lock);
-	MCD_killDma(fp->fecpriv_fec_rx_channel);
+	MCD_killDma(fp->rx_dma.channel);
 
-	dma_remove_channel_by_number(fp->fecpriv_fec_rx_channel);
-	dma_disconnect(fp->fecpriv_fec_rx_channel);
-	fp->fecpriv_fec_rx_channel = -1;
+	dma_remove_channel_by_number(fp->rx_dma.channel);
+	dma_disconnect(fp->rx_dma.channel);
+	fp->rx_dma.channel = -1;
 
 	for (i = 0; i < FEC_RX_BUF_NUMBER; i++) {
 		if (fp->askb_rx[i]) {
@@ -624,38 +614,38 @@ struct net_device_stats *fec_get_stat(struct net_device *dev)
 	unsigned long base_addr = dev->base_addr;
 
 	/* Receive the statistical information */
-	fp->fecpriv_stat.rx_packets = FECSTAT_RMON_R_PACKETS(base_addr);
-	fp->fecpriv_stat.tx_packets = FECSTAT_RMON_T_PACKETS(base_addr);
-	fp->fecpriv_stat.rx_bytes = FECSTAT_RMON_R_OCTETS(base_addr);
-	fp->fecpriv_stat.tx_bytes = FECSTAT_RMON_T_OCTETS(base_addr);
+	fp->stat.rx_packets = FECSTAT_RMON_R_PACKETS(base_addr);
+	fp->stat.tx_packets = FECSTAT_RMON_T_PACKETS(base_addr);
+	fp->stat.rx_bytes = FECSTAT_RMON_R_OCTETS(base_addr);
+	fp->stat.tx_bytes = FECSTAT_RMON_T_OCTETS(base_addr);
 
-	fp->fecpriv_stat.multicast = FECSTAT_RMON_R_MC_PKT(base_addr);
-	fp->fecpriv_stat.collisions = FECSTAT_RMON_T_COL(base_addr);
+	fp->stat.multicast = FECSTAT_RMON_R_MC_PKT(base_addr);
+	fp->stat.collisions = FECSTAT_RMON_T_COL(base_addr);
 
-	fp->fecpriv_stat.rx_length_errors =
+	fp->stat.rx_length_errors =
 		FECSTAT_RMON_R_UNDERSIZE(base_addr) +
 		FECSTAT_RMON_R_OVERSIZE(base_addr) +
 		FECSTAT_RMON_R_FRAG(base_addr) + FECSTAT_RMON_R_JAB(base_addr);
-	fp->fecpriv_stat.rx_crc_errors = FECSTAT_IEEE_R_CRC(base_addr);
-	fp->fecpriv_stat.rx_frame_errors = FECSTAT_IEEE_R_ALIGN(base_addr);
-	fp->fecpriv_stat.rx_over_errors = FECSTAT_IEEE_R_MACERR(base_addr);
+	fp->stat.rx_crc_errors = FECSTAT_IEEE_R_CRC(base_addr);
+	fp->stat.rx_frame_errors = FECSTAT_IEEE_R_ALIGN(base_addr);
+	fp->stat.rx_over_errors = FECSTAT_IEEE_R_MACERR(base_addr);
 
-	fp->fecpriv_stat.tx_carrier_errors = FECSTAT_IEEE_T_CSERR(base_addr);
-	fp->fecpriv_stat.tx_fifo_errors = FECSTAT_IEEE_T_MACERR(base_addr);
-	fp->fecpriv_stat.tx_window_errors = FECSTAT_IEEE_T_LCOL(base_addr);
+	fp->stat.tx_carrier_errors = FECSTAT_IEEE_T_CSERR(base_addr);
+	fp->stat.tx_fifo_errors = FECSTAT_IEEE_T_MACERR(base_addr);
+	fp->stat.tx_window_errors = FECSTAT_IEEE_T_LCOL(base_addr);
 
 	/* I hope that one frame doesn't have more than one error */
-	fp->fecpriv_stat.rx_errors = fp->fecpriv_stat.rx_length_errors +
-		fp->fecpriv_stat.rx_crc_errors +
-		fp->fecpriv_stat.rx_frame_errors +
-		fp->fecpriv_stat.rx_over_errors + fp->fecpriv_stat.rx_dropped;
-	fp->fecpriv_stat.tx_errors = fp->fecpriv_stat.tx_carrier_errors +
-		fp->fecpriv_stat.tx_fifo_errors +
-		fp->fecpriv_stat.tx_window_errors +
-		fp->fecpriv_stat.tx_aborted_errors +
-		fp->fecpriv_stat.tx_heartbeat_errors + fp->fecpriv_stat.tx_dropped;
+	fp->stat.rx_errors = fp->stat.rx_length_errors +
+		fp->stat.rx_crc_errors +
+		fp->stat.rx_frame_errors +
+		fp->stat.rx_over_errors + fp->stat.rx_dropped;
+	fp->stat.tx_errors = fp->stat.tx_carrier_errors +
+		fp->stat.tx_fifo_errors +
+		fp->stat.tx_window_errors +
+		fp->stat.tx_aborted_errors +
+		fp->stat.tx_heartbeat_errors + fp->stat.tx_dropped;
 
-	return &fp->fecpriv_stat;
+	return &fp->stat;
 }
 
 /************************************************************************
@@ -732,14 +722,14 @@ int fec_set_mac_address(struct net_device *dev, void *p)
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 
 	/* Copy a new address to the private structure */
-	memcpy(fp->fecpriv_mac_addr, addr->sa_data, 6);
+	memcpy(fp->mac_addr, addr->sa_data, 6);
 
 	/* Set the address to the registers */
-	FEC_PALR(base_addr) = (fp->fecpriv_mac_addr[0] << 24) |
-		(fp->fecpriv_mac_addr[1] << 16) |
-		(fp->fecpriv_mac_addr[2] << 8) | fp->fecpriv_mac_addr[3];
-	FEC_PAUR(base_addr) = (fp->fecpriv_mac_addr[4] << 24) |
-		(fp->fecpriv_mac_addr[5] << 16) | 0x8808;
+	FEC_PALR(base_addr) = (fp->mac_addr[0] << 24) |
+		(fp->mac_addr[1] << 16) |
+		(fp->mac_addr[2] << 8) | fp->mac_addr[3];
+	FEC_PAUR(base_addr) = (fp->mac_addr[4] << 24) |
+		(fp->mac_addr[5] << 16) | 0x8808;
 
 	return 0;
 }
@@ -755,35 +745,39 @@ int fec_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct fec_priv *fp = netdev_priv(dev);
 	void *data;
-	int offset;
-        unsigned long flags;
+	unsigned long flags;
 
 	/* flush data cache before initializing the descriptor and starting DMA */
 	/* FU: not needed, packet was just written to DRAM and cache is writethrough */
-#if 0
-/* JKM -- currently running with cache turned off */
-	DcacheFlushInvalidateCacheBlock((void *)virt_to_phys(data_aligned),
-					skb->len);
-#endif
 
 	spin_lock_irqsave(&fp->tx_lock , flags);
 
-	/* Initialize the descriptor */
-	data = fp->fecpriv_txbuf[fp->fecpriv_next_tx];
-	memcpy(data, skb->data, skb->len);
+	if (fp->txfree[fp->next_tx]==FEC_BUFFER_FREE) {
+		/* We have a free buffer... fill it! */
 
-	fp->fecpriv_txfree[fp->fecpriv_next_tx] = 0;
-	fp->fecpriv_txdesc[fp->fecpriv_next_tx].length = skb->len;
-	fp->fecpriv_txdesc[fp->fecpriv_next_tx].statCtrl |= (MCD_FEC_END_FRAME | MCD_FEC_BUF_READY);
-	fp->fecpriv_next_tx = (fp->fecpriv_next_tx + 1) & FEC_TX_INDEX_MASK;
+		/* Initialize the descriptor */
+		data = fp->txbuf[fp->next_tx];
+		memcpy(data, skb->data, skb->len);
 
-	if (fp->fecpriv_txbuf[fp->fecpriv_current_tx] && fp->fecpriv_current_tx == fp->fecpriv_next_tx)
-		netif_stop_queue(dev);
+		fp->txfree[fp->next_tx] = FEC_BUFFER_BUSY;
+		fp->tx_dma.desc[fp->next_tx].length = skb->len;
+		fp->tx_dma.desc[fp->next_tx].statCtrl |= (MCD_FEC_END_FRAME | MCD_FEC_BUF_READY);
+		fp->next_tx = (fp->next_tx + 1) & FEC_TX_INDEX_MASK;
+
+	} else {
+		/* We haven't free buff... drop the packet! sorry! */
+		printk(KERN_WARNING "FEC%d: TX full... dropping packet!\n", fp->index);
+		fp->stat.tx_dropped++;
+		if (!netif_queue_stopped(dev)) {
+			printk(KERN_WARNING "FEC%d: Stopping...\n", fp->index);
+			netif_stop_queue(dev);
+		}
+	}
 
 	spin_unlock_irqrestore(&fp->tx_lock , flags);
 
 	/* Tell the DMA to continue the transmission */
-	MCD_continDma(fp->fecpriv_fec_tx_channel);
+	MCD_continDma(fp->tx_dma.channel);
 
 	dev_kfree_skb(skb);
 
@@ -802,39 +796,31 @@ int fec_tx(struct sk_buff *skb, struct net_device *dev)
 *************************************************************************/
 void fec_tx_timeout(struct net_device *dev)
 {
-	int i;
 	struct fec_priv *fp = netdev_priv(dev);
 	unsigned long base_addr = (unsigned long)dev->base_addr;
-        unsigned long flags;
+       unsigned long flags;
+
+	printk(KERN_WARNING "FEC: TX Timeout\n");
+	MCD_killDma(fp->tx_dma.channel);
 
 	spin_lock_irqsave(&fp->tx_lock , flags);
 
-	MCD_killDma(fp->fecpriv_fec_tx_channel);
-	for (i = 0; i < FEC_TX_BUF_NUMBER; i++) {
-		fp->fecpriv_txfree[i] = 1;
-		fp->fecpriv_txdesc[i].statCtrl = MCD_FEC_INTERRUPT;
-	}
-	fp->fecpriv_txdesc[i - 1].statCtrl |= MCD_FEC_WRAP;
+	fec_reset_tx_ring(fp);
 
-	fp->fecpriv_current_tx = fp->fecpriv_next_tx = 0;
+	spin_unlock_irqrestore(&fp->tx_lock , flags);
 
 	/* Reset FIFOs */
 	FEC_FECFRST(base_addr) |= FEC_SW_RST;
 	FEC_FECFRST(base_addr) &= ~FEC_SW_RST;
 
-	/* Reset and disable FEC */
-//      FEC_ECR(base_addr) = FEC_ECR_RESET;
-
 	/* Enable FEC */
 	FEC_ECR(base_addr) |= FEC_ECR_ETHEREN;
 
-	MCD_startDma(fp->fecpriv_fec_tx_channel, (char *)fp->fecpriv_txdesc, 0,
+	MCD_startDma(fp->tx_dma.channel, (char *)fp->tx_dma.desc, 0,
 			(unsigned char *)&(FEC_FECTFDR(base_addr)), 0,
-			FEC_MAX_FRM_SIZE, 0, fp->fecpriv_initiator_tx,
+			FEC_MAX_FRM_SIZE, 0, fp->tx_dma.initiator,
 			FEC_TX_DMA_PRI, MCD_FECTX_DMA | MCD_INTERRUPT,
 			MCD_NO_CSUM | MCD_NO_BYTE_SWAP);
-
-	spin_unlock_irqrestore(&fp->tx_lock , flags);
 
 	netif_wake_queue(dev);
 }
@@ -940,7 +926,7 @@ void fec_adjust_link(struct net_device *dev)
 	if (!dev||!dev->priv||!priv->phy)
 		return;
 
-	spin_lock_irqsave(&priv->fecpriv_lock, flags);
+	spin_lock_irqsave(&priv->mii_lock, flags);
 	if (phydev->link) {
 
 		/* Now we make sure that we can be in full duplex mode.
@@ -988,7 +974,7 @@ void fec_adjust_link(struct net_device *dev)
 	if (new_state)
 		phy_print_status(phydev);
 
-	spin_unlock_irqrestore(&priv->fecpriv_lock, flags);
+	spin_unlock_irqrestore(&priv->mii_lock, flags);
 }
 
 
@@ -999,20 +985,23 @@ void fec_adjust_link(struct net_device *dev)
 *              transmission from the buffer to the FEC is completed.
 *
 *************************************************************************/
-void fec_interrupt_fec_tx_handler(struct net_device *dev)
+void fec_interrupt_tx_handler(void *priv)
 {
+	struct net_device *dev = (struct net_device *)priv;
 	struct fec_priv *fp = netdev_priv(dev);
-        unsigned long flags;
+	unsigned long flags;
 
 	spin_lock_irqsave(&fp->tx_lock , flags);
 
-	fp->fecpriv_txfree[fp->fecpriv_current_tx] = 1;
-	fp->fecpriv_current_tx = (fp->fecpriv_current_tx + 1) & FEC_TX_INDEX_MASK;
+	fp->txfree[fp->current_tx] = FEC_BUFFER_FREE;
+	fp->current_tx = (fp->current_tx + 1) & FEC_TX_INDEX_MASK;
 
 	spin_unlock_irqrestore(&fp->tx_lock , flags);
 
-	if (netif_queue_stopped(dev))
+	if (netif_queue_stopped(dev)) {
+		printk(KERN_WARNING "FEC%d: resume interface...\n", fp->index);
 		netif_wake_queue(dev);
+	}
 }
 
 /************************************************************************
@@ -1022,63 +1011,62 @@ void fec_interrupt_fec_tx_handler(struct net_device *dev)
 *              reception from the FEC to the reception buffer is completed.
 *
 *************************************************************************/
-void fec_interrupt_fec_rx_handler(struct net_device *dev)
+void fec_interrupt_rx_handler(void *priv)
 {
+	struct net_device *dev = (struct net_device *)priv;
 	struct fec_priv *fp = netdev_priv(dev);
 	struct sk_buff *skb;
 	int i;
         unsigned long flags;
 
 	spin_lock_irqsave(&fp->rx_lock , flags);
-	fp->fecpriv_rxflag = 1;
+
 	// Some buffers can be missed
-	if (!(fp->fecpriv_rxdesc[fp->fecpriv_current_rx].statCtrl & MCD_FEC_END_FRAME)) {
+	if (!(fp->rx_dma.desc[fp->current_rx].statCtrl & MCD_FEC_END_FRAME)) {
 		// Find a valid index
-		for (i = 0; i < FEC_RX_BUF_NUMBER && !(fp->fecpriv_rxdesc[fp->fecpriv_current_rx]. statCtrl & MCD_FEC_END_FRAME);
-			i++, fp->fecpriv_current_rx = (fp->fecpriv_current_rx + 1) & FEC_RX_INDEX_MASK)
+		for (i = 0; i < FEC_RX_BUF_NUMBER && !(fp->rx_dma.desc[fp->current_rx]. statCtrl & MCD_FEC_END_FRAME);
+			i++, fp->current_rx = (fp->current_rx + 1) & FEC_RX_INDEX_MASK)
 			/* Nothing */;
 
 		if (i == FEC_RX_BUF_NUMBER) {
 			// There are no data to process
 			// Tell the DMA to continue the reception
-			MCD_continDma(fp->fecpriv_fec_rx_channel);
-
-			fp->fecpriv_rxflag = 0;
+			MCD_continDma(fp->rx_dma.channel);
 
 			return;
 		}
 	}
 
-	for (; fp->fecpriv_rxdesc[fp->fecpriv_current_rx].statCtrl & MCD_FEC_END_FRAME;
-		fp->fecpriv_current_rx = (fp->fecpriv_current_rx + 1) & FEC_RX_INDEX_MASK) {
-		if ((fp->fecpriv_rxdesc[fp->fecpriv_current_rx].length <= FEC_MAXBUF_SIZE) &&
-			(fp->fecpriv_rxdesc[fp->fecpriv_current_rx].length > 4)) {
+	for (; fp->rx_dma.desc[fp->current_rx].statCtrl & MCD_FEC_END_FRAME;
+		fp->current_rx = (fp->current_rx + 1) & FEC_RX_INDEX_MASK) {
+		if ((fp->rx_dma.desc[fp->current_rx].length <= FEC_MAXBUF_SIZE) &&
+			(fp->rx_dma.desc[fp->current_rx].length > 4)) {
 			/* --tym-- */
-			skb = fp->askb_rx[fp->fecpriv_current_rx];
+			skb = fp->askb_rx[fp->current_rx];
 			if (!skb)
-				fp->fecpriv_stat.rx_dropped++;
+				fp->stat.rx_dropped++;
 			else {
 				/* flush data cache before initializing the descriptor and starting DMA */
-//                  DcacheFlushInvalidateCacheBlock((void*)virt_to_phys(fp->askb_rx[fp->fecpriv_current_rx]->tail), fp->askb_rx[fp->fecpriv_current_rx]->len);
+//                  DcacheFlushInvalidateCacheBlock((void*)virt_to_phys(fp->askb_rx[fp->current_rx]->tail), fp->askb_rx[fp->current_rx]->len);
 				/* Make sure CPU is not going to read cached data instead of actual packet data */
-				cf_dcache_flush_range((unsigned)(fp->askb_rx[fp->fecpriv_current_rx]->tail),
-							(unsigned)(fp->askb_rx[fp->fecpriv_current_rx]->tail) +
-							fp->fecpriv_rxdesc[fp->fecpriv_current_rx].length);
+				cf_dcache_flush_range((unsigned)(fp->askb_rx[fp->current_rx]->tail),
+							(unsigned)(fp->askb_rx[fp->current_rx]->tail) +
+							fp->rx_dma.desc[fp->current_rx].length);
 
-				skb_put(skb, fp->fecpriv_rxdesc[fp->fecpriv_current_rx].length - 4);
+				skb_put(skb, fp->rx_dma.desc[fp->current_rx].length - 4);
 				skb->protocol = eth_type_trans(skb, dev);
 				netif_rx(skb);
 			}
-			fp->fecpriv_rxdesc[fp->fecpriv_current_rx].statCtrl &= ~MCD_FEC_END_FRAME;
+			fp->rx_dma.desc[fp->current_rx].statCtrl &= ~MCD_FEC_END_FRAME;
 			/* allocate new skbuff */
-			fp->askb_rx[fp->fecpriv_current_rx] = alloc_skb(FEC_MAXBUF_SIZE + 16, /*GFP_ATOMIC | */ GFP_DMA);
-			if (!fp->askb_rx[fp->fecpriv_current_rx]) {
-				fp->fecpriv_rxdesc[fp->fecpriv_current_rx].dataPointer = 0;
-				fp->fecpriv_rxdesc[fp->fecpriv_current_rx].length = 0;
-				fp->fecpriv_stat.rx_dropped++;
+			fp->askb_rx[fp->current_rx] = alloc_skb(FEC_MAXBUF_SIZE + 16, /*GFP_ATOMIC | */ GFP_DMA);
+			if (!fp->askb_rx[fp->current_rx]) {
+				fp->rx_dma.desc[fp->current_rx].dataPointer = 0;
+				fp->rx_dma.desc[fp->current_rx].length = 0;
+				fp->stat.rx_dropped++;
 			} else {
-				skb_reserve(fp->askb_rx[fp->fecpriv_current_rx], 16);
-				fp->askb_rx[fp->fecpriv_current_rx]->dev = dev;
+				skb_reserve(fp->askb_rx[fp->current_rx], 16);
+				fp->askb_rx[fp->current_rx]->dev = dev;
 
 				/* flush data cache before initializing the descriptor and starting DMA */
 				/* FU: not needed, cache is writethrough and we are just writing */
@@ -1088,27 +1076,25 @@ void fec_interrupt_fec_rx_handler(struct net_device *dev)
 								virt_to_phys
 								(fp->
 								askb_rx[fp->
-									fecpriv_current_rx]->
+									current_rx]->
 								tail),
 								FEC_MAXBUF_SIZE);
 #endif
 
-				fp->fecpriv_rxdesc[fp->fecpriv_current_rx].dataPointer = (unsigned int)virt_to_phys(fp->askb_rx[fp->fecpriv_current_rx]->tail);
-				fp->fecpriv_rxdesc[fp->fecpriv_current_rx].length = FEC_MAXBUF_SIZE;
-				fp->fecpriv_rxdesc[fp->fecpriv_current_rx].statCtrl |= MCD_FEC_BUF_READY;
+				fp->rx_dma.desc[fp->current_rx].dataPointer = (unsigned int)virt_to_phys(fp->askb_rx[fp->current_rx]->tail);
+				fp->rx_dma.desc[fp->current_rx].length = FEC_MAXBUF_SIZE;
+				fp->rx_dma.desc[fp->current_rx].statCtrl |= MCD_FEC_BUF_READY;
 
 				// flush data cache before initializing the descriptor and starting DMA
 				/* FU: not needed, cache is writethrough and we are just writing */
-//                  DcacheFlushInvalidateCacheBlock((void*)virt_to_phys(fp->askb_rx[fp->fecpriv_current_rx]->tail), FEC_MAXBUF_SIZE);
+//                  DcacheFlushInvalidateCacheBlock((void*)virt_to_phys(fp->askb_rx[fp->current_rx]->tail), FEC_MAXBUF_SIZE);
 			}
 		}
 	}
 	spin_unlock_irqrestore(&fp->rx_lock , flags);
 
 	/* Tell the DMA to continue the reception */
-	MCD_continDma(fp->fecpriv_fec_rx_channel);
-
-	fp->fecpriv_rxflag = 0;
+	MCD_continDma(fp->rx_dma.channel);
 }
 
 /************************************************************************
@@ -1128,26 +1114,24 @@ irqreturn_t fec_interrupt_handler(int irq, void *dev_id)
 	/* Read and clear the events */
 	events = FEC_EIR(base_addr) & FEC_EIMR(base_addr);
 
-#ifdef FU_TEST
-	printk(KERN_INFO "FEC: events=%08x\n", events);
-#endif
+	printk(KERN_INFO "FEC: Error on FEC%d events=%08x\n", fp->index, events);
+
 	if (events & FEC_EIR_HBERR) {
-		fp->fecpriv_stat.tx_heartbeat_errors++;
+		fp->stat.tx_heartbeat_errors++;
 		FEC_EIR(base_addr) = FEC_EIR_HBERR;
 		dev->stats.tx_dropped++;
 	}
 
 	/* receive/transmit FIFO error */
 	if (((events & FEC_EIR_RFERR) != 0) || ((events & FEC_EIR_XFERR) != 0)) {
-#ifdef FU_TEST
-		printk(KERN_INFO "FEC: FECRFSR=%08x FECTFSR=%08x\n",
+		printk(KERN_INFO "FEC: FEC%d FFECRFSR=%08x FECTFSR=%08x\n", fp->index,
 			FEC_FECRFSR(base_addr), FEC_FECTFSR(base_addr));
-#endif
-		/* kill DMA receive channel */
-		MCD_killDma(fp->fecpriv_fec_rx_channel);
+
+			/* kill DMA receive channel */
+		MCD_killDma(fp->rx_dma.channel);
 
 		/* kill running transmission by DMA */
-		MCD_killDma(fp->fecpriv_fec_tx_channel);
+		MCD_killDma(fp->tx_dma.channel);
 
 		/* Reset FIFOs */
 		FEC_FECFRST(base_addr) |= FEC_SW_RST;
@@ -1168,16 +1152,16 @@ irqreturn_t fec_interrupt_handler(int irq, void *dev_id)
 		netif_stop_queue(dev);
 
 		/* execute reinitialization as tasklet */
-		tasklet_schedule(&fp->fecpriv_tasklet_reinit);
+		tasklet_schedule(&fp->tasklet_reinit);
 
-		fp->fecpriv_stat.rx_dropped++;
+		fp->stat.rx_dropped++;
 	}
 
 	/* transmit FIFO underrun */
 	if ((events & FEC_EIR_XFUN) != 0) {
 		/* reset XFUN event */
 		FEC_EIR(base_addr) = FEC_EIR_XFUN;
-		fp->fecpriv_stat.tx_aborted_errors++;
+		fp->stat.tx_aborted_errors++;
 		dev->stats.tx_dropped++;
 	}
 
@@ -1185,7 +1169,7 @@ irqreturn_t fec_interrupt_handler(int irq, void *dev_id)
 	if ((events & FEC_EIR_LC) != 0) {
 		/* reset LC event */
 		FEC_EIR(base_addr) = FEC_EIR_LC;
-		fp->fecpriv_stat.tx_aborted_errors++;
+		fp->stat.tx_aborted_errors++;
 		dev->stats.tx_window_errors++;
 	}
 
@@ -1193,7 +1177,7 @@ irqreturn_t fec_interrupt_handler(int irq, void *dev_id)
 	if ((events & FEC_EIR_RL) != 0) {
 		/* reset RL event */
 		FEC_EIR(base_addr) = FEC_EIR_RL;
-		fp->fecpriv_stat.tx_aborted_errors++;
+		fp->stat.tx_aborted_errors++;
 		dev->stats.tx_aborted_errors++;
 	}
 
@@ -1221,33 +1205,33 @@ void fec_interrupt_fec_reinit(unsigned long data)
 				alloc_skb(FEC_MAXBUF_SIZE + 16,
 					GFP_ATOMIC | GFP_DMA);
 			if (!fp->askb_rx[i]) {
-				fp->fecpriv_rxdesc[i].dataPointer = 0;
-				fp->fecpriv_rxdesc[i].statCtrl = 0;
-				fp->fecpriv_rxdesc[i].length = 0;
+				fp->rx_dma.desc[i].dataPointer = 0;
+				fp->rx_dma.desc[i].statCtrl = 0;
+				fp->rx_dma.desc[i].length = 0;
 				continue;
 			}
 			fp->askb_rx[i]->dev = dev;
 			skb_reserve(fp->askb_rx[i], 16);
 		}
-		fp->fecpriv_rxdesc[i].dataPointer =
+		fp->rx_dma.desc[i].dataPointer =
 			(unsigned int)virt_to_phys(fp->askb_rx[i]->tail);
-		fp->fecpriv_rxdesc[i].statCtrl =
+		fp->rx_dma.desc[i].statCtrl =
 			MCD_FEC_BUF_READY | MCD_FEC_INTERRUPT;
-		fp->fecpriv_rxdesc[i].length = FEC_MAXBUF_SIZE;
+		fp->rx_dma.desc[i].length = FEC_MAXBUF_SIZE;
 	}
 
-	fp->fecpriv_rxdesc[i - 1].statCtrl |= MCD_FEC_WRAP;
-	fp->fecpriv_current_rx = 0;
+	fp->rx_dma.desc[i - 1].statCtrl |= MCD_FEC_WRAP;
+	fp->current_rx = 0;
 
 	/* restart frame transmission */
 	for (i = 0; i < FEC_TX_BUF_NUMBER; i++) {
-		if (fp->fecpriv_txfree[i]) {
-			fp->fecpriv_stat.tx_dropped++;
+		if (fp->txfree[i]) {
+			fp->stat.tx_dropped++;
 		}
-		fp->fecpriv_txdesc[i].statCtrl = MCD_FEC_INTERRUPT;
+		fp->tx_dma.desc[i].statCtrl = MCD_FEC_INTERRUPT;
 	}
-	fp->fecpriv_txdesc[i - 1].statCtrl |= MCD_FEC_WRAP;
-	fp->fecpriv_current_tx = fp->fecpriv_next_tx = 0;
+	fp->tx_dma.desc[i - 1].statCtrl |= MCD_FEC_WRAP;
+	fp->current_tx = fp->next_tx = 0;
 
 	/* flush entire data cache before restarting the DMA */
 	/* FU: not needed, DMA is not running, cache is writethrough and we are just writing */
@@ -1257,16 +1241,16 @@ void fec_interrupt_fec_reinit(unsigned long data)
 #endif
 
 	/* restart DMA from beginning */
-	MCD_startDma(fp->fecpriv_fec_rx_channel,
-			(char *)fp->fecpriv_rxdesc, 0,
+	MCD_startDma(fp->rx_dma.channel,
+			(char *)fp->rx_dma.desc, 0,
 			(unsigned char *)&(FEC_FECRFDR(base_addr)), 0,
-			FEC_MAX_FRM_SIZE, 0, fp->fecpriv_initiator_rx,
+			FEC_MAX_FRM_SIZE, 0, fp->rx_dma.initiator,
 			FEC_RX_DMA_PRI, MCD_FECRX_DMA | MCD_INTERRUPT,
 			MCD_NO_CSUM | MCD_NO_BYTE_SWAP);
 
-	MCD_startDma(fp->fecpriv_fec_tx_channel, (char *)fp->fecpriv_txdesc, 0,
+	MCD_startDma(fp->tx_dma.channel, (char *)fp->tx_dma.desc, 0,
 			(unsigned char *)&(FEC_FECTFDR(base_addr)), 0,
-			FEC_MAX_FRM_SIZE, 0, fp->fecpriv_initiator_tx,
+			FEC_MAX_FRM_SIZE, 0, fp->tx_dma.initiator,
 			FEC_TX_DMA_PRI, MCD_FECTX_DMA | MCD_INTERRUPT,
 			MCD_NO_CSUM | MCD_NO_BYTE_SWAP);
 
@@ -1281,59 +1265,6 @@ void fec_interrupt_fec_reinit(unsigned long data)
 
 	netif_wake_queue(dev);
 }
-
-/************************************************************************
-* NAME: fec_interrupt_tx_handler_fec0
-*
-* DESCRIPTION: This is the DMA interrupt handler using  for FEC0
-*              transmission.
-*
-*************************************************************************/
-void fec_interrupt_fec_tx_handler_fec0(void)
-{
-	fec_interrupt_fec_tx_handler(fec_dev[0]);
-}
-
-#ifdef   FEC_2
-/************************************************************************
-* NAME: fec_interrupt_tx_handler_fec1
-*
-* DESCRIPTION: This is the DMA interrupt handler using for the FEC1
-*              transmission.
-*
-*************************************************************************/
-void fec_interrupt_fec_tx_handler_fec1(void)
-{
-	fec_interrupt_fec_tx_handler(fec_dev[1]);
-}
-#endif
-
-/************************************************************************
-* NAME: fec_interrupt_rx_handler_fec0
-*
-* DESCRIPTION: This is the DMA interrupt handler using for the FEC0
-*              reception.
-*
-*************************************************************************/
-void fec_interrupt_fec_rx_handler_fec0(void)
-{
-	fec_interrupt_fec_rx_handler(fec_dev[0]);
-}
-
-#ifdef   FEC_2
-/************************************************************************
-* NAME: fec_interrupt_rx_handler_fec1
-*
-* DESCRIPTION: This is the DMA interrupt handler using for the FEC1
-*              reception.
-*
-*************************************************************************/
-void fec_interrupt_fec_rx_handler_fec1(void)
-{
-	fec_interrupt_fec_rx_handler(fec_dev[1]);
-}
-
-#endif
 
 #ifndef MODULE
 /************************************************************************

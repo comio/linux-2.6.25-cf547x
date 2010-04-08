@@ -112,7 +112,7 @@
 #define   FEC_FECTFCR_OF					(0x00080000)	// transmit FIFO overflow
 
 #define   FEC_FECTFAR_ALARM                 (0x100)
-#define   FEC_FECTFWR_XWMRK                 (0x00000000)
+#define   FEC_FECTFWR_XWMRK                 (0x00000004)
 
 #define   FEC_FECTFSR_MSK                   (0xC0B00000)
 #define   FEC_FECTFSR_TXW                   (0x40000000)	// transmit wait condition
@@ -175,6 +175,9 @@
 
 #define   FEC_SW_RST                        0x2000000
 #define   FEC_RST_CTL                       0x1000000
+
+#define   FEC_BUFFER_BUSY					(0)
+#define   FEC_BUFFER_FREE					!(FEC_BUFFER_BUSY)
 
 struct fec_rmon {
 	u32 rmon_t_drop;		/* 0x200 Count of frames not counted correctly */
@@ -285,51 +288,52 @@ struct fecregs {
 	struct fec_rmon rmon; /* 0x200 RMON values */
 };
 
+/* fec DMA struct */
+struct dma_info {
+	MCD_bufDescFec *desc;				/* descriptor ptrs */
+	unsigned int initiator;				/* dma initiator */
+	int channel;						/* dma channel */
+	int requestor;						/* dma requestor */
+	void *interrupt_handler;			/* dma handler */
+};
+
 /* fec private */
 struct fec_priv {
-	int index;									/* fec hw number */
-	volatile struct fecregs *regs;				/* FEC Registers */
-	struct net_device *netdev;					/* owning net device */
+	int index;							/* fec hw number */
+	volatile struct fecregs *regs;		/* FEC Registers */
+	struct net_device *netdev;			/* owning net device */
+
 	/* TX */
-	volatile unsigned int fecpriv_current_tx;	/* current tx desc index */
-	volatile unsigned int fecpriv_next_tx;		/* next tx desc index */
-	int  fecpriv_txfree[FEC_TX_BUF_NUMBER];		/* tx buffer available (1) */
-	void *fecpriv_txbuf[FEC_TX_BUF_NUMBER];		/* tx buffer ptrs */
-	void *fecpriv_txbuf_na[FEC_TX_BUF_NUMBER];	/* tx buffer ptrs (not aligned)*/
-	MCD_bufDescFec *fecpriv_txdesc;				/* tx descriptor ptrs */
+	unsigned int current_tx;			/* current tx desc index */
+	unsigned int next_tx;				/* next tx desc index */
+	int  txfree[FEC_TX_BUF_NUMBER];		/* tx buffer available (1) */
+	void *txbuf[FEC_TX_BUF_NUMBER];		/* tx buffer ptrs */
+	void *txbuf_na[FEC_TX_BUF_NUMBER];	/* tx buffer ptrs (not aligned)*/
+	spinlock_t tx_lock;					/* protection spinlock on tx structures */
+
 	/* RX */
-	unsigned int fecpriv_current_rx;			/* current rx desc index */
+	unsigned int current_rx;			/* current rx desc index */
 	struct sk_buff *askb_rx[FEC_RX_BUF_NUMBER];	/* rx SKB ptrs */
-	MCD_bufDescFec *fecpriv_rxdesc;				/* rx descriptor ptrs */
-#ifdef CONFIG_FEC_NAPI
-	/* NAPI */
-	struct napi_struct napi;
-#endif
+	spinlock_t rx_lock;					/* protection spinlock on rx structures */
 
 	/* DMA */
-	unsigned int fecpriv_initiator_rx;			/* rx dma initiator */
-	unsigned int fecpriv_initiator_tx;			/* tx dma initiator */
-	int fecpriv_fec_rx_channel;					/* rx dma channel */
-	int fecpriv_fec_tx_channel;					/* tx dma channel */
-	int fecpriv_rx_requestor;					/* rx dma requestor */
-	int fecpriv_tx_requestor;					/* tx dma requestor */
-	void *fecpriv_interrupt_fec_rx_handler;		/* dma rx handler */
-	void *fecpriv_interrupt_fec_tx_handler;		/* dma tx handler */
-	unsigned char *fecpriv_mac_addr;	/* private fec mac addr */
-	struct net_device_stats fecpriv_stat;	/* stats ptr */
-	spinlock_t rx_lock;
-	spinlock_t tx_lock;
-	int fecpriv_rxflag;
-	/* MDIO and PHY **/
+	struct dma_info tx_dma;				/* TX DMA */
+	struct dma_info rx_dma;				/* RX DMA */
+
+	unsigned char *mac_addr;			/* private fec mac addr */
+	struct net_device_stats stat;		/* stats ptr */
+
+	/* MDIO and PHY */
 	struct mii_bus *mdio;
 	struct phy_device *phy;
 	int oldduplex;
 	int oldspeed;
 	int oldlink;
-	struct tasklet_struct fecpriv_tasklet_reinit;
+	spinlock_t mii_lock;				/* protection spinlock on mii structures */
+
+	struct tasklet_struct tasklet_reinit;
 };
 
-#define fecpriv_lock rx_lock
 
 #define VERSION "0.20"
 #define FEC_DRV_NAME "FEC"
