@@ -64,9 +64,15 @@ static char used_channel[16] = {
 	-1, -1, -1, -1, -1, -1, -1, -1
 };
 
-unsigned int connected_channel[16] = {
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0
+
+dma_callback_t connected_channel[16] = {
+	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+};
+
+void *connected_channel_priv[16] = {
+	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
 };
 
 /**
@@ -399,10 +405,11 @@ int dma_get_channel(int requestor)
  *
  * Returns 0 if success or -1 if invalid channel
  */
-int dma_connect(int channel, int address)
+int dma_connect(int channel, dma_callback_t cb, void *priv)
 {
 	if ((channel < 16) && (channel >= 0)) {
-		connected_channel[channel] = address;
+		connected_channel[channel] = cb;
+		connected_channel_priv[channel] = priv;
 		return 0;
 	}
 	return -1;
@@ -417,7 +424,8 @@ int dma_connect(int channel, int address)
 int dma_disconnect(int channel)
 {
 	if ((channel < 16) && (channel >= 0)) {
-		connected_channel[channel] = 0;
+		connected_channel[channel] = NULL;
+		connected_channel_priv[channel] = NULL;
 		return 0;
 	}
 	return -1;
@@ -459,8 +467,8 @@ irqreturn_t dma_interrupt_handler(int irq, void *dev_id)
 
 	for (i = 0; i < 16; ++i, interrupts >>= 1) {
 		if (interrupts & 0x1)
-			if (connected_channel[i] != 0)
-				((void (*)(void)) (connected_channel[i])) ();
+			if (connected_channel[i])
+				connected_channel[i](connected_channel_priv[i]);
 	}
 
 	return IRQ_HANDLED;

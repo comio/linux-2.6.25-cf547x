@@ -65,6 +65,8 @@ struct scatterlist;
 #define DMA_FEC_RX(x)   ((x == 0) ? DMA_FEC0_RX : DMA_FEC1_RX)
 #define DMA_FEC_TX(x)   ((x == 0) ? DMA_FEC0_TX : DMA_FEC1_TX)
 
+typedef void (*dma_callback_t)(void *);
+
 int  dma_set_initiator(int);
 unsigned int dma_get_initiator(int);
 void dma_remove_initiator(int);
@@ -72,7 +74,7 @@ int dma_set_channel(int);
 int dma_get_channel(int);
 void dma_remove_channel(int);
 int dma_set_channel_fec(int requestor);
-int dma_connect(int channel, int address);
+int dma_connect(int channel, dma_callback_t cb, void *priv);
 int dma_disconnect(int channel);
 void dma_remove_channel_by_number(int channel);
 int dma_init(void);
