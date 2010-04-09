@@ -23,6 +23,68 @@
 #define MCF_CSMRn(x)    MCF_REG32(0x000504+(x*0xC))
 #define MCF_CSCRn(x)    MCF_REG32(0x000508+(x*0xC))
 
+
+#define MMAP_XARB	((unsigned int)MCF_MBAR + 0x00000240)
+
+
+#define XARB_CFG			MCF_REG32(0x000240)
+#define XARB_VER			MCF_REG32(0x000244)
+#define XARB_SR				MCF_REG32(0x000248)
+#define XARB_IMR			MCF_REG32(0x00024c)
+#define XARB_ADRCAP			MCF_REG32(0x000250)
+#define XARB_SIGCAP			MCF_REG32(0x000254)
+#define XARB_ADRTO			MCF_REG32(0x000258)
+#define XARB_DATTO 			MCF_REG32(0x00025c)
+#define XARB_BUSTO			MCF_REG32(0x000260)
+#define XARB_PRIEN			MCF_REG32(0x000264)
+#define XARB_PRI			MCF_REG32(0x000268)
+
+/* Bit definitions and macros for XARB_CFG */
+#define XARB_CFG_AT			(0x00000002)
+#define XARB_CFG_DT			(0x00000004)
+#define XARB_CFG_BA			(0x00000008)
+#define XARB_CFG_PM(x)		(((x)&0x00000003)<<5)
+#define XARB_CFG_SP(x)		(((x)&0x00000007)<<8)
+#define XARB_CFG_PLDIS		(0x80000000)
+
+/* Bit definitions and macros for XARB_SR */
+#define XARB_SR_AT			(0x00000001)
+#define XARB_SR_DT			(0x00000002)
+#define XARB_SR_BA			(0x00000004)
+#define XARB_SR_TTM			(0x00000008)
+#define XARB_SR_ECW			(0x00000010)
+#define XARB_SR_TTR			(0x00000020)
+#define XARB_SR_TTA			(0x00000040)
+#define XARB_SR_MM			(0x00000080)
+#define XARB_SR_SEA			(0x00000100)
+
+/* Bit definitions and macros for XARB_IMR */
+#define XARB_IMR_ATE			(0x00000001)
+#define XARB_IMR_DTE			(0x00000002)
+#define XARB_IMR_BAE			(0x00000004)
+#define XARB_IMR_TTME			(0x00000008)
+#define XARB_IMR_ECWE			(0x00000010)
+#define XARB_IMR_TTRE			(0x00000020)
+#define XARB_IMR_TTAE			(0x00000040)
+#define XARB_IMR_MME			(0x00000080)
+#define XARB_IMR_SEAE			(0x00000100)
+
+/* Bit definitions and macros for XARB_SIGCAP */
+#define XARB_SIGCAP_TT(x)		((x)&0x0000001F)
+#define XARB_SIGCAP_TBST		(0x00000020)
+#define XARB_SIGCAP_TSIZ(x)		(((x)&0x00000007)<<7)
+
+/* Bit definitions and macros for XARB_PRIEN */
+#define XARB_PRIEN_M0			(0x00000001)
+#define XARB_PRIEN_M2			(0x00000004)
+#define XARB_PRIEN_M3			(0x00000008)
+
+/* Bit definitions and macros for XARB_PRI */
+#define XARB_PRI_M0P(x)			(((x)&0x00000007)<<0)
+#define XARB_PRI_M2P(x)			(((x)&0x00000007)<<8)
+#define XARB_PRI_M3P(x)			(((x)&0x00000007)<<12)
+
+
 /*
  *      Interrupt Controller Registers
  */

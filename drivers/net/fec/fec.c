@@ -68,7 +68,6 @@ static void fec_interrupt_tx_handler(void *priv);
 static void fec_interrupt_rx_handler(void *priv);
 static irqreturn_t fec_interrupt_handler(int irq, void *dev_id);
 static void fec_interrupt_fec_reinit(unsigned long data);
-static int  fec_poll(struct napi_struct *napi, int budget);
 
 /* default fec0 address */
 unsigned char fec_mac_addr_fec0[6] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x50 };
@@ -126,8 +125,8 @@ static void fec_clear_tx_ring(struct fec_priv *fp)
 			fp->txbuf_na[i] = NULL;
 		}
 		fp->txbuf[i] = NULL;
-		fp->txfree[i] = FEC_BUFFER_BUSY;
 	}
+	fp->txfree = 0;
 }
 
 static void fec_reset_tx_ring(struct fec_priv *fp)
@@ -135,12 +134,13 @@ static void fec_reset_tx_ring(struct fec_priv *fp)
 	int i;
 
 	for (i = 0; i < FEC_TX_BUF_NUMBER; i++) {
-		fp->txfree[i] = FEC_BUFFER_FREE;
 		fp->tx_dma.desc[i].statCtrl = MCD_FEC_INTERRUPT;
 	}
 	fp->tx_dma.desc[i - 1].statCtrl |= MCD_FEC_WRAP;
 	fp->current_tx = fp->next_tx = 0;
+	fp->txfree = FEC_TX_BUF_NUMBER;
 }
+
 /*
 * Initialize a FEC device
 */
@@ -255,8 +255,8 @@ int fec_enet_init(struct net_device *dev)
 	for (i = 0; i < FEC_TX_BUF_NUMBER; i++) {
 		fp->txbuf_na[i] = NULL;
 		fp->txbuf[i] = NULL;
-		fp->txfree[i] = 0;
 	}
+	fp->txfree = 0;
 
 	ether_setup(dev);
 
@@ -280,7 +280,6 @@ int fec_enet_init(struct net_device *dev)
 	/* Initialize spinlocks */
 	spin_lock_init(&fp->rx_lock);
 	spin_lock_init(&fp->tx_lock);
-	spin_lock_init(&fp->mii_lock);
 
 	// Initialize FEC/I2C/IRQ Pin Assignment Register
 	FEC_GPIO_PAR_FECI2CIRQ &= 0xF;
@@ -301,6 +300,16 @@ int __init fec_init(void)
 	DECLARE_MAC_BUF(mac);
 
 	printk(KERN_INFO "FEC ENET (DMA) Version %s\n", VERSION);
+
+	XARB_ADRTO = 0x2000;
+	XARB_DATTO = 0x2500;
+	XARB_BUSTO = 0x3000;
+
+	XARB_CFG = XARB_CFG_AT | XARB_CFG_DT;
+
+	/* Master Priority Enable */
+	XARB_PRIEN = 0xff;
+	XARB_PRI = 0;
 
 	for (i = 0; i < FEC_MAX_PORTS; i++) {
 		dev = alloc_etherdev(sizeof(struct fec_priv));
@@ -752,14 +761,14 @@ int fec_tx(struct sk_buff *skb, struct net_device *dev)
 
 	spin_lock_irqsave(&fp->tx_lock , flags);
 
-	if (fp->txfree[fp->next_tx]==FEC_BUFFER_FREE) {
+	if (fp->txfree > 0) {
 		/* We have a free buffer... fill it! */
 
 		/* Initialize the descriptor */
 		data = fp->txbuf[fp->next_tx];
 		memcpy(data, skb->data, skb->len);
 
-		fp->txfree[fp->next_tx] = FEC_BUFFER_BUSY;
+		fp->txfree--;
 		fp->tx_dma.desc[fp->next_tx].length = skb->len;
 		fp->tx_dma.desc[fp->next_tx].statCtrl |= (MCD_FEC_END_FRAME | MCD_FEC_BUF_READY);
 		fp->next_tx = (fp->next_tx + 1) & FEC_TX_INDEX_MASK;
@@ -926,7 +935,7 @@ void fec_adjust_link(struct net_device *dev)
 	if (!dev||!dev->priv||!priv->phy)
 		return;
 
-	spin_lock_irqsave(&priv->mii_lock, flags);
+	spin_lock_irqsave(&priv->tx_lock, flags);
 	if (phydev->link) {
 
 		/* Now we make sure that we can be in full duplex mode.
@@ -974,7 +983,7 @@ void fec_adjust_link(struct net_device *dev)
 	if (new_state)
 		phy_print_status(phydev);
 
-	spin_unlock_irqrestore(&priv->mii_lock, flags);
+	spin_unlock_irqrestore(&priv->tx_lock, flags);
 }
 
 
@@ -993,7 +1002,7 @@ void fec_interrupt_tx_handler(void *priv)
 
 	spin_lock_irqsave(&fp->tx_lock , flags);
 
-	fp->txfree[fp->current_tx] = FEC_BUFFER_FREE;
+	fp->txfree++;
 	fp->current_tx = (fp->current_tx + 1) & FEC_TX_INDEX_MASK;
 
 	spin_unlock_irqrestore(&fp->tx_lock , flags);
@@ -1114,7 +1123,7 @@ irqreturn_t fec_interrupt_handler(int irq, void *dev_id)
 	/* Read and clear the events */
 	events = FEC_EIR(base_addr) & FEC_EIMR(base_addr);
 
-	printk(KERN_INFO "FEC: Error on FEC%d events=%08x\n", fp->index, events);
+	printk(KERN_INFO "FEC: Error on FEC%d events=%08lx\n", fp->index, events);
 
 	if (events & FEC_EIR_HBERR) {
 		fp->stat.tx_heartbeat_errors++;
@@ -1224,14 +1233,9 @@ void fec_interrupt_fec_reinit(unsigned long data)
 	fp->current_rx = 0;
 
 	/* restart frame transmission */
-	for (i = 0; i < FEC_TX_BUF_NUMBER; i++) {
-		if (fp->txfree[i]) {
-			fp->stat.tx_dropped++;
-		}
-		fp->tx_dma.desc[i].statCtrl = MCD_FEC_INTERRUPT;
-	}
-	fp->tx_dma.desc[i - 1].statCtrl |= MCD_FEC_WRAP;
-	fp->current_tx = fp->next_tx = 0;
+	fp->stat.tx_dropped += fp->txfree;
+
+	fec_reset_tx_ring(fp);
 
 	/* flush entire data cache before restarting the DMA */
 	/* FU: not needed, DMA is not running, cache is writethrough and we are just writing */

@@ -306,7 +306,7 @@ struct fec_priv {
 	/* TX */
 	unsigned int current_tx;			/* current tx desc index */
 	unsigned int next_tx;				/* next tx desc index */
-	int  txfree[FEC_TX_BUF_NUMBER];		/* tx buffer available (1) */
+	int  txfree;						/* tx buffers available (1) */
 	void *txbuf[FEC_TX_BUF_NUMBER];		/* tx buffer ptrs */
 	void *txbuf_na[FEC_TX_BUF_NUMBER];	/* tx buffer ptrs (not aligned)*/
 	spinlock_t tx_lock;					/* protection spinlock on tx structures */
@@ -329,7 +329,6 @@ struct fec_priv {
 	int oldduplex;
 	int oldspeed;
 	int oldlink;
-	spinlock_t mii_lock;				/* protection spinlock on mii structures */
 
 	struct tasklet_struct tasklet_reinit;
 };
