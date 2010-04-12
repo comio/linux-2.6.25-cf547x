@@ -179,6 +179,8 @@
 #define   FEC_BUFFER_BUSY					(0)
 #define   FEC_BUFFER_FREE					!(FEC_BUFFER_BUSY)
 
+#define   FEC_RX_BUFFER_ALIGN				(16ul)
+
 struct fec_rmon {
 	u32 rmon_t_drop;		/* 0x200 Count of frames not counted correctly */
 	u32 rmon_t_packets;		/* 0x204 RMON Tx packet count */
