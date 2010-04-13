@@ -220,6 +220,27 @@ static inline void fec_init_rx_ring(struct fec_priv *fp)
 	fp->current_rx = 0;
 }
 
+static inline void fec_clear_rx_ring(struct fec_priv *fp)
+{
+	int i;
+
+	for (i = 0; i < FEC_RX_BUF_NUMBER; i++) {
+		if (fp->askb_rx[i]) {
+			kfree_skb(fp->askb_rx[i]);
+			fp->askb_rx[i] = NULL;
+		}
+		fp->rx_dma.desc[i - 1].statCtrl = 0;
+		fec_zero_rxdma(&fp->rx_dma.desc[i]);
+	}
+	fp->current_rx = 0;
+}
+
+static inline void fec_reset_rx_ring(struct fec_priv *fp)
+{
+	fec_clear_rx_ring(fp);
+	fec_init_rx_ring(fp);
+}
+
 /*
 * Initialize a FEC device
 */
@@ -643,12 +664,8 @@ int fec_close(struct net_device *dev)
 	dma_disconnect(fp->rx_dma.channel);
 	fp->rx_dma.channel = -1;
 
-	for (i = 0; i < FEC_RX_BUF_NUMBER; i++) {
-		if (fp->askb_rx[i]) {
-			kfree_skb(fp->askb_rx[i]);
-			fp->askb_rx[i] = NULL;
-		}
-	}
+	fec_clear_rx_ring(fp);
+
 	spin_unlock_irq(&fp->rx_lock);
 
 	return 0;
@@ -1248,7 +1265,7 @@ void fec_interrupt_fec_reinit(unsigned long data)
 	unsigned long base_addr = (unsigned long)dev->base_addr;
 
 	/* Initialize reception descriptors and start DMA for the reception */
-	fec_init_rx_ring(fp);
+	fec_reset_rx_ring(fp);
 
 	/* restart frame transmission */
 	fp->stat.tx_dropped += fp->txfree;
