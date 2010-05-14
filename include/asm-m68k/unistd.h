@@ -326,8 +326,8 @@
 #define __NR_timerfd_settime	321
 #define __NR_timerfd_gettime	322
 
-#define __NR_read_tp		333
-#define __NR_write_tp		334
+#define __NR_get_thread_area	333
+#define __NR_set_thread_area	334
 #define __NR_atomic_cmpxchg_32	335
 #define __NR_atomic_barrier	336
 

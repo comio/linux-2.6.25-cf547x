@@ -7,10 +7,10 @@ typedef greg_t gregset_t[NGREG];
 
 typedef struct fpregset {
 	int f_fpcntl[3];
-#ifdef __mcoldfire__
-	int f_fpregs[8][2];
-#else
+#ifndef __mcoldfire__
 	int f_fpregs[8*3];
+#else
+	int f_fpregs[8][2];
 #endif
 } fpregset_t;
 

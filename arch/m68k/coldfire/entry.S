@@ -732,8 +732,8 @@ sys_call_table:
 	.long sys_ni_syscall		/* 330 */
 	.long sys_ni_syscall
 	.long sys_ni_syscall
-	.long sys_read_tp
-	.long sys_write_tp
+	.long sys_get_thread_area
+	.long sys_set_thread_area
 	.long sys_atomic_cmpxchg_32	/* 335 */
 	.long sys_atomic_barrier
 

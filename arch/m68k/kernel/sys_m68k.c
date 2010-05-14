@@ -702,14 +702,12 @@ int kernel_execve(const char *filename, char *const argv[], char *const envp[])
 	return __res;
 }
 
-asmlinkage unsigned long
-sys_read_tp(void)
+asmlinkage unsigned long sys_get_thread_area(void)
 {
 	return current_thread_info()->tp_value;
 }
 
-asmlinkage int
-sys_write_tp(unsigned long tp)
+asmlinkage int sys_set_thread_area(unsigned long tp)
 {
 	current_thread_info()->tp_value = tp;
 	return 0;
@@ -719,12 +717,14 @@ sys_write_tp(unsigned long tp)
    D1 (newval).  */
 asmlinkage int
 sys_atomic_cmpxchg_32(unsigned long newval, int oldval, int d3, int d4, int d5,
-		unsigned long __user *mem)
+		      unsigned long __user * mem)
 {
 	/* This was borrowed from ARM's implementation.  */
 	for (;;) {
 		struct mm_struct *mm = current->mm;
-		pgd_t *pgd; pmd_t *pmd; pte_t *pte;
+		pgd_t *pgd;
+		pmd_t *pmd;
+		pte_t *pte;
 		spinlock_t *ptl;
 		unsigned long mem_value;
 
@@ -736,7 +736,8 @@ sys_atomic_cmpxchg_32(unsigned long newval, int oldval, int d3, int d4, int d5,
 		if (!pmd_present(*pmd))
 			goto bad_access;
 		pte = pte_offset_map_lock(mm, pmd, (unsigned long)mem, &ptl);
-		if (!pte_present(*pte) || !pte_dirty(*pte)) {
+		if (!pte_present(*pte) || !pte_dirty(*pte)
+		    || !pte_write(*pte)) {
 			pte_unmap_unlock(pte, ptl);
 			goto bad_access;
 		}
@@ -749,7 +750,7 @@ sys_atomic_cmpxchg_32(unsigned long newval, int oldval, int d3, int d4, int d5,
 		up_read(&mm->mmap_sem);
 		return mem_value;
 
-bad_access:
+	      bad_access:
 		up_read(&mm->mmap_sem);
 		/* This is not necessarily a bad access, we can get here if
 		   a memory we're trying to write to should be copied-on-write.
@@ -771,8 +772,7 @@ bad_access:
 	}
 }
 
-asmlinkage int
-sys_atomic_barrier(void)
+asmlinkage int sys_atomic_barrier(void)
 {
 	/* no code needed for uniprocs */
 	return 0;
