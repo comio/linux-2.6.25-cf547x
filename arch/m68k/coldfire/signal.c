@@ -608,18 +608,7 @@ static inline int rt_setup_ucontext(struct ucontext __user *uc,
 
 static inline void push_cache(unsigned long vaddr , unsigned len)
 {
-  pgd_t *dir;
-  pmd_t *pmdp;
-  pte_t *ptep;
-  unsigned long paddr;
-
-  // Translate vaddr into phys address
-  dir = pgd_offset(current->mm , vaddr);
-  pmdp = pmd_offset(dir , vaddr);
-  ptep = pte_offset_map(pmdp, vaddr);
-  paddr = (pte_val(*ptep) & PAGE_MASK) | (vaddr & ~PAGE_MASK);
-
-  cf_cache_flush(paddr , len);
+  cf_cache_flush(__pa(vaddr) , len);
 }
 
 static inline void __user *
